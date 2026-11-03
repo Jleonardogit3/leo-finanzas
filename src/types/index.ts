@@ -264,4 +264,12 @@ export interface UnifiedActivityItem {
   isReverted?: boolean;
 }
 
+export interface AppUser {
+  uid: string;
+  username: string;
+  displayName: string;
+  email?: string;
+  loginAt: string;
+}
+
 

@@ -14,7 +14,8 @@ import {
   LossRecovery,
   SyncResult,
   AuditLogEntry,
-  UnifiedActivityItem
+  UnifiedActivityItem,
+  AppUser
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { RatesService } from '../services/ratesService';
@@ -33,7 +34,9 @@ interface AppContextType {
 
   // Connectivity & Auth
   isOnline: boolean;
-  user: User | null;
+  user: AppUser | null;
+  login: (username: string, password: string) => { success: boolean; message?: string };
+  logout: () => void;
 
   // Data states
   accounts: Account[];
@@ -152,7 +155,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Network status
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(() => {
+    try {
+      const cached = localStorage.getItem('finanzas_vzla_auth_session');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.warn('Error reading cached auth session', e);
+    }
+    return null;
+  });
+
+  const login = (usernameInput: string, passwordInput: string): { success: boolean; message?: string } => {
+    const cleanUser = usernameInput.trim();
+    const cleanPass = passwordInput.trim();
+
+    if (cleanUser === 'Jleonardo' && cleanPass === 'Jleofinanzas') {
+      const appUser: AppUser = {
+        uid: 'jleonardo-admin',
+        username: 'Jleonardo',
+        displayName: 'Jleonardo',
+        email: 'jleonardo@finanzas.vzla',
+        loginAt: new Date().toISOString()
+      };
+      localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+      setUser(appUser);
+      return { success: true };
+    }
+
+    return { success: false, message: 'Usuario o contraseña incorrectos. Verifica tus credenciales.' };
+  };
+
+  const logout = () => {
+    localStorage.removeItem('finanzas_vzla_auth_session');
+    setUser(null);
+  };
 
   // Core Data
   const [accounts, setAccounts] = useState<Account[]>(() => StorageService.getAccounts());
@@ -240,8 +278,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Auth state listener & Cloud Firestore synchronization
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
+        const fbUser: AppUser = {
+          uid: currentUser.uid,
+          username: currentUser.displayName || 'Usuario',
+          displayName: currentUser.displayName || 'Usuario',
+          email: currentUser.email || undefined,
+          loginAt: new Date().toISOString()
+        };
+        setUser(fbUser);
+        localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(fbUser));
         const synced = await StorageService.syncWithFirestore(currentUser.uid);
         if (synced) {
           setAccounts(StorageService.getAccounts());
@@ -252,6 +298,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setDebts(StorageService.getDebts());
           setLosses(StorageService.getLosses());
           setAuditLogs(StorageService.getAuditLogs());
+        }
+      } else {
+        const localSession = localStorage.getItem('finanzas_vzla_auth_session');
+        if (localSession) {
+          try {
+            const parsed = JSON.parse(localSession);
+            if (parsed && parsed.uid) {
+              StorageService.syncWithFirestore(parsed.uid).then(synced => {
+                if (synced) {
+                  setAccounts(StorageService.getAccounts());
+                  setTransactions(StorageService.getTransactions());
+                  setCategories(StorageService.getCategories());
+                  setPortfolioAssets(StorageService.getPortfolioAssets());
+                  setGoals(StorageService.getGoals());
+                  setDebts(StorageService.getDebts());
+                  setLosses(StorageService.getLosses());
+                  setAuditLogs(StorageService.getAuditLogs());
+                }
+              });
+            }
+          } catch {}
         }
       }
     });
@@ -740,6 +807,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTimeFilter,
         isOnline,
         user,
+        login,
+        logout,
         accounts,
         transactions,
         categories,

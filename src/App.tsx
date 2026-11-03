@@ -14,6 +14,7 @@ import { PortfolioView } from './components/portfolio/PortfolioView';
 import { ProjectionsView } from './components/projections/ProjectionsView';
 import { AiAdvisorView } from './components/advisor/AiAdvisorView';
 import { HistoryView } from './components/history/HistoryView';
+import { LoginView } from './components/auth/LoginView';
 
 // Modals
 import { RatesModal } from './components/dashboard/RatesModal';
@@ -32,6 +33,7 @@ import { SyncModal } from './components/layout/SyncModal';
 
 export const App: React.FC = () => {
   const { 
+    user,
     currentView,
     isWideLayout,
     isPwaModalOpen,
@@ -40,6 +42,10 @@ export const App: React.FC = () => {
     isInstallable,
     isInstalled
   } = useApp();
+
+  if (!user) {
+    return <LoginView />;
+  }
 
   const renderActiveView = () => {
     switch (currentView) {
