@@ -19,12 +19,12 @@ import {
 
 // Environment variables configuration with fallbacks
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyKeyForLocalOfflinePwaDevelopment",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "finanzas-vzla-pwa.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "finanzas-vzla-pwa",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "finanzas-vzla-pwa.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1234567890:web:abcdef"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDiaeCpePtOXdng_vffdwfZvixyVtJdkYM",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "finanzas-vzla-app.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "finanzas-vzla-app",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "finanzas-vzla-app.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "85090607903",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:85090607903:web:96ba1c715a7efd892ac62a"
 };
 
 // Initialize Firebase App
