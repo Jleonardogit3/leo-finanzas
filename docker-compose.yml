@@ -1,0 +1,60 @@
+services:
+  finanzas-vzla-pwa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-AIzaSyDummyKeyForLocalOfflinePwaDevelopment}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-finanzas-vzla-pwa.firebaseapp.com}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-finanzas-vzla-pwa}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-finanzas-vzla-pwa.appspot.com}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-1234567890}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-1:1234567890:web:abcdef}
+        VITE_GEMINI_API_KEY: ${VITE_GEMINI_API_KEY:-}
+    container_name: finanzas-vzla-app
+    image: finanzas-vzla-pwa:latest
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8085}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      - NODE_ENV=production
+      - STATIC_CONTAINER_IP=172.28.0.10
+      - HOST_WIFI_IP=${HOST_WIFI_IP:-192.168.1.121}
+      - HOST_ETH_IP=${HOST_ETH_IP:-172.16.10.23}
+      - APP_PORT=${APP_PORT:-8085}
+      - TUNNEL_URL=${TUNNEL_URL:-}
+    volumes:
+      - ./data:/app/data
+      - ./server:/app/server
+      - ./dist:/usr/share/nginx/html
+    networks:
+      finanzas-lan:
+        ipv4_address: 172.28.0.10
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: finanzas-vzla-tunnel
+    restart: unless-stopped
+    command: tunnel --url http://172.28.0.10:80 --logfile /app/data/tunnel.log
+    depends_on:
+      - finanzas-vzla-pwa
+    volumes:
+      - ./data:/app/data
+    networks:
+      finanzas-lan:
+        ipv4_address: 172.28.0.20
+
+networks:
+  finanzas-lan:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1

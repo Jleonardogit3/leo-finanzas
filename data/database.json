@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "serverCreatedAt": "2026-11-02T14:54:19.941Z",
+  "lastUpdated": "2026-11-03T14:39:32.121Z",
+  "accounts": [
+    {
+      "id": "acc-1",
+      "name": "Banco de Venezuela",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 500,
+      "currentBalance": 186.87,
+      "digitalUsdBalance": 0.18,
+      "initialDigitalUsdBalance": 0.18,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#B91C1C",
+      "icon": "Building2",
+      "bankCode": "0102",
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    },
+    {
+      "name": "Banco Provincial (BBVA)",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 10419.34,
+      "digitalUsdBalance": 861.32,
+      "initialDigitalUsdBalance": 866,
+      "physicalUsdBalance": 0.3,
+      "initialPhysicalUsdBalance": 0.3,
+      "color": "#1D4ED8",
+      "icon": "Landmark",
+      "bankCode": "0108",
+      "id": "acc-2",
+      "currentBalance": 10419.34,
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    },
+    {
+      "name": "Banco Mercantil",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 1000,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#0284C7",
+      "icon": "Building",
+      "bankCode": "0105",
+      "id": "acc-3",
+      "currentBalance": 5774.4,
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    },
+    {
+      "name": "Banco Nacional de Crédito (BNC)",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 0,
+      "digitalUsdBalance": 2.63,
+      "initialDigitalUsdBalance": 2.63,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#047857",
+      "icon": "CreditCard",
+      "bankCode": "0191",
+      "id": "acc-4",
+      "currentBalance": 0,
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    },
+    {
+      "name": "Banco del Tesoro",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 1000,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#B45309",
+      "icon": "ShieldCheck",
+      "bankCode": "0163",
+      "id": "acc-5",
+      "currentBalance": 106.83,
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    },
+    {
+      "name": "Binance ($)",
+      "type": "wallet_crypto",
+      "currency": "USD",
+      "initialBalance": 1636,
+      "color": "#F59E0B",
+      "icon": "Coins",
+      "id": "acc-6",
+      "currentBalance": 1632.64,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    },
+    {
+      "name": "Efectivo ($)",
+      "type": "cash_usd",
+      "currency": "USD",
+      "initialBalance": 1200,
+      "color": "#10B981",
+      "icon": "Banknote",
+      "id": "acc-7",
+      "currentBalance": 1219,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T20:32:45.579Z"
+    }
+  ],
+  "transactions": [],
+  "debts": [
+    {
+      "id": "debt-1793653134206-rhenl",
+      "debtType": "payable",
+      "debtorName": "Abuela Marcela",
+      "concept": "Compra dolares",
+      "originalAmount": 60,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1000.3438,
+      "remainingAmount": 60,
+      "status": "pending",
+      "dueDate": "2026-10-30",
+      "createdAt": "2026-11-02T20:58:54.206Z",
+      "updatedAt": "2026-11-02T20:58:54.207Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793651628751-d6396",
+      "debtType": "receivable",
+      "debtorName": "Rancer",
+      "concept": "Prestamo emergencia",
+      "originalAmount": 40,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1000.3438,
+      "remainingAmount": 40,
+      "status": "pending",
+      "dueDate": "2026-10-30",
+      "createdAt": "2026-11-02T20:33:48.751Z",
+      "updatedAt": "2026-11-02T20:33:48.752Z",
+      "payments": []
+    }
+  ],
+  "losses": [],
+  "categories": [
+    {
+      "id": "cat-comida",
+      "name": "Comida",
+      "icon": "Utensils",
+      "color": "#F97316",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-casa",
+      "name": "Casa",
+      "icon": "Home",
+      "color": "#3B82F6",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-personal",
+      "name": "Personal",
+      "icon": "User",
+      "color": "#EC4899",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-ropa",
+      "name": "Ropa",
+      "icon": "Shirt",
+      "color": "#8B5CF6",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-entretenimiento",
+      "name": "Entretenimiento",
+      "icon": "Gamepad2",
+      "color": "#06B6D4",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-trabajo",
+      "name": "Trabajo",
+      "icon": "Briefcase",
+      "color": "#64748B",
+      "type": "both",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-sueldo",
+      "name": "Sueldo de nómina",
+      "icon": "WalletCards",
+      "color": "#10B981",
+      "type": "income",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-local",
+      "name": "Local",
+      "icon": "Store",
+      "color": "#EAB308",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    }
+  ],
+  "portfolioAssets": [],
+  "goals": [
+    {
+      "id": "goal-emergency-fund",
+      "name": "Fondo de Emergencia en USDT",
+      "targetAmountUsd": 1000,
+      "currentSavedUsd": 250,
+      "deadline": "2027-05-01",
+      "category": "Seguridad",
+      "color": "#10B981",
+      "createdAt": "2026-11-02T16:20:37.960Z",
+      "updatedAt": "2026-11-02T16:20:37.960Z"
+    }
+  ],
+  "deletedItems": [
+    {
+      "id": "test-acc",
+      "type": "account",
+      "deletedAt": "2026-11-02T10:45:00Z"
+    }
+  ]
+}
