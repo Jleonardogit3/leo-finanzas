@@ -1,0 +1,179 @@
+================================================================================
+REPORTE TÉCNICO DE CAMBIOS Y GUÍA DE DESPLIEGUE CONTINUO (CI/CD)
+Proyecto: Finanzas Venezuela PWA - Control Multimoneda & Asesor IA
+Fecha de Generación: 03 de Noviembre de 2026
+Repositorio GitHub: https://github.com/Jleonardogit3/leo-finanzas.git
+================================================================================
+
+--------------------------------------------------------------------------------
+1. RESUMEN EJECUTIVO Y ESTADO GENERAL
+--------------------------------------------------------------------------------
+Este reporte documenta las modificaciones arquitectónicas, correcciones de red,
+fijación de IPs estáticas en Docker y la integración completa para despliegue
+en la nube mediante Vercel y Google Cloud Firestore.
+
+El proyecto es una Progressive Web App (PWA) Offline-First construida con:
+- Frontend: React 18, TypeScript 5.7, Vite 6, Tailwind CSS
+- PWA / Offline: Service Worker (Workbox) + Caché persistente multi-pestaña
+- Tasas de cambio: DolarApi Venezuela (BCV Oficial vs Binance USDT / Paralelo)
+- Inteligencia Artificial: Google Gemini 2.5 Flash + Motor heurístico local
+- Motor Local: Servidor nativo Node.js (syncServer.cjs) con base de datos atómica
+- Nube: Google Cloud Firestore con sincronización bidireccional Last-Write-Wins
+
+
+--------------------------------------------------------------------------------
+2. DIAGNÓSTICO Y SOLUCIÓN DEL ERROR DE SINCRONIZACIÓN DE RED
+--------------------------------------------------------------------------------
+Problema Reportado por el Usuario:
+"Estado del Servidor Central: Sin conexión al servidor local" al intentar
+sincronizar los datos desde el teléfono móvil.
+
+Causas Raíz Identificadas:
+1. URL Temporal de Cloudflare Expirada:
+   Al usar el modo de prueba anónimo (trycloudflare.com), Cloudflare genera un
+   subdominio aleatorio temporal nuevo cada vez que se reinicia el contenedor
+   o la PC. El subdominio de ayer (indicating-big-apollo-cup.trycloudflare.com)
+   expiró, dejando huérfana la PWA instalada en el teléfono.
+2. Asignación Dinámica de IPs en Docker:
+   Docker asignaba por defecto direcciones IP dinámicas a los contenedores
+   mediante DHCP interno (172.21.0.X), variando entre reinicios.
+3. Falta de Selector de Servidor en la Interfaz Móvil:
+   El modal de sincronización no permitía cambiar con facilidad hacia la
+   IP local de la PC (192.168.1.121:8085) en caso de caída del túnel.
+
+Soluciones Técnicas Aplicadas:
+a) IPs Estáticas en Docker (docker-compose.yml):
+   - Se configuró la red bridge fija dedicada "finanzas-lan" (subred 172.28.0.0/16,
+     gateway 172.28.0.1).
+   - Contenedor App (finanzas-vzla-app): IP Estática Fija 172.28.0.10.
+   - Contenedor Túnel (finanzas-vzla-tunnel): IP Estática Fija 172.28.0.20.
+   - Se agregaron volúmenes dinámicos para ./server y ./dist.
+
+b) Detección Dinámica de Túnel y Estado (server/syncServer.cjs):
+   - El túnel escribe su registro en /app/data/tunnel.log.
+   - La función getActiveTunnelUrl() analiza el log en tiempo real y extrae la
+     URL de trycloudflare activa.
+   - El endpoint /api/status responde con:
+     * tunnelUrl: Enlace activo del túnel.
+     * localWifiIp: 192.168.1.121 (IP estática de la máquina anfitriona).
+     * localEthIp: 172.16.10.23.
+     * containerIp: 172.28.0.10.
+     * appPort: 8085.
+
+c) Selector de Servidor y Conmutación en 1 Clic (SyncModal.tsx):
+   - Alerta inteligente de desconexión con opciones de recuperación directa.
+   - Botón: "Usar Wi-Fi Local (192.168.1.121:8085)" para sincronizar en casa
+     directamente por la red Wi-Fi sin depender de internet ni de Cloudflare.
+   - Botón: "Usar Túnel Global" con código QR generado en tiempo real.
+   - Formulario desplegable para ingresar o modificar manualmente la IP/URL
+     del servidor, persistida en localStorage.
+
+
+--------------------------------------------------------------------------------
+3. INTEGRACIÓN CON VERCEL Y GOOGLE CLOUD FIRESTORE
+--------------------------------------------------------------------------------
+Para permitir que la aplicación esté disponible en internet las 24 horas del día
+sin necesidad de dejar la computadora encendida:
+
+1. Sincronización en la Nube (src/services/storageService.ts):
+   - Se implementó el método `StorageService.syncWithFirestore(userId)` que utiliza
+     `getDocs()` para leer las colecciones en la nube: accounts, transactions,
+     categories, portfolio, goals, debts y losses.
+   - Algoritmo de resolución por fecha más reciente (Last-Write-Wins).
+   - Si la nube tiene datos, se descargan y fusionan localmente. Si la nube está
+     vacía, se suben los datos locales automáticamente como respaldo.
+
+2. Reactividad de Sesión (src/context/AppContext.tsx):
+   - Listener `onAuthStateChanged` que detecta cuando el usuario inicia sesión
+     con Google o correo electrónico y dispara la sincronización con Firestore.
+
+3. Credenciales Reales Configuradas (src/services/firebase.ts y .env.local):
+   - Proyecto Firebase: finanzas-vzla-app
+   - apiKey: AIzaSyDiaeCpePtOXdng_vffdwfZvixyVtJdkYM
+   - authDomain: finanzas-vzla-app.firebaseapp.com
+   - projectId: finanzas-vzla-app
+   - storageBucket: finanzas-vzla-app.firebasestorage.app
+   - messagingSenderId: 85090607903
+   - appId: 1:85090607903:web:96ba1c715a7efd892ac62a
+
+4. Configuración para Vercel (vercel.json):
+   - Enrutamiento Single Page Application (SPA): `/*` -> `/index.html`
+   - Encabezados de caché específicos:
+     * sw.js y manifest.webmanifest: no-cache, no-store (para actualización inmediata)
+     * /assets/*: caché inmutable de 1 año (31536000 segundos)
+
+5. Control de Versiones Git (.gitignore y commits):
+   - Repositorio Git inicializado en rama "main".
+   - Exclusión de node_modules, dist, .env y logs temporales.
+   - Remoto vinculado: https://github.com/Jleonardogit3/leo-finanzas.git
+
+
+--------------------------------------------------------------------------------
+4. GUÍA DE CI/CD: CÓMO SUBIR NUEVOS CAMBIOS A LA PÁGINA DE VERCEL
+--------------------------------------------------------------------------------
+El despliegue con Vercel está 100% automatizado mediante webhooks de GitHub.
+Cada vez que edites código en tu IDE Antigravity:
+
+Paso 1: Guarda tus cambios en el código.
+Paso 2: Abre la terminal en la raíz del proyecto y ejecuta:
+
+    git add .
+    git commit -m "feat: describe aquí lo que cambiaste"
+    git push
+
+¿Qué ocurre tras ejecutar `git push`?
+- GitHub notifica a Vercel automáticamente.
+- Vercel descarga el código y ejecuta `npm run build` en sus servidores.
+- En ~30 segundos, tu página web pública se actualiza automáticamente sin
+  interrupción de servicio.
+- El Service Worker en los teléfonos móviles descarga los nuevos archivos
+  en segundo plano.
+
+
+--------------------------------------------------------------------------------
+5. INVENTARIO DE ARCHIVOS MODIFICADOS Y CREADOS
+--------------------------------------------------------------------------------
+1. docker-compose.yml:
+   - Red 'finanzas-lan' con subred 172.28.0.0/16.
+   - IPs estáticas 172.28.0.10 (App) y 172.28.0.20 (Tunnel).
+   - Montaje de volúmenes en vivo ./server y ./dist.
+
+2. docker-entrypoint.sh:
+   - Configuración de permisos chmod 777 en /app/data al iniciar.
+
+3. server/syncServer.cjs:
+   - Función getActiveTunnelUrl() para extracción de subdominio dinámico.
+   - Exposición de IPs y estado en /api/status.
+
+4. vite.config.ts:
+   - Middleware de sincronización para desarrollo local (npm run dev).
+
+5. src/components/layout/SyncModal.tsx:
+   - Selector interactivo de servidor: Wi-Fi Local, Ethernet, Túnel y Manual.
+   - Alerta con botón de solución rápida en 1 clic.
+   - Código QR dinámico con la URL activa real.
+
+6. src/services/firebase.ts:
+   - Vinculación de credenciales reales del proyecto finanzas-vzla-app.
+
+7. src/services/storageService.ts:
+   - Método syncWithFirestore() para lectura y sincronización bidireccional.
+
+8. src/context/AppContext.tsx:
+   - Disparo automático de syncWithFirestore al autenticar usuario.
+
+9. vercel.json (Nuevo):
+   - Configuración de reescrituras SPA y encabezados de caché para PWA.
+
+10. .gitignore (Nuevo):
+    - Reglas de exclusión para Git y Vercel.
+
+11. .env.local (Nuevo):
+    - Variables de entorno locales con credenciales reales de Firebase.
+
+12. MANUAL_TECNICO_Y_ARQUITECTURA.md:
+    - Actualización de la documentación técnica con la arquitectura Vercel.
+
+================================================================================
+FIN DEL REPORTE
+================================================================================
