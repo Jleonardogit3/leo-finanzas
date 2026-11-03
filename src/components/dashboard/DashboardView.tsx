@@ -16,7 +16,8 @@ import {
   Clock,
   Coins,
   DollarSign,
-  HandCoins
+  HandCoins,
+  History
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -480,12 +481,23 @@ export const DashboardView: React.FC = () => {
               Últimos Movimientos
             </h3>
           </div>
-          <button
-            onClick={() => setCurrentView('transactions')}
-            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-          >
-            Ver todos ({transactions.length})
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setCurrentView('history')}
+              className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+              title="Ver historial general y auditoría de cambios con reversión"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>Historial & Auditoría</span>
+            </button>
+            <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+            <button
+              onClick={() => setCurrentView('transactions')}
+              className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              Ver movimientos ({transactions.length})
+            </button>
+          </div>
         </div>
 
         {recentTransactions.length === 0 ? (

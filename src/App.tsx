@@ -13,6 +13,7 @@ import { LossesView } from './components/losses/LossesView';
 import { PortfolioView } from './components/portfolio/PortfolioView';
 import { ProjectionsView } from './components/projections/ProjectionsView';
 import { AiAdvisorView } from './components/advisor/AiAdvisorView';
+import { HistoryView } from './components/history/HistoryView';
 
 // Modals
 import { RatesModal } from './components/dashboard/RatesModal';
@@ -58,6 +59,8 @@ export const App: React.FC = () => {
         return <ProjectionsView />;
       case 'advisor':
         return <AiAdvisorView />;
+      case 'history':
+        return <HistoryView />;
       default:
         return <DashboardView />;
     }

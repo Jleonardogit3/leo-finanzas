@@ -34,6 +34,7 @@ const DEFAULT_DATABASE = {
   categories: [],
   portfolioAssets: [],
   goals: [],
+  auditLogs: [],
   deletedItems: [] // { id: string, type: string, deletedAt: string }
 };
 
@@ -184,7 +185,8 @@ function performFullSync(clientPayload) {
     'losses',
     'categories',
     'portfolioAssets',
-    'goals'
+    'goals',
+    'auditLogs'
   ];
 
   const mergedDb = {
@@ -225,6 +227,7 @@ function performFullSync(clientPayload) {
       categories: mergedDb.categories,
       portfolioAssets: mergedDb.portfolioAssets,
       goals: mergedDb.goals,
+      auditLogs: mergedDb.auditLogs,
       deletedItems: mergedDb.deletedItems
     }
   };

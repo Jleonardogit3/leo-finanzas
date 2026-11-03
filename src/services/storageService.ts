@@ -20,7 +20,9 @@ import {
   DebtPayment,
   SubFundType,
   Loss,
-  LossRecovery
+  LossRecovery,
+  AuditLogEntry,
+  UnifiedActivityItem
 } from '../types';
 import { PRECONFIGURED_ACCOUNTS, PREDEFINED_CATEGORIES } from '../utils/constants';
 import { SyncService } from './syncService';
@@ -32,6 +34,7 @@ const ASSETS_STORAGE_KEY = 'finanzas_vzla_portfolio_assets';
 const GOALS_STORAGE_KEY = 'finanzas_vzla_goals';
 const DEBTS_STORAGE_KEY = 'finanzas_vzla_debts';
 const LOSSES_STORAGE_KEY = 'finanzas_vzla_losses';
+const AUDIT_LOGS_STORAGE_KEY = 'finanzas_vzla_audit_logs';
 const SETUP_COMPLETED_KEY = 'finanzas_vzla_setup_completed';
 
 export class StorageService {
@@ -143,10 +146,45 @@ export class StorageService {
     const idx = accounts.findIndex(a => a.id === account.id);
     let updated: Account[];
     if (idx >= 0) {
+      const oldAcc = accounts[idx];
+      const isBalanceChanged = 
+        oldAcc.currentBalance !== account.currentBalance ||
+        (oldAcc.digitalUsdBalance || 0) !== (account.digitalUsdBalance || 0) ||
+        (oldAcc.physicalUsdBalance || 0) !== (account.physicalUsdBalance || 0);
+
+      if (isBalanceChanged) {
+        this.saveAuditLog({
+          id: `audit-acc-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          entityType: 'account_adjustment',
+          action: 'adjustment',
+          title: `Ajuste de saldo: ${account.name}`,
+          details: `Saldo modificado de ${oldAcc.currentBalance} a ${account.currentBalance} ${account.currency}`,
+          entityId: account.id,
+          amount: Math.abs(account.currentBalance - oldAcc.currentBalance),
+          currency: account.currency,
+          snapshotBefore: oldAcc,
+          snapshotAfter: account
+        }, userId);
+      }
+
       updated = [...accounts];
       updated[idx] = { ...account, updatedAt: new Date().toISOString() };
     } else {
       updated = [...accounts, { ...account, updatedAt: new Date().toISOString() }];
+      this.saveAuditLog({
+        id: `audit-acc-new-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        entityType: 'account_adjustment',
+        action: 'create',
+        title: `Nueva cuenta creada: ${account.name}`,
+        details: `Saldo inicial: ${account.currentBalance} ${account.currency}`,
+        entityId: account.id,
+        amount: account.currentBalance,
+        currency: account.currency,
+        snapshotBefore: null,
+        snapshotAfter: account
+      }, userId);
     }
     localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updated));
 
@@ -161,6 +199,29 @@ export class StorageService {
   }
 
   static batchSaveAccounts(accountsList: Account[], userId?: string | null): void {
+    const oldAccounts = this.getAccounts();
+    const hasAnyChange = oldAccounts.some(oldAcc => {
+      const newAcc = accountsList.find(a => a.id === oldAcc.id);
+      if (!newAcc) return false;
+      return oldAcc.currentBalance !== newAcc.currentBalance ||
+        (oldAcc.digitalUsdBalance || 0) !== (newAcc.digitalUsdBalance || 0) ||
+        (oldAcc.physicalUsdBalance || 0) !== (newAcc.physicalUsdBalance || 0);
+    });
+
+    if (hasAnyChange && oldAccounts.length > 0) {
+      this.saveAuditLog({
+        id: `audit-batch-acc-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        entityType: 'account_adjustment',
+        action: 'adjustment',
+        title: 'Ajuste general de saldos de cuentas',
+        details: 'Modificación de saldos o fondos en configuración de cuentas',
+        entityId: 'all-accounts',
+        snapshotBefore: oldAccounts,
+        snapshotAfter: accountsList
+      }, userId);
+    }
+
     localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accountsList));
     if (userId) {
       accountsList.forEach(acc => {
@@ -583,6 +644,192 @@ export class StorageService {
     return { updatedDebts, updatedAccounts };
   }
 
+  static deleteDebtPayment(
+    debtId: string,
+    paymentId: string,
+    userId?: string | null
+  ): { updatedDebts: Debt[], updatedAccounts: Account[], updatedTransactions: Transaction[] } {
+    SyncService.recordDeletion(paymentId, 'debt_payment' as any);
+    const debts = this.getDebts();
+    const debtIdx = debts.findIndex(d => d.id === debtId);
+    if (debtIdx < 0) {
+      return { 
+        updatedDebts: debts, 
+        updatedAccounts: this.getAccounts(), 
+        updatedTransactions: this.getTransactions() 
+      };
+    }
+
+    const currentDebt = debts[debtIdx];
+    const payments = currentDebt.payments || [];
+    const paymentToDelete = payments.find(p => p.id === paymentId);
+    if (!paymentToDelete) {
+      return { 
+        updatedDebts: debts, 
+        updatedAccounts: this.getAccounts(), 
+        updatedTransactions: this.getTransactions() 
+      };
+    }
+
+    const newPayments = payments.filter(p => p.id !== paymentId);
+    const newRemaining = Number((currentDebt.remainingAmount + paymentToDelete.amount).toFixed(2));
+    const newStatus = newRemaining >= currentDebt.originalAmount ? 'pending' : 'partially_paid';
+
+    const updatedDebt: Debt = {
+      ...currentDebt,
+      remainingAmount: newRemaining,
+      status: newStatus,
+      payments: newPayments,
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedDebts = [...debts];
+    updatedDebts[debtIdx] = updatedDebt;
+    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updatedDebts));
+
+    let updatedAccounts = this.getAccounts();
+    let updatedTransactions = this.getTransactions();
+
+    if (paymentToDelete.receivedInAccountId) {
+      const isPayable = currentDebt.debtType === 'payable';
+      const delta = isPayable ? paymentToDelete.amount : -paymentToDelete.amount;
+
+      updatedAccounts = updatedAccounts.map(acc => {
+        if (acc.id === paymentToDelete.receivedInAccountId) {
+          let cur = acc.currentBalance;
+          let dig = acc.digitalUsdBalance ?? 0;
+          let phy = acc.physicalUsdBalance ?? 0;
+
+          if (paymentToDelete.receivedInSubFund === 'digital_usd') {
+            dig = Number((dig + delta).toFixed(2));
+          } else if (paymentToDelete.receivedInSubFund === 'physical_usd') {
+            phy = Number((phy + delta).toFixed(2));
+          } else {
+            cur = Number((cur + delta).toFixed(2));
+          }
+
+          return {
+            ...acc,
+            currentBalance: cur,
+            digitalUsdBalance: dig,
+            physicalUsdBalance: phy,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return acc;
+      });
+
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+
+      // Remove matching transaction if exists
+      const txIndex = updatedTransactions.findIndex(t => 
+        (t.id === paymentToDelete.id) ||
+        (t.accountId === paymentToDelete.receivedInAccountId && 
+         t.amount === paymentToDelete.amount &&
+         (t.categoryId === 'cat-cobro-deuda' || t.categoryId === 'cat-pago-deuda' || t.id.startsWith('tx-debt-')))
+      );
+
+      if (txIndex >= 0) {
+        const removedTx = updatedTransactions[txIndex];
+        SyncService.recordDeletion(removedTx.id, 'transaction');
+        updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+        if (userId) {
+          try {
+            deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
+          } catch (e) {
+            console.warn('Delete transaction offline queued', e);
+          }
+        }
+      }
+
+      if (userId) {
+        this.batchSaveAccounts(updatedAccounts, userId);
+      }
+    }
+
+    if (userId) {
+      try {
+        setDoc(doc(db, `users/${userId}/debts`, updatedDebt.id), updatedDebt, { merge: true });
+      } catch (e) {
+        console.warn('Debt payment delete offline queued', e);
+      }
+    }
+
+    return { updatedDebts, updatedAccounts, updatedTransactions };
+  }
+
+  static revertDebt(
+    debtId: string,
+    userId?: string | null
+  ): { updatedDebts: Debt[], updatedAccounts: Account[], updatedTransactions: Transaction[] } {
+    const debts = this.getDebts();
+    const targetDebt = debts.find(d => d.id === debtId);
+    let updatedAccounts = this.getAccounts();
+    let updatedTransactions = this.getTransactions();
+
+    if (!targetDebt) {
+      return { updatedDebts: debts, updatedAccounts, updatedTransactions };
+    }
+
+    if (targetDebt.payments && targetDebt.payments.length > 0) {
+      for (const p of targetDebt.payments) {
+        if (p.receivedInAccountId) {
+          const isPayable = targetDebt.debtType === 'payable';
+          const delta = isPayable ? p.amount : -p.amount;
+
+          updatedAccounts = updatedAccounts.map(acc => {
+            if (acc.id === p.receivedInAccountId) {
+              let cur = acc.currentBalance;
+              let dig = acc.digitalUsdBalance ?? 0;
+              let phy = acc.physicalUsdBalance ?? 0;
+
+              if (p.receivedInSubFund === 'digital_usd') {
+                dig = Number((dig + delta).toFixed(2));
+              } else if (p.receivedInSubFund === 'physical_usd') {
+                phy = Number((phy + delta).toFixed(2));
+              } else {
+                cur = Number((cur + delta).toFixed(2));
+              }
+
+              return {
+                ...acc,
+                currentBalance: cur,
+                digitalUsdBalance: dig,
+                physicalUsdBalance: phy,
+                updatedAt: new Date().toISOString()
+              };
+            }
+            return acc;
+          });
+
+          const txIdx = updatedTransactions.findIndex(t => 
+            (t.id === p.id) ||
+            (t.accountId === p.receivedInAccountId && 
+             t.amount === p.amount && 
+             (t.categoryId === 'cat-cobro-deuda' || t.categoryId === 'cat-pago-deuda' || t.id.startsWith('tx-debt-')))
+          );
+          if (txIdx >= 0) {
+            const removedTx = updatedTransactions[txIdx];
+            SyncService.recordDeletion(removedTx.id, 'transaction');
+            updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIdx);
+            if (userId) {
+              try { deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id)); } catch (e) {}
+            }
+          }
+        }
+      }
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+      if (userId) {
+        this.batchSaveAccounts(updatedAccounts, userId);
+      }
+    }
+
+    const updatedDebts = this.deleteDebt(debtId, userId);
+    return { updatedDebts, updatedAccounts, updatedTransactions };
+  }
+
   /**
    * Losses & Damage Management (Registro de Pérdidas, Mermas e Incobrables)
    */
@@ -744,6 +991,265 @@ export class StorageService {
     return { updatedLosses, updatedAccounts };
   }
 
+  static deleteLossRecovery(
+    lossId: string,
+    recoveryId: string,
+    userId?: string | null
+  ): { updatedLosses: Loss[], updatedAccounts: Account[], updatedTransactions: Transaction[] } {
+    SyncService.recordDeletion(recoveryId, 'loss_recovery' as any);
+    const losses = this.getLosses();
+    const lossIdx = losses.findIndex(l => l.id === lossId);
+    if (lossIdx < 0) {
+      return { 
+        updatedLosses: losses, 
+        updatedAccounts: this.getAccounts(), 
+        updatedTransactions: this.getTransactions() 
+      };
+    }
+
+    const currentLoss = losses[lossIdx];
+    const recoveries = currentLoss.recoveries || [];
+    const recoveryToDelete = recoveries.find(r => r.id === recoveryId);
+    if (!recoveryToDelete) {
+      return { 
+        updatedLosses: losses, 
+        updatedAccounts: this.getAccounts(), 
+        updatedTransactions: this.getTransactions() 
+      };
+    }
+
+    const newRecoveries = recoveries.filter(r => r.id !== recoveryId);
+    const totalRecovered = Number((newRecoveries.reduce((sum, r) => sum + r.amount, 0)).toFixed(2));
+    let newStatus: Loss['status'] = 'partially_recovered';
+    if (totalRecovered <= 0) {
+      newStatus = 'total_loss';
+    } else if (totalRecovered >= currentLoss.amount) {
+      newStatus = 'recovered';
+    }
+
+    const updatedLoss: Loss = {
+      ...currentLoss,
+      recoveredAmount: totalRecovered,
+      status: newStatus,
+      recoveries: newRecoveries,
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedLosses = [...losses];
+    updatedLosses[lossIdx] = updatedLoss;
+    localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(updatedLosses));
+
+    let updatedAccounts = this.getAccounts();
+    let updatedTransactions = this.getTransactions();
+
+    if (recoveryToDelete.receivedInAccountId) {
+      updatedAccounts = updatedAccounts.map(acc => {
+        if (acc.id === recoveryToDelete.receivedInAccountId) {
+          let cur = acc.currentBalance;
+          let dig = acc.digitalUsdBalance ?? 0;
+          let phy = acc.physicalUsdBalance ?? 0;
+
+          if (recoveryToDelete.receivedInSubFund === 'digital_usd') {
+            dig = Number((dig - recoveryToDelete.amount).toFixed(2));
+          } else if (recoveryToDelete.receivedInSubFund === 'physical_usd') {
+            phy = Number((phy - recoveryToDelete.amount).toFixed(2));
+          } else {
+            cur = Number((cur - recoveryToDelete.amount).toFixed(2));
+          }
+
+          return {
+            ...acc,
+            currentBalance: cur,
+            digitalUsdBalance: dig,
+            physicalUsdBalance: phy,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return acc;
+      });
+
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+
+      // Remove matching transaction
+      const txIndex = updatedTransactions.findIndex(t => 
+        (t.id === recoveryToDelete.id) ||
+        (t.accountId === recoveryToDelete.receivedInAccountId && 
+         t.amount === recoveryToDelete.amount &&
+         (t.categoryId === 'cat-recuperacion-perdida' || t.id.startsWith('tx-lossrec-')))
+      );
+
+      if (txIndex >= 0) {
+        const removedTx = updatedTransactions[txIndex];
+        SyncService.recordDeletion(removedTx.id, 'transaction');
+        updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+        if (userId) {
+          try {
+            deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
+          } catch (e) {
+            console.warn('Delete transaction offline queued', e);
+          }
+        }
+      }
+
+      if (userId) {
+        this.batchSaveAccounts(updatedAccounts, userId);
+      }
+    }
+
+    if (userId) {
+      try {
+        setDoc(doc(db, `users/${userId}/losses`, updatedLoss.id), updatedLoss, { merge: true });
+      } catch (e) {
+        console.warn('Update loss offline queued', e);
+      }
+    }
+
+    return { updatedLosses, updatedAccounts, updatedTransactions };
+  }
+
+  static revertLoss(
+    lossId: string,
+    userId?: string | null
+  ): { updatedLosses: Loss[], updatedAccounts: Account[], updatedTransactions: Transaction[], updatedDebts: Debt[] } {
+    const losses = this.getLosses();
+    const targetLoss = losses.find(l => l.id === lossId);
+    let updatedAccounts = this.getAccounts();
+    let updatedTransactions = this.getTransactions();
+    let updatedDebts = this.getDebts();
+
+    if (!targetLoss) {
+      return { updatedLosses: losses, updatedAccounts, updatedTransactions, updatedDebts };
+    }
+
+    // 1. If deducted from account, restore funds
+    if (targetLoss.affectedAccountId) {
+      updatedAccounts = updatedAccounts.map(acc => {
+        if (acc.id === targetLoss.affectedAccountId) {
+          let cur = acc.currentBalance;
+          let dig = acc.digitalUsdBalance ?? 0;
+          let phy = acc.physicalUsdBalance ?? 0;
+
+          if (targetLoss.subFund === 'digital_usd') {
+            dig = Number((dig + targetLoss.amount).toFixed(2));
+          } else if (targetLoss.subFund === 'physical_usd') {
+            phy = Number((phy + targetLoss.amount).toFixed(2));
+          } else {
+            cur = Number((cur + targetLoss.amount).toFixed(2));
+          }
+
+          return {
+            ...acc,
+            currentBalance: cur,
+            digitalUsdBalance: dig,
+            physicalUsdBalance: phy,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return acc;
+      });
+
+      const txIndex = updatedTransactions.findIndex(t => 
+        (t.accountId === targetLoss.affectedAccountId && 
+         t.amount === targetLoss.amount &&
+         (t.categoryId === 'cat-perdidas' || t.id.startsWith('tx-loss-')))
+      );
+
+      if (txIndex >= 0) {
+        const removedTx = updatedTransactions[txIndex];
+        SyncService.recordDeletion(removedTx.id, 'transaction');
+        updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+        if (userId) {
+          try {
+            deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
+          } catch (e) {}
+        }
+      }
+
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+      if (userId) {
+        this.batchSaveAccounts(updatedAccounts, userId);
+      }
+    }
+
+    // 2. If it had recoveries that added money to accounts, revert them
+    if (targetLoss.recoveries && targetLoss.recoveries.length > 0) {
+      for (const rec of targetLoss.recoveries) {
+        if (rec.receivedInAccountId) {
+          updatedAccounts = updatedAccounts.map(acc => {
+            if (acc.id === rec.receivedInAccountId) {
+              let cur = acc.currentBalance;
+              let dig = acc.digitalUsdBalance ?? 0;
+              let phy = acc.physicalUsdBalance ?? 0;
+
+              if (rec.receivedInSubFund === 'digital_usd') {
+                dig = Number((dig - rec.amount).toFixed(2));
+              } else if (rec.receivedInSubFund === 'physical_usd') {
+                phy = Number((phy - rec.amount).toFixed(2));
+              } else {
+                cur = Number((cur - rec.amount).toFixed(2));
+              }
+
+              return {
+                ...acc,
+                currentBalance: cur,
+                digitalUsdBalance: dig,
+                physicalUsdBalance: phy,
+                updatedAt: new Date().toISOString()
+              };
+            }
+            return acc;
+          });
+
+          const recTxIdx = updatedTransactions.findIndex(t => 
+            t.accountId === rec.receivedInAccountId && 
+            t.amount === rec.amount && 
+            (t.categoryId === 'cat-recuperacion-perdida' || t.id.startsWith('tx-lossrec-'))
+          );
+          if (recTxIdx >= 0) {
+            const removedTx = updatedTransactions[recTxIdx];
+            SyncService.recordDeletion(removedTx.id, 'transaction');
+            updatedTransactions = updatedTransactions.filter((_, idx) => idx !== recTxIdx);
+            if (userId) {
+              try { deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id)); } catch (e) {}
+            }
+          }
+        }
+      }
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+      if (userId) {
+        this.batchSaveAccounts(updatedAccounts, userId);
+      }
+    }
+
+    // 3. If linked to an uncollectible debt, restore debt status
+    if (targetLoss.linkedDebtId) {
+      const debtIdx = updatedDebts.findIndex(d => d.id === targetLoss.linkedDebtId);
+      if (debtIdx >= 0) {
+        const d = updatedDebts[debtIdx];
+        const hasRemaining = d.remainingAmount > 0;
+        updatedDebts[debtIdx] = {
+          ...d,
+          status: hasRemaining ? (d.remainingAmount < d.originalAmount ? 'partially_paid' : 'pending') : 'paid',
+          updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updatedDebts));
+        if (userId) {
+          try {
+            setDoc(doc(db, `users/${userId}/debts`, d.id), updatedDebts[debtIdx], { merge: true });
+          } catch (e) {}
+        }
+      }
+    }
+
+    // 4. Delete the loss
+    const updatedLosses = this.deleteLoss(lossId, userId);
+
+    return { updatedLosses, updatedAccounts, updatedTransactions, updatedDebts };
+  }
+
   static declareDebtAsLoss(
     debtId: string,
     reason?: string,
@@ -808,7 +1314,8 @@ export class StorageService {
       portfolioAssets: this.getPortfolioAssets(),
       goals: this.getGoals(),
       debts: this.getDebts(),
-      losses: this.getLosses()
+      losses: this.getLosses(),
+      auditLogs: this.getAuditLogs()
     };
   }
 
@@ -823,6 +1330,7 @@ export class StorageService {
     goals?: FinancialGoal[];
     debts?: Debt[];
     losses?: Loss[];
+    auditLogs?: AuditLogEntry[];
   }): void {
     if (merged.accounts) {
       localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(merged.accounts));
@@ -844,6 +1352,9 @@ export class StorageService {
     }
     if (merged.losses) {
       localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(merged.losses));
+    }
+    if (merged.auditLogs) {
+      localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(merged.auditLogs));
     }
 
     // Si los datos fusionados contienen cuentas con saldo o transacciones, marcar configuración inicial completada
@@ -870,7 +1381,8 @@ export class StorageService {
         { name: 'portfolio', storageKey: ASSETS_STORAGE_KEY },
         { name: 'goals', storageKey: GOALS_STORAGE_KEY },
         { name: 'debts', storageKey: DEBTS_STORAGE_KEY },
-        { name: 'losses', storageKey: LOSSES_STORAGE_KEY }
+        { name: 'losses', storageKey: LOSSES_STORAGE_KEY },
+        { name: 'audit_logs', storageKey: AUDIT_LOGS_STORAGE_KEY }
       ];
 
       for (const col of collections) {
@@ -926,5 +1438,328 @@ export class StorageService {
       console.warn('[StorageService] Error syncing with Firestore:', err);
       return false;
     }
+  }
+
+  /**
+   * Historial y Auditoría Global de Cambios
+   */
+  static getAuditLogs(): AuditLogEntry[] {
+    const cached = localStorage.getItem(AUDIT_LOGS_STORAGE_KEY);
+    if (!cached) return [];
+    try {
+      return JSON.parse(cached);
+    } catch {
+      return [];
+    }
+  }
+
+  static saveAuditLog(entry: AuditLogEntry, userId?: string | null): AuditLogEntry[] {
+    const logs = this.getAuditLogs();
+    const updated = [entry, ...logs.slice(0, 199)];
+    localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(updated));
+    if (userId) {
+      try {
+        setDoc(doc(db, `users/${userId}/audit_logs`, entry.id), entry, { merge: true });
+      } catch (e) {}
+    }
+    return updated;
+  }
+
+  static revertAccountAdjustment(auditId: string, userId?: string | null): Account[] {
+    const logs = this.getAuditLogs();
+    const logIdx = logs.findIndex(l => l.id === auditId);
+    if (logIdx < 0) return this.getAccounts();
+
+    const log = logs[logIdx];
+    if (!log.snapshotBefore) return this.getAccounts();
+
+    let updatedAccounts = this.getAccounts();
+
+    if (Array.isArray(log.snapshotBefore)) {
+      updatedAccounts = log.snapshotBefore;
+      this.batchSaveAccounts(updatedAccounts, userId);
+    } else if (log.snapshotBefore && log.snapshotBefore.id) {
+      const accIdx = updatedAccounts.findIndex(a => a.id === log.snapshotBefore.id);
+      if (accIdx >= 0) {
+        updatedAccounts[accIdx] = { ...log.snapshotBefore, updatedAt: new Date().toISOString() };
+      } else {
+        updatedAccounts.push(log.snapshotBefore);
+      }
+      this.batchSaveAccounts(updatedAccounts, userId);
+    }
+
+    logs[logIdx] = {
+      ...log,
+      reverted: true,
+      revertedAt: new Date().toISOString()
+    };
+    localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(logs));
+
+    return updatedAccounts;
+  }
+
+  /**
+   * Genera el feed unificado de todas las actividades, movimientos, deudas, pérdidas y ajustes
+   */
+  static getUnifiedActivityFeed(
+    accountsList?: Account[],
+    txList?: Transaction[],
+    debtList?: Debt[],
+    lossList?: Loss[],
+    goalList?: FinancialGoal[],
+    assetList?: PortfolioAsset[],
+    auditList?: AuditLogEntry[]
+  ): UnifiedActivityItem[] {
+    const accounts = accountsList || this.getAccounts();
+    const transactions = txList || this.getTransactions();
+    const debts = debtList || this.getDebts();
+    const losses = lossList || this.getLosses();
+    const goals = goalList || this.getGoals();
+    const assets = assetList || this.getPortfolioAssets();
+    const auditLogs = auditList || this.getAuditLogs();
+
+    const items: UnifiedActivityItem[] = [];
+
+    const formatMoney = (amount?: number, curr?: string) => {
+      if (amount === undefined || amount === null) return '';
+      if (curr === 'USD') return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+      return `${amount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs`;
+    };
+
+    const formatSubfund = (sub?: SubFundType) => {
+      if (sub === 'digital_usd') return ' ($ Digital)';
+      if (sub === 'physical_usd') return ' ($ Físico)';
+      if (sub === 'ves') return ' (Bs)';
+      return '';
+    };
+
+    // 1. Transacciones
+    for (const tx of transactions) {
+      const acc = accounts.find(a => a.id === tx.accountId);
+      const toAcc = tx.toAccountId ? accounts.find(a => a.id === tx.toAccountId) : null;
+      const accName = acc?.name || 'Cuenta';
+      const toAccName = toAcc?.name || 'Cuenta destino';
+
+      let title = '';
+      let impactExplanation = '';
+      let badgeVariant: UnifiedActivityItem['badgeVariant'] = 'expense';
+
+      if (tx.type === 'income') {
+        badgeVariant = 'income';
+        title = `Ingreso: ${tx.categoryName}`;
+        impactExplanation = `Se descontarán -${formatMoney(tx.amount, tx.currency)} de ${accName}${formatSubfund(tx.subFund)} y se eliminará la transacción.`;
+      } else if (tx.type === 'expense') {
+        badgeVariant = 'expense';
+        title = `Gasto: ${tx.categoryName}`;
+        impactExplanation = `Se devolverán +${formatMoney(tx.amount, tx.currency)} a ${accName}${formatSubfund(tx.subFund)} y se eliminará la transacción.`;
+      } else {
+        badgeVariant = 'transfer';
+        title = `Transferencia: ${accName} → ${toAccName}`;
+        const incomingAmount = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+        impactExplanation = `Se reintegrarán +${formatMoney(tx.amount, tx.currency)} a ${accName}${formatSubfund(tx.subFund)} y se descontarán -${formatMoney(incomingAmount, toAcc?.currency || tx.currency)} de ${toAccName}${formatSubfund(tx.toSubFund)}.`;
+      }
+
+      items.push({
+        id: `activity-tx-${tx.id}`,
+        entityId: tx.id,
+        entityType: 'transaction',
+        title,
+        description: tx.note || (tx.type === 'transfer' ? 'Transferencia entre cuentas' : tx.categoryName),
+        amount: tx.amount,
+        currency: tx.currency,
+        date: tx.date,
+        createdAt: tx.createdAt || tx.date,
+        accountName: accName,
+        subFund: tx.subFund,
+        toAccountName: tx.toAccountId ? toAccName : undefined,
+        toSubFund: tx.toSubFund,
+        categoryName: tx.categoryName,
+        badgeVariant,
+        impactExplanation,
+        revertType: 'transaction'
+      });
+    }
+
+    // 2. Deudas y Abonos
+    for (const d of debts) {
+      const isPayable = d.debtType === 'payable';
+      const currencyLabel = d.currencyType === 'USD_USDT' ? 'USD' : 'VES';
+
+      // Registro de creación de la deuda
+      items.push({
+        id: `activity-debt-${d.id}`,
+        entityId: d.id,
+        entityType: 'debt',
+        title: isPayable ? `Deuda propia registrada: ${d.debtorName}` : `Cuenta por cobrar: ${d.debtorName}`,
+        description: `Concepto: ${d.concept || 'Sin especificar'}${d.notes ? ` • ${d.notes}` : ''}`,
+        amount: d.originalAmount,
+        currency: currencyLabel,
+        date: d.createdAt,
+        createdAt: d.createdAt,
+        statusBadge: d.status === 'paid' ? 'Pagada' : d.status === 'partially_paid' ? 'Abonada' : d.status === 'uncollectible' ? 'Incobrable' : 'Pendiente',
+        badgeVariant: 'debt',
+        impactExplanation: `Se eliminará la deuda de ${d.debtorName}. Si contenía abonos con impacto en saldos bancarios, se restaurarán.`,
+        revertType: 'debt'
+      });
+
+      // Abonos individuales a la deuda
+      if (d.payments && d.payments.length > 0) {
+        for (const p of d.payments) {
+          const acc = p.receivedInAccountId ? accounts.find(a => a.id === p.receivedInAccountId) : null;
+          const accName = acc?.name || 'Sin cuenta asignada';
+
+          const impactExplanation = isPayable
+            ? (p.receivedInAccountId 
+                ? `Se devolverán +${formatMoney(p.amount, p.currency)} a ${accName}${formatSubfund(p.receivedInSubFund)} y la deuda pendiente aumentará en +${formatMoney(p.amount, p.currency)}.` 
+                : `Se cancelará el registro del pago y la deuda pendiente aumentará en +${formatMoney(p.amount, p.currency)}.`)
+            : (p.receivedInAccountId 
+                ? `Se descontarán -${formatMoney(p.amount, p.currency)} de ${accName}${formatSubfund(p.receivedInSubFund)} y la cuenta por cobrar volverá a quedar pendiente por +${formatMoney(p.amount, p.currency)}.` 
+                : `Se cancelará el registro del abono y la cuenta por cobrar aumentará en +${formatMoney(p.amount, p.currency)}.`);
+
+          items.push({
+            id: `activity-debtpay-${d.id}-${p.id}`,
+            entityId: p.id,
+            parentEntityId: d.id,
+            entityType: 'debt_payment',
+            title: isPayable ? `Pago a: ${d.debtorName}` : `Abono de: ${d.debtorName}`,
+            description: p.note || `Abono al concepto: ${d.concept}`,
+            amount: p.amount,
+            currency: p.currency,
+            date: p.date,
+            createdAt: p.date,
+            accountName: p.receivedInAccountId ? accName : undefined,
+            subFund: p.receivedInSubFund,
+            badgeVariant: isPayable ? 'expense' : 'income',
+            impactExplanation,
+            revertType: 'debt_payment'
+          });
+        }
+      }
+    }
+
+    // 3. Pérdidas y Recuperaciones
+    for (const l of losses) {
+      const acc = l.affectedAccountId ? accounts.find(a => a.id === l.affectedAccountId) : null;
+      const accName = acc?.name || 'Sin cuenta afectada';
+
+      const lossImpact = l.affectedAccountId 
+        ? `Se reintegrarán +${formatMoney(l.amount, l.currency)} a ${accName}${formatSubfund(l.subFund)} y se eliminará la pérdida.`
+        : `Se eliminará el registro de pérdida permanente de ${formatMoney(l.amount, l.currency)}.`;
+
+      items.push({
+        id: `activity-loss-${l.id}`,
+        entityId: l.id,
+        entityType: 'loss',
+        title: `Pérdida: ${l.concept}`,
+        description: `Categoría: ${l.category}${l.notes ? ` • ${l.notes}` : ''}`,
+        amount: l.amount,
+        currency: l.currency,
+        date: l.date,
+        createdAt: l.createdAt || l.date,
+        accountName: l.affectedAccountId ? accName : undefined,
+        subFund: l.subFund,
+        statusBadge: l.status === 'recovered' ? 'Recuperada' : l.status === 'partially_recovered' ? 'Parcial' : 'Total',
+        badgeVariant: 'loss',
+        impactExplanation: lossImpact,
+        revertType: 'loss'
+      });
+
+      // Recuperaciones individuales
+      if (l.recoveries && l.recoveries.length > 0) {
+        for (const r of l.recoveries) {
+          const recAcc = r.receivedInAccountId ? accounts.find(a => a.id === r.receivedInAccountId) : null;
+          const recAccName = recAcc?.name || 'Sin cuenta asignada';
+
+          const recImpact = r.receivedInAccountId 
+            ? `Se descontarán -${formatMoney(r.amount, r.currency)} de ${recAccName}${formatSubfund(r.receivedInSubFund)} y la pérdida aumentará de nuevo su saldo por recuperar.`
+            : `Se cancelará la recuperación de ${formatMoney(r.amount, r.currency)}.`;
+
+          items.push({
+            id: `activity-lossrec-${l.id}-${r.id}`,
+            entityId: r.id,
+            parentEntityId: l.id,
+            entityType: 'loss_recovery',
+            title: `Recuperación: ${l.concept}`,
+            description: r.note || 'Recuperación de fondo de pérdida',
+            amount: r.amount,
+            currency: r.currency,
+            date: r.date,
+            createdAt: r.date,
+            accountName: r.receivedInAccountId ? recAccName : undefined,
+            subFund: r.receivedInSubFund,
+            badgeVariant: 'income',
+            impactExplanation: recImpact,
+            revertType: 'loss_recovery'
+          });
+        }
+      }
+    }
+
+    // 4. Metas Financieras
+    for (const g of goals) {
+      items.push({
+        id: `activity-goal-${g.id}`,
+        entityId: g.id,
+        entityType: 'goal',
+        title: `Meta: ${g.name}`,
+        description: `Objetivo: $${g.targetAmountUsd} USD • Ahorro actual: $${g.currentSavedUsd} USD`,
+        amount: g.targetAmountUsd,
+        currency: 'USD',
+        date: g.createdAt,
+        createdAt: g.createdAt,
+        badgeVariant: 'goal',
+        impactExplanation: `Se eliminará la meta financiera "${g.name}".`,
+        revertType: 'goal'
+      });
+    }
+
+    // 5. Activos de Portafolio
+    for (const ast of assets) {
+      items.push({
+        id: `activity-portfolio-${ast.id}`,
+        entityId: ast.id,
+        entityType: 'portfolio',
+        title: `Activo: ${ast.name}`,
+        description: `Tipo: ${ast.type} • Valuación: $${ast.currentValuationUsd} USD`,
+        amount: ast.currentValuationUsd,
+        currency: 'USD',
+        date: ast.updatedAt || new Date().toISOString(),
+        createdAt: ast.updatedAt || new Date().toISOString(),
+        badgeVariant: 'portfolio',
+        impactExplanation: `Se eliminará el activo "${ast.name}" del portafolio.`,
+        revertType: 'portfolio'
+      });
+    }
+
+    // 6. Ajustes de cuentas registrados en Audit Log
+    for (const log of auditLogs) {
+      if (log.entityType === 'account_adjustment') {
+        items.push({
+          id: `activity-audit-${log.id}`,
+          entityId: log.id,
+          entityType: 'account_adjustment',
+          title: log.title,
+          description: log.details,
+          amount: log.amount,
+          currency: log.currency,
+          date: log.timestamp,
+          createdAt: log.timestamp,
+          badgeVariant: 'account',
+          impactExplanation: 'Se restaurará la configuración previa exacta de saldos de las cuentas.',
+          revertType: 'account_adjustment',
+          snapshotData: log.snapshotBefore,
+          isReverted: log.reverted
+        });
+      }
+    }
+
+    // Ordenar de más reciente a más antiguo
+    items.sort((a, b) => {
+      const timeA = new Date(a.date || a.createdAt).getTime();
+      const timeB = new Date(b.date || b.createdAt).getTime();
+      return timeB - timeA;
+    });
+
+    return items;
   }
 }

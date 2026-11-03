@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   ArrowUpDown,
   MoreVertical,
-  Info
+  Info,
+  History
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/AppContext';
@@ -42,7 +43,8 @@ export const Navbar: React.FC = () => {
     triggerInstall,
     isSyncing,
     setIsSyncModalOpen,
-    syncWithServer
+    syncWithServer,
+    setCurrentView
   } = useApp();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -220,6 +222,18 @@ export const Navbar: React.FC = () => {
                     <span>Actualizar Tasas</span>
                   </button>
 
+                  {/* Historial & Auditoría de Operaciones */}
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setCurrentView('history');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <History className="w-4 h-4 text-emerald-500" />
+                    <span>Historial & Cambios</span>
+                  </button>
+
                   {/* Conexión e IPs */}
                   <button
                     onClick={() => {
@@ -332,6 +346,15 @@ export const Navbar: React.FC = () => {
                 <Info className="w-3.5 h-3.5" />
               </button>
             </div>
+
+            {/* Historial & Auditoría Button */}
+            <button
+              onClick={() => setCurrentView('history')}
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Historial General & Auditoría de Operaciones"
+            >
+              <History className="w-4 h-4 text-emerald-500" />
+            </button>
 
             {/* Refresh Rates Button */}
             <button

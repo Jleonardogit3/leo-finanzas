@@ -194,7 +194,7 @@ export interface AIAdvisorReport {
 
 export interface DeletedItem {
   id: string;
-  type: 'account' | 'transaction' | 'category' | 'asset' | 'goal' | 'debt' | 'loss';
+  type: 'account' | 'transaction' | 'category' | 'asset' | 'goal' | 'debt' | 'loss' | 'audit_log';
   deletedAt: string;
 }
 
@@ -212,4 +212,56 @@ export interface SyncResult {
   stats?: SyncStats;
   mergedData?: any;
 }
+
+export type ActivityEntityType = 
+  | 'transaction' 
+  | 'debt' 
+  | 'debt_payment' 
+  | 'loss' 
+  | 'loss_recovery' 
+  | 'account_adjustment' 
+  | 'portfolio' 
+  | 'goal';
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string; // ISO
+  entityType: ActivityEntityType;
+  action: 'create' | 'update' | 'delete' | 'payment' | 'recovery' | 'transfer' | 'adjustment';
+  title: string;
+  details: string;
+  entityId: string;
+  parentEntityId?: string;
+  amount?: number;
+  currency?: Currency;
+  snapshotBefore?: any;
+  snapshotAfter?: any;
+  reverted?: boolean;
+  revertedAt?: string;
+}
+
+export interface UnifiedActivityItem {
+  id: string; // ID único para el timeline
+  entityId: string; // ID del registro subyacente
+  parentEntityId?: string; // ID de deuda o pérdida padre (si aplica)
+  entityType: ActivityEntityType;
+  title: string;
+  description: string;
+  amount?: number;
+  currency?: Currency;
+  date: string;
+  createdAt: string;
+  accountName?: string;
+  subFund?: SubFundType;
+  toAccountName?: string;
+  toSubFund?: SubFundType;
+  categoryName?: string;
+  statusBadge?: string;
+  badgeVariant?: 'income' | 'expense' | 'transfer' | 'debt' | 'loss' | 'account' | 'portfolio' | 'goal';
+  impactExplanation: string;
+  revertType: 'transaction' | 'debt' | 'debt_payment' | 'loss' | 'loss_recovery' | 'account_adjustment' | 'portfolio' | 'goal';
+  snapshotData?: any;
+  isReverted?: boolean;
+}
+
 

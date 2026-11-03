@@ -12,7 +12,9 @@ import {
   DebtPayment,
   Loss,
   LossRecovery,
-  SyncResult
+  SyncResult,
+  AuditLogEntry,
+  UnifiedActivityItem
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { RatesService } from '../services/ratesService';
@@ -20,7 +22,7 @@ import { SyncService } from '../services/syncService';
 import { auth, onAuthStateChanged, User } from '../services/firebase';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 
-export type ViewType = 'dashboard' | 'transactions' | 'accounts' | 'debts' | 'losses' | 'portfolio' | 'projections' | 'advisor';
+export type ViewType = 'dashboard' | 'transactions' | 'accounts' | 'debts' | 'losses' | 'portfolio' | 'projections' | 'advisor' | 'history';
 
 interface AppContextType {
   // Navigation & View
@@ -41,6 +43,8 @@ interface AppContextType {
   goals: FinancialGoal[];
   debts: Debt[];
   losses: Loss[];
+  auditLogs: AuditLogEntry[];
+  unifiedActivities: UnifiedActivityItem[];
   rates: ExchangeRates;
 
   // Modals
@@ -101,11 +105,16 @@ interface AppContextType {
   deleteGoal: (id: string) => void;
   saveDebt: (debt: Debt) => void;
   deleteDebt: (id: string) => void;
+  revertDebt: (id: string) => void;
   addDebtPayment: (debtId: string, payment: Omit<DebtPayment, 'id'>) => void;
+  deleteDebtPayment: (debtId: string, paymentId: string) => void;
   saveLoss: (loss: Loss, deductFromAccount?: boolean) => void;
   deleteLoss: (id: string) => void;
+  revertLoss: (id: string) => void;
   recoverLoss: (lossId: string, recoveryData: Omit<LossRecovery, 'id'>) => void;
+  deleteLossRecovery: (lossId: string, recoveryId: string) => void;
   declareDebtAsLoss: (debtId: string, reason?: string) => void;
+  revertItem: (item: UnifiedActivityItem) => Promise<{ success: boolean; message: string }>;
   refreshRates: () => Promise<void>;
   setManualRates: (bcv: number, usdt: number) => void;
   clearManualRates: () => void;
@@ -153,6 +162,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [goals, setGoals] = useState<FinancialGoal[]>(() => StorageService.getGoals());
   const [debts, setDebts] = useState<Debt[]>(() => StorageService.getDebts());
   const [losses, setLosses] = useState<Loss[]>(() => StorageService.getLosses());
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => StorageService.getAuditLogs());
   const [rates, setRates] = useState<ExchangeRates>(() => RatesService.getCachedRates());
 
   // Modal States
@@ -241,6 +251,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setGoals(StorageService.getGoals());
           setDebts(StorageService.getDebts());
           setLosses(StorageService.getLosses());
+          setAuditLogs(StorageService.getAuditLogs());
         }
       }
     });
@@ -441,6 +452,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDebts(result.updatedDebts);
     setLosses(result.updatedLosses);
   };
+
+  const deleteDebtPayment = (debtId: string, paymentId: string) => {
+    const res = StorageService.deleteDebtPayment(debtId, paymentId, user?.uid);
+    setDebts(res.updatedDebts);
+    setAccounts(res.updatedAccounts);
+    setTransactions(res.updatedTransactions);
+  };
+
+  const revertDebt = (debtId: string) => {
+    const res = StorageService.revertDebt(debtId, user?.uid);
+    setDebts(res.updatedDebts);
+    setAccounts(res.updatedAccounts);
+    setTransactions(res.updatedTransactions);
+  };
+
+  const deleteLossRecovery = (lossId: string, recoveryId: string) => {
+    const res = StorageService.deleteLossRecovery(lossId, recoveryId, user?.uid);
+    setLosses(res.updatedLosses);
+    setAccounts(res.updatedAccounts);
+    setTransactions(res.updatedTransactions);
+  };
+
+  const revertLoss = (lossId: string) => {
+    const res = StorageService.revertLoss(lossId, user?.uid);
+    setLosses(res.updatedLosses);
+    setAccounts(res.updatedAccounts);
+    setTransactions(res.updatedTransactions);
+    setDebts(res.updatedDebts);
+  };
+
+  const revertItem = async (item: UnifiedActivityItem): Promise<{ success: boolean; message: string }> => {
+    try {
+      switch (item.revertType) {
+        case 'transaction': {
+          const updatedAccs = StorageService.deleteTransaction(item.entityId, user?.uid);
+          setAccounts(updatedAccs);
+          setTransactions(StorageService.getTransactions());
+          return { success: true, message: 'Movimiento eliminado y saldo restaurado correctamente.' };
+        }
+        case 'debt_payment': {
+          if (!item.parentEntityId) throw new Error('ID de deuda no encontrado');
+          deleteDebtPayment(item.parentEntityId, item.entityId);
+          return { success: true, message: 'Abono eliminado y saldo restituido a la cuenta.' };
+        }
+        case 'debt': {
+          revertDebt(item.entityId);
+          return { success: true, message: 'Deuda eliminada y abonos revertidos correctamente.' };
+        }
+        case 'loss': {
+          revertLoss(item.entityId);
+          return { success: true, message: 'Pérdida eliminada y fondos restaurados.' };
+        }
+        case 'loss_recovery': {
+          if (!item.parentEntityId) throw new Error('ID de pérdida no encontrado');
+          deleteLossRecovery(item.parentEntityId, item.entityId);
+          return { success: true, message: 'Recuperación eliminada y saldo ajustado.' };
+        }
+        case 'account_adjustment': {
+          const updatedAccs = StorageService.revertAccountAdjustment(item.entityId, user?.uid);
+          setAccounts(updatedAccs);
+          setAuditLogs(StorageService.getAuditLogs());
+          return { success: true, message: 'Ajuste de cuenta revertido al estado previo.' };
+        }
+        case 'goal': {
+          const updatedGoals = StorageService.deleteGoal(item.entityId, user?.uid);
+          setGoals(updatedGoals);
+          return { success: true, message: 'Meta financiera eliminada correctamente.' };
+        }
+        case 'portfolio': {
+          const updatedPortfolio = StorageService.deletePortfolioAsset(item.entityId, user?.uid);
+          setPortfolioAssets(updatedPortfolio);
+          return { success: true, message: 'Activo de portafolio eliminado.' };
+        }
+        default:
+          return { success: false, message: 'Tipo de reversión no soportado.' };
+      }
+    } catch (err: any) {
+      console.error('Error al revertir elemento:', err);
+      return { success: false, message: err?.message || 'Error al revertir el registro.' };
+    }
+  };
+
+  const unifiedActivities = useMemo(() => {
+    return StorageService.getUnifiedActivityFeed(
+      accounts,
+      transactions,
+      debts,
+      losses,
+      goals,
+      portfolioAssets,
+      auditLogs
+    );
+  }, [accounts, transactions, debts, losses, goals, portfolioAssets, auditLogs]);
 
   const setManualRates = (bcv: number, usdt: number) => {
     const updated = RatesService.setManualRates(bcv, usdt);
@@ -643,6 +747,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         goals,
         debts,
         losses,
+        auditLogs,
+        unifiedActivities,
         rates,
         isTxModalOpen,
         setIsTxModalOpen,
@@ -681,11 +787,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteGoal,
         saveDebt,
         deleteDebt,
+        revertDebt,
         addDebtPayment,
+        deleteDebtPayment,
         saveLoss,
         deleteLoss,
+        revertLoss,
         recoverLoss,
+        deleteLossRecovery,
         declareDebtAsLoss,
+        revertItem,
         refreshRates,
         setManualRates,
         clearManualRates,

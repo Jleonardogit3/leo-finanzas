@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   HandCoins,
   TrendingDown,
-  Download
+  Download,
+  History
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -40,6 +41,7 @@ export const Sidebar: React.FC = () => {
     { id: 'losses', label: 'Pérdidas & Mermas', icon: TrendingDown, badge: lossesCount > 0 ? lossesCount.toString() : undefined },
     { id: 'portfolio', label: 'Portafolio & Activos', icon: PieChart },
     { id: 'projections', label: 'Metas & Proyecciones', icon: TrendingUp },
+    { id: 'history', label: 'Historial & Cambios', icon: History },
     { id: 'advisor', label: 'Asesor IA Gemini', icon: Bot, highlight: true },
   ];
 
