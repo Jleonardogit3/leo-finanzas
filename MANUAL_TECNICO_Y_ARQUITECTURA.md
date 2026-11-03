@@ -269,3 +269,17 @@ VITE_GEMINI_API_KEY=
 # Puerto de Docker
 APP_PORT=8085
 ```
+
+---
+
+## 10. Despliegue en la Nube con Vercel y Flujo de CI/CD
+
+La aplicación está optimizada para desplegarse en **Vercel** como una PWA estática conectada a **Firebase Firestore**:
+* **Enrutamiento:** Gestionado mediante `vercel.json` para Single Page Application (SPA).
+* **Flujo de Integración Continua (CI/CD):**
+  Cada vez que se realiza un commit y push a la rama `main` en GitHub, Vercel detecta automáticamente los cambios, ejecuta `npm run build` y despliega la nueva versión en producción sin tiempo de inactividad:
+  ```bash
+  git add .
+  git commit -m "Descripción de los cambios"
+  git push
+  ```
