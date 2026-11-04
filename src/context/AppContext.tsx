@@ -304,6 +304,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loginAt: new Date().toISOString()
       };
       localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+      BiometricService.markDeviceUnlockedToday(matched.username);
       setUser(appUser);
       reloadDataForUser(appUser.uid);
       return { success: true };
@@ -330,6 +331,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loginAt: new Date().toISOString()
     };
     localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+    BiometricService.markDeviceUnlockedToday(res.user.username);
     setUser(appUser);
     reloadDataForUser(appUser.uid);
     return { success: true };
@@ -352,6 +354,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = () => {
+    if (user?.username) {
+      BiometricService.revokeDeviceUnlockedToday(user.username);
+    }
     localStorage.removeItem('finanzas_vzla_auth_session');
     sessionStorage.removeItem('finanzas_vzla_session_locked');
     setUser(null);
@@ -389,6 +394,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
       sessionStorage.removeItem('finanzas_vzla_session_locked');
+      BiometricService.markDeviceUnlockedToday(matched.username);
       setUser(appUser);
       setIsAppLocked(false);
       reloadDataForUser(appUser.uid);
@@ -415,6 +421,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const verifyRes = await BiometricService.verifyBiometric(user.username);
     if (verifyRes.success) {
       sessionStorage.removeItem('finanzas_vzla_session_locked');
+      BiometricService.markDeviceUnlockedToday(user.username);
       setIsAppLocked(false);
       return { success: true };
     }
@@ -434,6 +441,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (matched) {
       sessionStorage.removeItem('finanzas_vzla_session_locked');
+      BiometricService.markDeviceUnlockedToday(user.username);
       setIsAppLocked(false);
       return { success: true };
     }
@@ -596,17 +604,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isSyncingRef.current = true;
     setIsSyncing(true);
     try {
-      const localData = StorageService.getAllData();
+      const localData = StorageService.getAllData(user?.uid);
       const result = await SyncService.syncWithLocalServer(localData, customUrl);
       if (result.success && result.mergedData) {
-        StorageService.applyMergedData(result.mergedData);
-        setAccounts(StorageService.getAccounts());
-        setTransactions(StorageService.getTransactions());
-        setCategories(StorageService.getCategories());
-        setPortfolioAssets(StorageService.getPortfolioAssets());
-        setGoals(StorageService.getGoals());
-        setDebts(StorageService.getDebts());
-        setLosses(StorageService.getLosses());
+        StorageService.applyMergedData(result.mergedData, user?.uid);
+        setAccounts(StorageService.getAccounts(user?.uid));
+        setTransactions(StorageService.getTransactions(user?.uid));
+        setCategories(StorageService.getCategories(user?.uid));
+        setPortfolioAssets(StorageService.getPortfolioAssets(user?.uid));
+        setGoals(StorageService.getGoals(user?.uid));
+        setDebts(StorageService.getDebts(user?.uid));
+        setLosses(StorageService.getLosses(user?.uid));
         if (result.serverTimestamp) {
           setLastSyncTime(result.serverTimestamp);
         }
@@ -634,6 +642,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Gatillo de sincronización en segundo plano con debounce para no saturar la red
+  const triggerBackgroundSync = useCallback(() => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    syncTimeoutRef.current = setTimeout(() => {
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+    }, 1200);
+  }, [syncWithServer]);
+
   // Sincronización automática periódica en segundo plano cada 1 hora como máximo
   useEffect(() => {
     const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hora máxima
@@ -650,6 +670,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Revisar periódicamente cada 5 minutos si ya transcurrió 1 hora
     const interval = setInterval(checkHourlySync, 5 * 60 * 1000);
     return () => clearInterval(interval);
+  }, [syncWithServer]);
+
+  // Sincronización automática silenciosa al montar la app, volver de segundo plano o recuperar red
+  useEffect(() => {
+    // Sincronizar inmediatamente al iniciar para traer últimos movimientos de otros dispositivos
+    syncWithServer(undefined, { silent: true }).catch(() => {});
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        syncWithServer(undefined, { silent: true }).catch(() => {});
+      }
+    };
+
+    const handleOnline = () => {
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
   }, [syncWithServer]);
 
   // Sincronización instantánea entre pestañas del mismo navegador en la computadora
@@ -669,80 +715,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Actions: guardan localmente (la sincronización ocurre al pulsar el botón de Sincronizar o tras 1h máx)
+  // Actions: guardan localmente y sincronizan automáticamente en segundo plano
   const addTransaction = (tx: Transaction) => {
     const result = StorageService.addTransaction(tx, user?.uid);
     setAccounts(result.updatedAccounts);
     setTransactions(StorageService.getTransactions(user?.uid));
+    triggerBackgroundSync();
   };
 
   const updateTransaction = (tx: Transaction) => {
     const result = StorageService.updateTransaction(tx, user?.uid);
     setAccounts(result.updatedAccounts);
     setTransactions(StorageService.getTransactions(user?.uid));
+    triggerBackgroundSync();
   };
 
   const deleteTransaction = (id: string) => {
     const updatedAccounts = StorageService.deleteTransaction(id, user?.uid);
     setAccounts(updatedAccounts);
     setTransactions(StorageService.getTransactions(user?.uid));
+    triggerBackgroundSync();
   };
 
   const saveAccount = (account: Account) => {
     StorageService.saveAccount(account, user?.uid);
     setAccounts(StorageService.getAccounts(user?.uid));
+    triggerBackgroundSync();
   };
 
   const batchSaveAccounts = (newAccounts: Account[]) => {
     StorageService.batchSaveAccounts(newAccounts, user?.uid);
     setAccounts(newAccounts);
     StorageService.markInitialSetupDone();
+    triggerBackgroundSync();
   };
 
   const saveCategory = (cat: Category) => {
     StorageService.saveCategory(cat, user?.uid);
     setCategories(StorageService.getCategories(user?.uid));
+    triggerBackgroundSync();
   };
 
   const deleteCategory = (categoryId: string) => {
     const updated = StorageService.deleteCategory(categoryId, user?.uid);
     setCategories(updated);
+    triggerBackgroundSync();
   };
 
   const savePortfolioAsset = (asset: PortfolioAsset) => {
     const updated = StorageService.savePortfolioAsset(asset, user?.uid);
     setPortfolioAssets(updated);
+    triggerBackgroundSync();
   };
 
   const deletePortfolioAsset = (id: string) => {
     const updated = StorageService.deletePortfolioAsset(id, user?.uid);
     setPortfolioAssets(updated);
+    triggerBackgroundSync();
   };
 
   const saveGoal = (goal: FinancialGoal) => {
     const updated = StorageService.saveGoal(goal, user?.uid);
     setGoals(updated);
+    triggerBackgroundSync();
   };
 
   const deleteGoal = (id: string) => {
     const updated = StorageService.deleteGoal(id, user?.uid);
     setGoals(updated);
+    triggerBackgroundSync();
   };
 
   // Debt Actions
   const saveDebt = (debt: Debt) => {
     const updated = StorageService.saveDebt(debt, user?.uid);
     setDebts(updated);
+    triggerBackgroundSync();
   };
 
   const updateDebt = (debt: Debt) => {
     const updated = StorageService.saveDebt(debt, user?.uid);
     setDebts(updated);
+    triggerBackgroundSync();
   };
 
   const deleteDebt = (id: string) => {
     const updated = StorageService.deleteDebt(id, user?.uid);
     setDebts(updated);
+    triggerBackgroundSync();
   };
 
   const addDebtPayment = (debtId: string, payment: Omit<DebtPayment, 'id'>) => {
@@ -752,6 +812,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (payment.receivedInAccountId) {
       setTransactions(StorageService.getTransactions());
     }
+    triggerBackgroundSync();
   };
 
   // Loss Actions
@@ -762,17 +823,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (deductFromAccount && loss.affectedAccountId) {
       setTransactions(StorageService.getTransactions());
     }
+    triggerBackgroundSync();
   };
 
   const updateLoss = (loss: Loss) => {
     const result = StorageService.saveLoss(loss, user?.uid, false);
     setLosses(result.updatedLosses);
     setAccounts(result.updatedAccounts);
+    triggerBackgroundSync();
   };
 
   const deleteLoss = (id: string) => {
     const updated = StorageService.deleteLoss(id, user?.uid);
     setLosses(updated);
+    triggerBackgroundSync();
   };
 
   const recoverLoss = (lossId: string, recoveryData: Omit<LossRecovery, 'id'>) => {
@@ -782,12 +846,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (recoveryData.receivedInAccountId) {
       setTransactions(StorageService.getTransactions());
     }
+    triggerBackgroundSync();
   };
 
   const declareDebtAsLoss = (debtId: string, reason?: string) => {
     const result = StorageService.declareDebtAsLoss(debtId, reason, user?.uid);
     setDebts(result.updatedDebts);
     setLosses(result.updatedLosses);
+    triggerBackgroundSync();
   };
 
   const deleteDebtPayment = (debtId: string, paymentId: string) => {
@@ -795,6 +861,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDebts(res.updatedDebts);
     setAccounts(res.updatedAccounts);
     setTransactions(res.updatedTransactions);
+    triggerBackgroundSync();
   };
 
   const revertDebt = (debtId: string) => {
@@ -802,6 +869,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDebts(res.updatedDebts);
     setAccounts(res.updatedAccounts);
     setTransactions(res.updatedTransactions);
+    triggerBackgroundSync();
   };
 
   const deleteLossRecovery = (lossId: string, recoveryId: string) => {
@@ -809,6 +877,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLosses(res.updatedLosses);
     setAccounts(res.updatedAccounts);
     setTransactions(res.updatedTransactions);
+    triggerBackgroundSync();
   };
 
   const revertLoss = (lossId: string) => {
@@ -817,54 +886,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAccounts(res.updatedAccounts);
     setTransactions(res.updatedTransactions);
     setDebts(res.updatedDebts);
+    triggerBackgroundSync();
   };
 
   const revertItem = async (item: UnifiedActivityItem): Promise<{ success: boolean; message: string }> => {
     try {
+      let result: { success: boolean; message: string };
       switch (item.revertType) {
         case 'transaction': {
           const updatedAccs = StorageService.deleteTransaction(item.entityId, user?.uid);
           setAccounts(updatedAccs);
           setTransactions(StorageService.getTransactions());
-          return { success: true, message: 'Movimiento eliminado y saldo restaurado correctamente.' };
+          result = { success: true, message: 'Movimiento eliminado y saldo restaurado correctamente.' };
+          break;
         }
         case 'debt_payment': {
           if (!item.parentEntityId) throw new Error('ID de deuda no encontrado');
           deleteDebtPayment(item.parentEntityId, item.entityId);
-          return { success: true, message: 'Abono eliminado y saldo restituido a la cuenta.' };
+          result = { success: true, message: 'Abono eliminado y saldo restituido a la cuenta.' };
+          break;
         }
         case 'debt': {
           revertDebt(item.entityId);
-          return { success: true, message: 'Deuda eliminada y abonos revertidos correctamente.' };
+          result = { success: true, message: 'Deuda eliminada y abonos revertidos correctamente.' };
+          break;
         }
         case 'loss': {
           revertLoss(item.entityId);
-          return { success: true, message: 'Pérdida eliminada y fondos restaurados.' };
+          result = { success: true, message: 'Pérdida eliminada y fondos restaurados.' };
+          break;
         }
         case 'loss_recovery': {
           if (!item.parentEntityId) throw new Error('ID de pérdida no encontrado');
           deleteLossRecovery(item.parentEntityId, item.entityId);
-          return { success: true, message: 'Recuperación eliminada y saldo ajustado.' };
+          result = { success: true, message: 'Recuperación eliminada y saldo ajustado.' };
+          break;
         }
         case 'account_adjustment': {
           const updatedAccs = StorageService.revertAccountAdjustment(item.entityId, user?.uid);
           setAccounts(updatedAccs);
           setAuditLogs(StorageService.getAuditLogs());
-          return { success: true, message: 'Ajuste de cuenta revertido al estado previo.' };
+          result = { success: true, message: 'Ajuste de cuenta revertido al estado previo.' };
+          break;
         }
         case 'goal': {
           const updatedGoals = StorageService.deleteGoal(item.entityId, user?.uid);
           setGoals(updatedGoals);
-          return { success: true, message: 'Meta financiera eliminada correctamente.' };
+          result = { success: true, message: 'Meta financiera eliminada correctamente.' };
+          break;
         }
         case 'portfolio': {
           const updatedPortfolio = StorageService.deletePortfolioAsset(item.entityId, user?.uid);
           setPortfolioAssets(updatedPortfolio);
-          return { success: true, message: 'Activo de portafolio eliminado.' };
+          result = { success: true, message: 'Activo de portafolio eliminado.' };
+          break;
         }
         default:
           return { success: false, message: 'Tipo de reversión no soportado.' };
       }
+      triggerBackgroundSync();
+      return result;
     } catch (err: any) {
       console.error('Error al revertir elemento:', err);
       return { success: false, message: err?.message || 'Error al revertir el registro.' };

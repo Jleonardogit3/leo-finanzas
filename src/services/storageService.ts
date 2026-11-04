@@ -1752,16 +1752,16 @@ export class StorageService {
   /**
    * Obtiene todos los datos almacenados localmente para la sincronización
    */
-  static getAllData() {
+  static getAllData(userId?: string | null) {
     return {
-      accounts: this.getAccounts(),
-      transactions: this.getTransactions(),
-      categories: this.getCategories(),
-      portfolioAssets: this.getPortfolioAssets(),
-      goals: this.getGoals(),
-      debts: this.getDebts(),
-      losses: this.getLosses(),
-      auditLogs: this.getAuditLogs()
+      accounts: this.getAccounts(userId),
+      transactions: this.getTransactions(userId),
+      categories: this.getCategories(userId),
+      portfolioAssets: this.getPortfolioAssets(userId),
+      goals: this.getGoals(userId),
+      debts: this.getDebts(userId),
+      losses: this.getLosses(userId),
+      auditLogs: this.getAuditLogs(userId)
     };
   }
 
@@ -1777,30 +1777,38 @@ export class StorageService {
     debts?: Debt[];
     losses?: Loss[];
     auditLogs?: AuditLogEntry[];
-  }): void {
+  }, userId?: string | null): void {
+    const key = (base: string) => this.getKey(base, userId);
+
     if (merged.accounts) {
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(merged.accounts));
+      localStorage.setItem(key(ACCOUNTS_STORAGE_KEY), JSON.stringify(merged.accounts));
+      if (userId && userId !== 'jleonardo-admin') {
+        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(merged.accounts));
+      }
     }
     if (merged.transactions) {
-      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(merged.transactions));
+      localStorage.setItem(key(TRANSACTIONS_STORAGE_KEY), JSON.stringify(merged.transactions));
+      if (userId && userId !== 'jleonardo-admin') {
+        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(merged.transactions));
+      }
     }
     if (merged.categories) {
-      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(merged.categories));
+      localStorage.setItem(key(CATEGORIES_STORAGE_KEY), JSON.stringify(merged.categories));
     }
     if (merged.portfolioAssets) {
-      localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(merged.portfolioAssets));
+      localStorage.setItem(key(ASSETS_STORAGE_KEY), JSON.stringify(merged.portfolioAssets));
     }
     if (merged.goals) {
-      localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(merged.goals));
+      localStorage.setItem(key(GOALS_STORAGE_KEY), JSON.stringify(merged.goals));
     }
     if (merged.debts) {
-      localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(merged.debts));
+      localStorage.setItem(key(DEBTS_STORAGE_KEY), JSON.stringify(merged.debts));
     }
     if (merged.losses) {
-      localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(merged.losses));
+      localStorage.setItem(key(LOSSES_STORAGE_KEY), JSON.stringify(merged.losses));
     }
     if (merged.auditLogs) {
-      localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(merged.auditLogs));
+      localStorage.setItem(key(AUDIT_LOGS_STORAGE_KEY), JSON.stringify(merged.auditLogs));
     }
 
     // Si los datos fusionados contienen cuentas con saldo o transacciones, marcar configuración inicial completada

@@ -20,6 +20,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { RegisteredUser } from '../../types';
+import { BiometricService } from '../../services/biometricService';
 
 export const LoginView: React.FC = () => {
   const { 
@@ -60,6 +61,19 @@ export const LoginView: React.FC = () => {
   const [userToDelete, setUserToDelete] = useState<RegisteredUser | null>(null);
 
   const isEnrolled = isBiometricEnrolled(username);
+  const isUnlockedToday = BiometricService.isDeviceUnlockedToday(username);
+
+  const handleQuickUnlockToday = () => {
+    const matched = registeredUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (matched) {
+      setIsLoading(true);
+      const res = login(matched.username, matched.password || 'Jleofinanzas');
+      if (!res.success) {
+        setErrorMessage(res.message || 'Error al iniciar sesión.');
+      }
+      setIsLoading(false);
+    }
+  };
 
   const handleBiometricLogin = async () => {
     setErrorMessage(null);
@@ -83,6 +97,12 @@ export const LoginView: React.FC = () => {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    // Si ya fue desbloqueado hoy y la contraseña está vacía, permitir acceso directo
+    if (!password.trim() && isUnlockedToday) {
+      handleQuickUnlockToday();
+      return;
+    }
+
     if (!username.trim() || !password.trim()) {
       setErrorMessage('Por favor ingresa tu usuario y contraseña.');
       return;
@@ -96,6 +116,8 @@ export const LoginView: React.FC = () => {
       setIsLoading(false);
       return;
     }
+
+    BiometricService.markDeviceUnlockedToday(username);
 
     // Si es Jleonardo y aún no tiene huella o marcó activar en este dispositivo
     if (isBiometricSupported && (enableBiometricOnLogin || !isEnrolled) && username.toLowerCase() === 'jleonardo') {
@@ -355,6 +377,34 @@ export const LoginView: React.FC = () => {
               </div>
             )}
 
+            {/* Tarjeta de Dispositivo Verificado Hoy */}
+            {isUnlockedToday && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border border-emerald-500/30 flex items-center justify-between gap-3 shadow-sm animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                      Dispositivo verificado hoy
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                      No necesitas escribir contraseña por el resto del día en este equipo.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleQuickUnlockToday}
+                  disabled={isLoading}
+                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shrink-0 active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <span>Entrar</span>
+                  <LogIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Quick Biometric Fingerprint Login Card */}
             {isBiometricSupported && isEnrolled && (
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 text-center space-y-3 shadow-sm animate-in fade-in duration-150">
@@ -422,14 +472,14 @@ export const LoginView: React.FC = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  placeholder="Ingresa tu contraseña"
+                  placeholder={isUnlockedToday ? 'Opcional (Dispositivo ya verificado hoy)' : 'Ingresa tu contraseña'}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (errorMessage) setErrorMessage(null);
                   }}
                   className="w-full pl-10 pr-11 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-semibold border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-400"
-                  required
+                  required={!isUnlockedToday}
                 />
                 <button
                   type="button"

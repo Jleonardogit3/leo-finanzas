@@ -6,6 +6,7 @@
 const BIO_ENROLLED_PREFIX = 'finanzas_vzla_bio_enrolled_';
 const BIO_CRED_ID_PREFIX = 'finanzas_vzla_bio_cred_';
 const BIO_AUTO_LOCK_KEY = 'finanzas_vzla_bio_auto_lock';
+const BIO_UNLOCKED_DATE_PREFIX = 'finanzas_vzla_device_unlocked_date_';
 
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -25,7 +26,51 @@ function base64ToBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+function getHostScope(): string {
+  if (typeof window === 'undefined') return 'localhost';
+  return (window.location.hostname || 'localhost').replace(/[^a-zA-Z0-9]/g, '_');
+}
+
 export class BiometricService {
+  /**
+   * Obtiene la fecha actual en formato local YYYY-MM-DD
+   */
+  static getTodayDateString(): string {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Comprueba si este dispositivo ya fue desbloqueado el día de hoy
+   * (Una vez desbloqueado, no pedir más la contraseña por ese día en este dispositivo)
+   */
+  static isDeviceUnlockedToday(username?: string): boolean {
+    const cleanUser = (username || 'jleonardo').trim().toLowerCase();
+    const today = this.getTodayDateString();
+    const savedDate = localStorage.getItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`);
+    return savedDate === today;
+  }
+
+  /**
+   * Marca este dispositivo como desbloqueado y verificado para todo el día de hoy
+   */
+  static markDeviceUnlockedToday(username?: string): void {
+    const cleanUser = (username || 'jleonardo').trim().toLowerCase();
+    const today = this.getTodayDateString();
+    localStorage.setItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`, today);
+  }
+
+  /**
+   * Revoca la marca de desbloqueo diario (por ejemplo al cerrar sesión manualmente)
+   */
+  static revokeDeviceUnlockedToday(username?: string): void {
+    const cleanUser = (username || 'jleonardo').trim().toLowerCase();
+    localStorage.removeItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`);
+  }
+
   /**
    * Comprueba si el navegador actual soporta WebAuthn
    */
@@ -54,12 +99,26 @@ export class BiometricService {
   }
 
   /**
-   * Verifica si el usuario ya registró su huella dactilar en este dispositivo
+   * Verifica si el usuario ya registró su huella dactilar para el dominio/origen actual
    */
   static isEnrolled(username: string): boolean {
     if (!username) return false;
     const cleanUser = username.trim().toLowerCase();
-    return localStorage.getItem(`${BIO_ENROLLED_PREFIX}${cleanUser}`) === 'true';
+    const scope = getHostScope();
+    return (
+      localStorage.getItem(`${BIO_ENROLLED_PREFIX}${scope}_${cleanUser}`) === 'true' ||
+      localStorage.getItem(`${BIO_ENROLLED_PREFIX}${cleanUser}`) === 'true'
+    );
+  }
+
+  /**
+   * Verifica específicamente si la huella está registrada en el dominio web actual
+   */
+  static isEnrolledOnCurrentOrigin(username: string): boolean {
+    if (!username) return false;
+    const cleanUser = username.trim().toLowerCase();
+    const scope = getHostScope();
+    return localStorage.getItem(`${BIO_ENROLLED_PREFIX}${scope}_${cleanUser}`) === 'true';
   }
 
   /**
@@ -74,6 +133,7 @@ export class BiometricService {
     }
 
     const cleanUser = username.trim().toLowerCase();
+    const scope = getHostScope();
 
     try {
       const challenge = new Uint8Array(32);
@@ -105,14 +165,17 @@ export class BiometricService {
       }) as PublicKeyCredential | null;
 
       if (!credential) {
-        return { success: false, message: 'No se completó la verificación de huella.' };
+        return { success: false, message: 'No se completó el registro de huella en el sensor.' };
       }
 
-      // Guardar registro de la credencial en localStorage
+      // Guardar registro de la credencial tanto en el scope del dominio como en el general
       const rawId = bufferToBase64(credential.rawId);
+      localStorage.setItem(`${BIO_ENROLLED_PREFIX}${scope}_${cleanUser}`, 'true');
+      localStorage.setItem(`${BIO_CRED_ID_PREFIX}${scope}_${cleanUser}`, rawId);
       localStorage.setItem(`${BIO_ENROLLED_PREFIX}${cleanUser}`, 'true');
       localStorage.setItem(`${BIO_CRED_ID_PREFIX}${cleanUser}`, rawId);
       this.setAutoLockEnabled(true);
+      this.markDeviceUnlockedToday(cleanUser);
 
       return {
         success: true,
@@ -121,11 +184,11 @@ export class BiometricService {
     } catch (err: any) {
       console.warn('Error enrolando huella:', err);
       if (err.name === 'NotAllowedError') {
-        return { success: false, message: 'Operación biométrica cancelada por el usuario.' };
+        return { success: false, message: 'Operación cancelada en el sensor del teléfono.' };
       }
       return {
         success: false,
-        message: err.message || 'No se pudo activar el sensor de huella en este dispositivo.'
+        message: err.message || 'No se pudo vincular el sensor de huella en este teléfono.'
       };
     }
   }
@@ -133,7 +196,12 @@ export class BiometricService {
   /**
    * Solicita al usuario colocar su huella en el sensor para autenticarse
    */
-  static async verifyBiometric(username: string): Promise<{ success: boolean; message?: string }> {
+  static async verifyBiometric(username: string): Promise<{ 
+    success: boolean; 
+    message?: string; 
+    notEnrolled?: boolean;
+    notAllowed?: boolean;
+  }> {
     if (!this.isSupported()) {
       return {
         success: false,
@@ -142,7 +210,12 @@ export class BiometricService {
     }
 
     const cleanUser = username.trim().toLowerCase();
-    const savedCredId = localStorage.getItem(`${BIO_CRED_ID_PREFIX}${cleanUser}`);
+    const scope = getHostScope();
+    
+    // Obtener credencial específica para este dominio
+    const savedCredId = 
+      localStorage.getItem(`${BIO_CRED_ID_PREFIX}${scope}_${cleanUser}`) ||
+      localStorage.getItem(`${BIO_CRED_ID_PREFIX}${cleanUser}`);
 
     try {
       const challenge = new Uint8Array(32);
@@ -166,14 +239,21 @@ export class BiometricService {
       });
 
       if (assertion) {
+        this.markDeviceUnlockedToday(cleanUser);
         return { success: true };
       }
 
       return { success: false, message: 'Verificación biométrica no completada.' };
     } catch (err: any) {
       console.warn('Error verificando huella:', err);
+      
+      // Si el sensor indica que no hay clave disponible o el usuario canceló
       if (err.name === 'NotAllowedError') {
-        return { success: false, message: 'Verificación cancelada o huella no reconocida.' };
+        return { 
+          success: false, 
+          notAllowed: true,
+          message: 'Verificación cancelada o huella no registrada para esta dirección web.' 
+        };
       }
       return {
         success: false,
@@ -187,8 +267,11 @@ export class BiometricService {
    */
   static removeBiometric(username: string): void {
     const cleanUser = username.trim().toLowerCase();
+    const scope = getHostScope();
     localStorage.removeItem(`${BIO_ENROLLED_PREFIX}${cleanUser}`);
     localStorage.removeItem(`${BIO_CRED_ID_PREFIX}${cleanUser}`);
+    localStorage.removeItem(`${BIO_ENROLLED_PREFIX}${scope}_${cleanUser}`);
+    localStorage.removeItem(`${BIO_CRED_ID_PREFIX}${scope}_${cleanUser}`);
   }
 
   /**
@@ -203,4 +286,3 @@ export class BiometricService {
     localStorage.setItem(BIO_AUTO_LOCK_KEY, enabled ? 'true' : 'false');
   }
 }
-
