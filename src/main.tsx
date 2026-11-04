@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppProvider } from './context/AppContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import './index.css';
 
 // PWA Service Worker Registration
@@ -19,10 +20,12 @@ const updateSW = registerSW({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AppProvider>
-        <App />
-      </AppProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppProvider>
+          <App />
+        </AppProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

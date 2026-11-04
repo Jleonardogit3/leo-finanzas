@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   ArrowDownCircle, 
@@ -18,6 +18,39 @@ import { useApp } from '../../context/AppContext';
 import { TransactionType, Currency, Transaction, SubFundType } from '../../types';
 import { RatesService } from '../../services/ratesService';
 import { BankLogo } from '../common/BankLogo';
+
+// Safe date helpers that never throw RangeError on invalid input
+const safeFormatDateTime = (dateVal: string | undefined | null): string => {
+  if (!dateVal) {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+};
+
+const safeToISO = (dateStr: string): string => {
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString();
+    }
+  } catch {}
+  return new Date().toISOString();
+};
 
 export const TransactionModal: React.FC = () => {
   const { 
@@ -42,7 +75,7 @@ export const TransactionModal: React.FC = () => {
   const [toSubFund, setToSubFund] = useState<SubFundType>('ves');
   const [customRate, setCustomRate] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
-  const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 16));
+  const [date, setDate] = useState<string>(() => safeFormatDateTime(new Date().toISOString()));
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -51,53 +84,72 @@ export const TransactionModal: React.FC = () => {
   const [commissionAmountStr, setCommissionAmountStr] = useState<string>('14.00');
   const [isManualCommission, setIsManualCommission] = useState<boolean>(false);
 
-  // Filter categories by movement type:
-  // "para cuando selecciono gastos solo dame el menu de los que dicen (Gastos) y para los que son ingresos solo (Ingresos)"
-  const filteredCategories = categories.filter(c => {
-    if (type === 'expense') return c.type === 'expense' || c.type === 'both';
-    if (type === 'income') return c.type === 'income' || c.type === 'both';
-    return true;
-  });
+  // Filter categories by movement type (memoized to avoid new array reference on every render):
+  const filteredCategories = useMemo(() => {
+    return categories.filter(c => {
+      if (type === 'expense') return c.type === 'expense' || c.type === 'both';
+      if (type === 'income') return c.type === 'income' || c.type === 'both';
+      return true;
+    });
+  }, [categories, type]);
 
-  // Ensure selected category matches current filter
-  useEffect(() => {
-    if (type !== 'transfer' && filteredCategories.length > 0) {
-      const exists = filteredCategories.some(c => c.id === categoryId);
-      if (!exists) {
-        setCategoryId(filteredCategories[0].id);
+  // Handle type change and ensure valid category without competing effects
+  const handleTypeChange = (newType: TransactionType) => {
+    setType(newType);
+    if (newType !== 'transfer') {
+      const validForNewType = categories.filter(c => {
+        if (newType === 'expense') return c.type === 'expense' || c.type === 'both';
+        if (newType === 'income') return c.type === 'income' || c.type === 'both';
+        return true;
+      });
+      if (validForNewType.length > 0 && !validForNewType.some(c => c.id === categoryId)) {
+        setCategoryId(validForNewType[0].id);
       }
     }
-  }, [type, filteredCategories, categoryId]);
+  };
 
-  // Set default account and category when modal opens, or load editing data
+  // Unified effect: Synchronize modal fields when opened, either loading editing data or resetting for a new transaction
   useEffect(() => {
-    if (isTxModalOpen) {
-      if (editingTransaction) {
-        setType(editingTransaction.type);
-        setAmountStr(editingTransaction.amount.toString());
-        setCurrency(editingTransaction.currency);
-        setAccountId(editingTransaction.accountId);
-        setToAccountId(editingTransaction.toAccountId || '');
-        setSubFund(editingTransaction.subFund || 'ves');
-        setToSubFund(editingTransaction.toSubFund || 'ves');
-        setCustomRate(editingTransaction.appliedRate ? editingTransaction.appliedRate.toString() : rates.usdt.toString());
-        setCategoryId(editingTransaction.categoryId);
-        setDate(editingTransaction.date ? new Date(editingTransaction.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16));
-        setNote(editingTransaction.note || '');
-      } else {
-        if (accounts.length > 0 && !accountId) {
-          setAccountId(accounts[0].id);
-          setCurrency(accounts[0].currency);
-          setSubFund('ves');
-        }
-        if (categories.length > 0 && !categoryId) {
-          setCategoryId(categories[0].id);
-        }
-        setCustomRate(rates.usdt.toString());
-        setDate(new Date().toISOString().slice(0, 16));
-      }
+    if (!isTxModalOpen) return;
+
+    if (editingTransaction) {
+      setType(editingTransaction.type);
+      setAmountStr(editingTransaction.amount !== undefined && editingTransaction.amount !== null ? editingTransaction.amount.toString() : '');
+      setCurrency(editingTransaction.currency || 'USD');
+      setAccountId(editingTransaction.accountId || (accounts[0]?.id || ''));
+      setToAccountId(editingTransaction.toAccountId || '');
+      setSubFund(editingTransaction.subFund || 'ves');
+      setToSubFund(editingTransaction.toSubFund || 'ves');
+      setCustomRate(
+        editingTransaction.appliedRate 
+          ? editingTransaction.appliedRate.toString() 
+          : (rates?.usdt ? rates.usdt.toString() : '0')
+      );
+      setCategoryId(editingTransaction.categoryId || (categories[0]?.id || ''));
+      setDate(safeFormatDateTime(editingTransaction.date));
+      setNote(editingTransaction.note || '');
+      setApplyCommission(false); // Do not double-apply commission when editing an existing transaction
+      setIsManualCommission(false);
+    } else {
+      setType('expense');
+      setAmountStr('');
+      setNote('');
+      const firstAcc = accounts[0];
+      setAccountId(firstAcc?.id || '');
+      setCurrency(firstAcc?.currency || 'VES');
+      setSubFund('ves');
+      setToAccountId('');
+      setToSubFund('ves');
+      
+      const defaultCat = categories.find(c => c.type === 'expense' || c.type === 'both');
+      setCategoryId(defaultCat ? defaultCat.id : (categories[0]?.id || ''));
+      
+      setCustomRate(rates?.usdt ? rates.usdt.toString() : '0');
+      setDate(safeFormatDateTime(new Date().toISOString()));
+      setApplyCommission(true);
+      setIsManualCommission(false);
     }
-  }, [isTxModalOpen, editingTransaction, accounts, categories, rates]);
+  }, [isTxModalOpen, editingTransaction]);
 
   // When accountId changes, auto-set currency to that account's native currency
   const handleAccountChange = (id: string) => {
@@ -214,7 +266,7 @@ export const TransactionModal: React.FC = () => {
         categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
         categoryIcon: selectedCategory?.icon,
         categoryColor: selectedCategory?.color,
-        date: new Date(date).toISOString(),
+        date: safeToISO(date),
         note: note.trim() || undefined,
         updatedAt: new Date().toISOString()
       };
@@ -235,7 +287,7 @@ export const TransactionModal: React.FC = () => {
         categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
         categoryIcon: selectedCategory?.icon,
         categoryColor: selectedCategory?.color,
-        date: new Date(date).toISOString(),
+        date: safeToISO(date),
         note: note.trim() || undefined,
         createdAt: new Date().toISOString()
       };
@@ -262,7 +314,7 @@ export const TransactionModal: React.FC = () => {
             categoryName: commissionCat?.name || 'Comisiones Bancarias',
             categoryIcon: commissionCat?.icon || 'Receipt',
             categoryColor: commissionCat?.color || '#F59E0B',
-            date: new Date(date).toISOString(),
+            date: safeToISO(date),
             note: `Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00)${note.trim() ? ` - ${note.trim()}` : ` - Transferencia a ${destAccount?.name || 'terceros'}`}`,
             createdAt: new Date(Date.now() + 10).toISOString()
           };
@@ -314,7 +366,7 @@ export const TransactionModal: React.FC = () => {
         <div className="grid grid-cols-3 gap-1.5 p-1 mt-4 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60">
           <button
             type="button"
-            onClick={() => setType('expense')}
+            onClick={() => handleTypeChange('expense')}
             className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
               type === 'expense'
                 ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
@@ -327,7 +379,7 @@ export const TransactionModal: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setType('income')}
+            onClick={() => handleTypeChange('income')}
             className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
               type === 'income'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
@@ -340,7 +392,7 @@ export const TransactionModal: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setType('transfer')}
+            onClick={() => handleTypeChange('transfer')}
             className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
               type === 'transfer'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
@@ -672,6 +724,15 @@ export const TransactionModal: React.FC = () => {
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
+                {filteredCategories.length === 0 && (
+                  <option value="">Sin categorías disponibles</option>
+                )}
+                {/* Fallback si la categoría actual no está en la lista filtrada */}
+                {categoryId && !filteredCategories.some(c => c.id === categoryId) && (
+                  <option value={categoryId}>
+                    {categories.find(c => c.id === categoryId)?.name || 'Categoría actual'}
+                  </option>
+                )}
                 {filteredCategories.map(cat => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name} ({cat.type === 'both' ? (type === 'expense' ? 'Gasto' : 'Ingreso') : cat.type === 'income' ? 'Ingreso' : 'Gasto'})

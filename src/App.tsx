@@ -31,6 +31,7 @@ import { LossRecoveryModal } from './components/losses/LossRecoveryModal';
 import { PwaInstallModal } from './components/layout/PwaInstallModal';
 import { SyncModal } from './components/layout/SyncModal';
 import { BiometricLockModal } from './components/auth/BiometricLockModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export const App: React.FC = () => {
   const { 
@@ -87,7 +88,9 @@ export const App: React.FC = () => {
 
         {/* Dynamic Content View */}
         <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-full overflow-x-hidden">
-          {renderActiveView()}
+          <ErrorBoundary>
+            {renderActiveView()}
+          </ErrorBoundary>
         </main>
       </div>
 

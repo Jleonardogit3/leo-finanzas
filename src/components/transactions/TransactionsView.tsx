@@ -33,6 +33,18 @@ export const TransactionsView: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
 
+  // Helper for safe date display
+  const formatTxDate = (dateVal: string | undefined | null) => {
+    if (!dateVal) return 'Sin fecha';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return 'Sin fecha';
+      return d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'Sin fecha';
+    }
+  };
+
   // Filter transactions
   const filteredList = useMemo(() => {
     const now = new Date();
@@ -40,8 +52,8 @@ export const TransactionsView: React.FC = () => {
       // Search query filter
       if (search.trim()) {
         const q = search.toLowerCase();
-        const matchCat = t.categoryName.toLowerCase().includes(q);
-        const matchNote = t.note?.toLowerCase().includes(q) || false;
+        const matchCat = (t.categoryName || '').toLowerCase().includes(q);
+        const matchNote = (t.note || '').toLowerCase().includes(q);
         if (!matchCat && !matchNote) return false;
       }
 
@@ -57,6 +69,8 @@ export const TransactionsView: React.FC = () => {
 
       // Time period filter
       const txDate = new Date(t.date);
+      if (isNaN(txDate.getTime())) return true;
+
       if (timeFilter === 'daily') {
         return txDate.toDateString() === now.toDateString();
       }
@@ -268,7 +282,7 @@ export const TransactionsView: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                          {tx.categoryName}
+                          {tx.categoryName || 'General'}
                         </span>
                         {tx.note && (
                           <span className="text-[11px] text-slate-600 dark:text-slate-400 hidden sm:inline italic">
@@ -286,7 +300,7 @@ export const TransactionsView: React.FC = () => {
                             → {toAccount.name}
                           </span>
                         )}
-                        <span>• {new Date(tx.date).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>• {formatTxDate(tx.date)}</span>
                       </div>
                     </div>
                   </div>

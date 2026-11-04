@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-04T18:23:31.105Z",
+  "lastUpdated": "2026-11-04T19:05:22.160Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -253,36 +253,6 @@
   ],
   "debts": [
     {
-      "id": "debt-1793653134206-rhenl",
-      "debtType": "payable",
-      "debtorName": "Abuela Marcela",
-      "concept": "Compra dolares",
-      "originalAmount": 60,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1000.3438,
-      "remainingAmount": 60,
-      "status": "pending",
-      "dueDate": "2026-10-30",
-      "createdAt": "2026-11-02T20:58:54.206Z",
-      "updatedAt": "2026-11-02T20:58:54.207Z",
-      "payments": []
-    },
-    {
-      "id": "debt-1793651628751-d6396",
-      "debtType": "receivable",
-      "debtorName": "Rancer",
-      "concept": "Prestamo emergencia",
-      "originalAmount": 40,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1000.3438,
-      "remainingAmount": 40,
-      "status": "pending",
-      "dueDate": "2026-10-30",
-      "createdAt": "2026-11-02T20:33:48.751Z",
-      "updatedAt": "2026-11-02T20:33:48.752Z",
-      "payments": []
-    },
-    {
       "id": "debt-1793753085019-79so3",
       "debtType": "receivable",
       "debtorName": "Devolución provincial",
@@ -468,7 +438,7 @@
       "id": "debt-1793742366661-xi0r8",
       "debtType": "receivable",
       "debtorName": "Andrews",
-      "concept": "Préstamo BCV",
+      "concept": "Préstamo 62$ BCV",
       "originalAmount": 55249,
       "currencyType": "VES_BCV",
       "appliedRateAtCreation": 891.1054,
@@ -476,7 +446,7 @@
       "status": "pending",
       "dueDate": "2026-11-30",
       "createdAt": "2026-11-03T21:46:06.661Z",
-      "updatedAt": "2026-11-03T21:46:06.662Z",
+      "updatedAt": "2026-11-04T18:31:48.075Z",
       "payments": []
     },
     {
@@ -704,6 +674,16 @@
       "id": "debt-1793743275428-jniif",
       "type": "debt",
       "deletedAt": "2026-11-03T22:01:30.197Z"
+    },
+    {
+      "id": "debt-1793653134206-rhenl",
+      "type": "debt",
+      "deletedAt": "2026-11-04T18:30:43.872Z"
+    },
+    {
+      "id": "debt-1793651628751-d6396",
+      "type": "debt",
+      "deletedAt": "2026-11-04T18:31:17.785Z"
     }
   ],
   "auditLogs": []
