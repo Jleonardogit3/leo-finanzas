@@ -773,6 +773,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveCategory = (cat: Category) => {
     StorageService.saveCategory(cat, user?.uid);
     setCategories(StorageService.getCategories(user?.uid));
+    setTransactions(StorageService.getTransactions(user?.uid));
     triggerBackgroundSync();
   };
 

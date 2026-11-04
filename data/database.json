@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-04T19:05:22.160Z",
+  "lastUpdated": "2026-11-04T19:42:42.319Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -285,13 +285,13 @@
       "debtType": "receivable",
       "debtorName": "Juan Carlos",
       "concept": "Prestamo biblioteca BCV",
-      "originalAmount": 26734,
-      "currencyType": "VES_BCV",
+      "originalAmount": 32,
+      "currencyType": "USD_USDT",
       "appliedRateAtCreation": 891.1054,
-      "remainingAmount": 26734,
+      "remainingAmount": 32,
       "status": "pending",
       "createdAt": "2026-11-03T22:12:51.139Z",
-      "updatedAt": "2026-11-03T22:12:51.139Z",
+      "updatedAt": "2026-11-04T19:29:13.287Z",
       "payments": []
     },
     {
@@ -369,13 +369,13 @@
       "debtType": "receivable",
       "debtorName": "Joan",
       "concept": "Préstamo bs",
-      "originalAmount": 54357.42,
-      "currencyType": "VES_BCV",
+      "originalAmount": 61,
+      "currencyType": "USD_USDT",
       "appliedRateAtCreation": 891.1054,
-      "remainingAmount": 54357.42,
+      "remainingAmount": 61,
       "status": "pending",
       "createdAt": "2026-11-03T22:02:09.114Z",
-      "updatedAt": "2026-11-03T22:02:09.116Z",
+      "updatedAt": "2026-11-04T19:30:16.225Z",
       "payments": []
     },
     {
@@ -439,14 +439,14 @@
       "debtType": "receivable",
       "debtorName": "Andrews",
       "concept": "Préstamo 62$ BCV",
-      "originalAmount": 55249,
-      "currencyType": "VES_BCV",
+      "originalAmount": 62,
+      "currencyType": "USD_USDT",
       "appliedRateAtCreation": 891.1054,
-      "remainingAmount": 55249,
+      "remainingAmount": 62,
       "status": "pending",
       "dueDate": "2026-11-30",
       "createdAt": "2026-11-03T21:46:06.661Z",
-      "updatedAt": "2026-11-04T18:31:48.075Z",
+      "updatedAt": "2026-11-04T19:29:30.619Z",
       "payments": []
     },
     {

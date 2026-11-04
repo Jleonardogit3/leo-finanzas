@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,7 +17,9 @@ import {
   Coins,
   DollarSign,
   HandCoins,
-  History
+  History,
+  Palette,
+  Check
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -33,7 +35,8 @@ import {
 } from 'recharts';
 import { useApp } from '../../context/AppContext';
 import { RatesService } from '../../services/ratesService';
-import { TimeFilter } from '../../types';
+import { TimeFilter, Category } from '../../types';
+import { AVAILABLE_CATEGORY_COLORS } from '../../utils/constants';
 
 export const DashboardView: React.FC = () => {
   const { 
@@ -47,6 +50,8 @@ export const DashboardView: React.FC = () => {
     filteredTransactions,
     transactions,
     accounts,
+    categories,
+    saveCategory,
     timeFilter, 
     setTimeFilter,
     setIsTxModalOpen,
@@ -60,6 +65,9 @@ export const DashboardView: React.FC = () => {
     activeDebtorsCount,
     lossesCount
   } = useApp();
+
+  // State to toggle quick inline color editor for expenses or income
+  const [editingColorsType, setEditingColorsType] = useState<'expense' | 'income' | null>(null);
 
   // Period Metrics (Income, Expense, Net)
   const { periodIncomeUsd, periodExpenseUsd, netSavingsUsd, savingsRate } = useMemo(() => {
@@ -119,31 +127,94 @@ export const DashboardView: React.FC = () => {
     return Object.values(dataMap);
   }, [transactions, rates]);
 
-  // Category Distribution Chart Data (for current filtered period)
-  const categoryChartData = useMemo(() => {
-    const map: Record<string, { name: string; value: number; color: string }> = {};
+  // Expense Categories Distribution Data
+  const expenseCategoryChartData = useMemo(() => {
+    const map: Record<string, { categoryId?: string; name: string; value: number; color: string; count: number }> = {};
 
     filteredTransactions.forEach(t => {
       if (t.type === 'expense') {
         const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
-        if (!map[t.categoryName]) {
-          map[t.categoryName] = {
-            name: t.categoryName,
+        const cat = categories.find(c => (t.categoryId && c.id === t.categoryId) || c.name.toLowerCase() === (t.categoryName || '').toLowerCase());
+        const name = cat?.name || t.categoryName || 'General';
+        const key = cat?.id || name;
+        const color = cat?.color || t.categoryColor || '#F43F5E';
+
+        if (!map[key]) {
+          map[key] = {
+            categoryId: cat?.id || t.categoryId,
+            name,
             value: 0,
-            color: t.categoryColor || '#3B82F6'
+            color,
+            count: 0
           };
         }
-        map[t.categoryName].value = Number((map[t.categoryName].value + valUsd).toFixed(2));
+        map[key].value = Number((map[key].value + valUsd).toFixed(2));
+        map[key].count += 1;
       }
     });
 
-    const result = Object.values(map).sort((a, b) => b.value - a.value);
-    // If empty, supply placeholder item
-    if (result.length === 0) {
-      return [{ name: 'Sin egresos registrados', value: 1, color: '#94A3B8' }];
+    return Object.values(map).sort((a, b) => b.value - a.value);
+  }, [filteredTransactions, categories, rates]);
+
+  // Income Categories Distribution Data
+  const incomeCategoryChartData = useMemo(() => {
+    const map: Record<string, { categoryId?: string; name: string; value: number; color: string; count: number }> = {};
+
+    filteredTransactions.forEach(t => {
+      if (t.type === 'income') {
+        const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
+        const cat = categories.find(c => (t.categoryId && c.id === t.categoryId) || c.name.toLowerCase() === (t.categoryName || '').toLowerCase());
+        const name = cat?.name || t.categoryName || 'General';
+        const key = cat?.id || name;
+        const color = cat?.color || t.categoryColor || '#10B981';
+
+        if (!map[key]) {
+          map[key] = {
+            categoryId: cat?.id || t.categoryId,
+            name,
+            value: 0,
+            color,
+            count: 0
+          };
+        }
+        map[key].value = Number((map[key].value + valUsd).toFixed(2));
+        map[key].count += 1;
+      }
+    });
+
+    return Object.values(map).sort((a, b) => b.value - a.value);
+  }, [filteredTransactions, categories, rates]);
+
+  const totalExpenseVal = useMemo(() => {
+    return expenseCategoryChartData.reduce((sum, item) => sum + item.value, 0);
+  }, [expenseCategoryChartData]);
+
+  const totalIncomeVal = useMemo(() => {
+    return incomeCategoryChartData.reduce((sum, item) => sum + item.value, 0);
+  }, [incomeCategoryChartData]);
+
+  // Handler to update category color in real time
+  const handleUpdateCategoryColor = (categoryId: string | undefined, categoryName: string, newColor: string) => {
+    const existingCat = categories.find(c => (categoryId && c.id === categoryId) || c.name.toLowerCase() === categoryName.toLowerCase());
+    if (existingCat) {
+      saveCategory({
+        ...existingCat,
+        color: newColor,
+        updatedAt: new Date().toISOString()
+      });
+    } else {
+      const newCat: Category = {
+        id: categoryId || `cat-custom-${Date.now()}`,
+        name: categoryName,
+        color: newColor,
+        icon: 'Tag',
+        type: 'both',
+        isPredefined: false,
+        updatedAt: new Date().toISOString()
+      };
+      saveCategory(newCat);
     }
-    return result;
-  }, [filteredTransactions, rates]);
+  };
 
   const recentTransactions = transactions.slice(0, 5);
 
@@ -389,9 +460,9 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Charts Section: Income vs Expense & Categories */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         
-        {/* Chart 1: Income vs Expenses Bars */}
+        {/* Chart 1: Income vs Expenses Bars (Comparativo mensual) */}
         <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -400,7 +471,7 @@ export const DashboardView: React.FC = () => {
                 Comparativo Ingresos vs Egresos
               </h3>
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-400">Valores en USD</span>
+            <span className="text-[11px] text-slate-600 dark:text-slate-400">Valores en USD (Últimos 6 meses)</span>
           </div>
 
           <div className="h-64 w-full">
@@ -426,48 +497,379 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        {/* Chart 2: Expense Distribution Donut Chart */}
-        <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <PieIcon className="w-5 h-5 text-purple-500" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Distribución de Gastos por Categoría
-              </h3>
+        {/* Charts 2 & 3: Donut Charts Side-by-Side (Gastos a la izquierda, Ingresos a la derecha) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Card Gastos */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-rose-500/10 text-rose-500">
+                    <PieIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Distribución de Gastos por Categoría
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Total egresos: <strong className="text-rose-500 font-bold">${totalExpenseVal.toFixed(2)} USD</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {expenseCategoryChartData.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingColorsType(editingColorsType === 'expense' ? null : 'expense')}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                        editingColorsType === 'expense'
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-750 hover:bg-slate-200'
+                      }`}
+                      title="Editar colores de las categorías de gastos"
+                    >
+                      <Palette className="w-3.5 h-3.5" />
+                      <span>{editingColorsType === 'expense' ? 'Listo' : 'Editar Colores'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Inline Color Palette Editor Drawer for Gastos */}
+              {editingColorsType === 'expense' && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-rose-900 dark:text-rose-200 flex items-center gap-1.5">
+                      <Palette className="w-3.5 h-3.5 text-rose-500" />
+                      Haz clic en un color para cambiarlo en tiempo real:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingColorsType(null)}
+                      className="text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {expenseCategoryChartData.map(cat => (
+                      <div key={cat.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3.5 h-3.5 rounded-full shadow-xs shrink-0" style={{ backgroundColor: cat.color }} />
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{cat.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {AVAILABLE_CATEGORY_COLORS.map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleUpdateCategoryColor(cat.categoryId, cat.name, c)}
+                              style={{ backgroundColor: c }}
+                              className={`w-5 h-5 rounded-full transition-transform relative ${
+                                cat.color.toLowerCase() === c.toLowerCase()
+                                  ? 'scale-125 ring-2 ring-rose-500 shadow-sm'
+                                  : 'opacity-80 hover:opacity-100 hover:scale-110'
+                              }`}
+                              title={`Cambiar "${cat.name}" a este color`}
+                            />
+                          ))}
+
+                          <div className="relative inline-flex items-center ml-1">
+                            <input
+                              type="color"
+                              value={cat.color}
+                              onChange={(e) => handleUpdateCategoryColor(cat.categoryId, cat.name, e.target.value)}
+                              className="w-5 h-5 rounded-full cursor-pointer opacity-0 absolute inset-0 z-10"
+                              title="Color personalizado"
+                            />
+                            <div 
+                              className="w-5 h-5 rounded-full border border-dashed border-slate-400 flex items-center justify-center text-slate-500 text-[10px]"
+                              title="Personalizado"
+                            >
+                              +
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Donut Chart */}
+              {expenseCategoryChartData.length === 0 ? (
+                <div className="h-56 sm:h-64 w-full flex flex-col items-center justify-center text-center p-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
+                    <PieIcon className="w-6 h-6" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">Sin egresos en el período seleccionado.</p>
+                </div>
+              ) : (
+                <div className="h-56 sm:h-64 w-full flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={expenseCategoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {expenseCategoryChartData.map((entry, index) => (
+                          <Cell key={`cell-exp-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#0F172A', 
+                          borderColor: '#334155', 
+                          borderRadius: '12px',
+                          color: '#fff',
+                          fontSize: '12px'
+                        }}
+                        formatter={(val: number) => {
+                          const pct = totalExpenseVal > 0 ? ((val / totalExpenseVal) * 100).toFixed(1) : '0';
+                          return [`$${val.toFixed(2)} USD (${pct}%)`, ''];
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-400">Período Seleccionado</span>
+
+            {/* Interactive Legend with Clickable Color Swatch */}
+            {expenseCategoryChartData.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {expenseCategoryChartData.map(cat => {
+                    const pct = totalExpenseVal > 0 ? ((cat.value / totalExpenseVal) * 100).toFixed(1) : '0';
+                    return (
+                      <div key={cat.name} className="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <label 
+                            className="w-4 h-4 rounded-full cursor-pointer relative shadow-xs border border-black/10 shrink-0 group-hover:scale-125 transition-transform"
+                            style={{ backgroundColor: cat.color }}
+                            title={`Clic para cambiar el color de "${cat.name}"`}
+                          >
+                            <input
+                              type="color"
+                              value={cat.color}
+                              onChange={(e) => handleUpdateCategoryColor(cat.categoryId, cat.name, e.target.value)}
+                              className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                            />
+                          </label>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate text-[11px]" title={cat.name}>
+                            {cat.name}
+                          </span>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="font-bold text-slate-900 dark:text-white text-[11px] block">
+                            ${cat.value.toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {pct}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="h-64 w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categoryChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={85}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {categoryChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1E293B', 
-                    borderColor: '#334155', 
-                    borderRadius: '12px',
-                    color: '#fff',
-                    fontSize: '12px'
-                  }}
-                  formatter={(val: number) => [`$${val.toFixed(2)} USD`, '']}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Card Ingresos */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+                    <PieIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Distribución de Ingresos por Categoría
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Total ingresos: <strong className="text-emerald-500 font-bold">${totalIncomeVal.toFixed(2)} USD</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {incomeCategoryChartData.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingColorsType(editingColorsType === 'income' ? null : 'income')}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                        editingColorsType === 'income'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-750 hover:bg-slate-200'
+                      }`}
+                      title="Editar colores de las categorías de ingresos"
+                    >
+                      <Palette className="w-3.5 h-3.5" />
+                      <span>{editingColorsType === 'income' ? 'Listo' : 'Editar Colores'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Inline Color Palette Editor Drawer for Ingresos */}
+              {editingColorsType === 'income' && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                      <Palette className="w-3.5 h-3.5 text-emerald-500" />
+                      Haz clic en un color para cambiarlo en tiempo real:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingColorsType(null)}
+                      className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {incomeCategoryChartData.map(cat => (
+                      <div key={cat.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3.5 h-3.5 rounded-full shadow-xs shrink-0" style={{ backgroundColor: cat.color }} />
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{cat.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {AVAILABLE_CATEGORY_COLORS.map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleUpdateCategoryColor(cat.categoryId, cat.name, c)}
+                              style={{ backgroundColor: c }}
+                              className={`w-5 h-5 rounded-full transition-transform relative ${
+                                cat.color.toLowerCase() === c.toLowerCase()
+                                  ? 'scale-125 ring-2 ring-emerald-500 shadow-sm'
+                                  : 'opacity-80 hover:opacity-100 hover:scale-110'
+                              }`}
+                              title={`Cambiar "${cat.name}" a este color`}
+                            />
+                          ))}
+
+                          <div className="relative inline-flex items-center ml-1">
+                            <input
+                              type="color"
+                              value={cat.color}
+                              onChange={(e) => handleUpdateCategoryColor(cat.categoryId, cat.name, e.target.value)}
+                              className="w-5 h-5 rounded-full cursor-pointer opacity-0 absolute inset-0 z-10"
+                              title="Color personalizado"
+                            />
+                            <div 
+                              className="w-5 h-5 rounded-full border border-dashed border-slate-400 flex items-center justify-center text-slate-500 text-[10px]"
+                              title="Personalizado"
+                            >
+                              +
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Donut Chart */}
+              {incomeCategoryChartData.length === 0 ? (
+                <div className="h-56 sm:h-64 w-full flex flex-col items-center justify-center text-center p-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
+                    <PieIcon className="w-6 h-6" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">Sin ingresos en el período seleccionado.</p>
+                </div>
+              ) : (
+                <div className="h-56 sm:h-64 w-full flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={incomeCategoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {incomeCategoryChartData.map((entry, index) => (
+                          <Cell key={`cell-inc-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#0F172A', 
+                          borderColor: '#334155', 
+                          borderRadius: '12px',
+                          color: '#fff',
+                          fontSize: '12px'
+                        }}
+                        formatter={(val: number) => {
+                          const pct = totalIncomeVal > 0 ? ((val / totalIncomeVal) * 100).toFixed(1) : '0';
+                          return [`$${val.toFixed(2)} USD (${pct}%)`, ''];
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            {/* Interactive Legend with Clickable Color Swatch */}
+            {incomeCategoryChartData.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {incomeCategoryChartData.map(cat => {
+                    const pct = totalIncomeVal > 0 ? ((cat.value / totalIncomeVal) * 100).toFixed(1) : '0';
+                    return (
+                      <div key={cat.name} className="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <label 
+                            className="w-4 h-4 rounded-full cursor-pointer relative shadow-xs border border-black/10 shrink-0 group-hover:scale-125 transition-transform"
+                            style={{ backgroundColor: cat.color }}
+                            title={`Clic para cambiar el color de "${cat.name}"`}
+                          >
+                            <input
+                              type="color"
+                              value={cat.color}
+                              onChange={(e) => handleUpdateCategoryColor(cat.categoryId, cat.name, e.target.value)}
+                              className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                            />
+                          </label>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate text-[11px]" title={cat.name}>
+                            {cat.name}
+                          </span>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="font-bold text-slate-900 dark:text-white text-[11px] block">
+                            ${cat.value.toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {pct}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
+
         </div>
 
       </div>

@@ -352,6 +352,26 @@ export class StorageService {
     }
     localStorage.setItem(key, JSON.stringify(updated));
 
+    // Propagate updated color and name to existing transactions with this category
+    const txKey = this.getKey(TRANSACTIONS_STORAGE_KEY, userId);
+    const transactions = this.getTransactions(userId);
+    let txUpdated = false;
+    const newTxList = transactions.map(t => {
+      if (t.categoryId === catToSave.id || t.categoryName === catToSave.name) {
+        txUpdated = true;
+        return {
+          ...t,
+          categoryName: catToSave.name,
+          categoryColor: catToSave.color,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return t;
+    });
+    if (txUpdated) {
+      localStorage.setItem(txKey, JSON.stringify(newTxList));
+    }
+
     if (userId) {
       try {
         const catRef = doc(db, `users/${userId}/categories`, catToSave.id);
