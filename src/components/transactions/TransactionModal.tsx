@@ -170,8 +170,6 @@ export const TransactionModal: React.FC = () => {
     }
   };
 
-  if (!isTxModalOpen) return null;
-
   const currentAmount = parseFloat(amountStr) || 0;
   const sourceAccount = accounts.find(a => a.id === accountId);
   const destAccount = accounts.find(a => a.id === toAccountId);
@@ -334,6 +332,8 @@ export const TransactionModal: React.FC = () => {
       setIsTxModalOpen(false);
     }, 500);
   };
+
+  if (!isTxModalOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
