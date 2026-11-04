@@ -10,7 +10,9 @@ import {
   Check, 
   Wallet,
   Coins,
-  DollarSign
+  DollarSign,
+  ArrowDown,
+  Receipt
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { TransactionType, Currency, Transaction, SubFundType } from '../../types';
@@ -43,6 +45,11 @@ export const TransactionModal: React.FC = () => {
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 16));
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Transfer commission state (0.30% • Min Bs. 14.00)
+  const [applyCommission, setApplyCommission] = useState<boolean>(true);
+  const [commissionAmountStr, setCommissionAmountStr] = useState<string>('14.00');
+  const [isManualCommission, setIsManualCommission] = useState<boolean>(false);
 
   // Filter categories by movement type:
   // "para cuando selecciono gastos solo dame el menu de los que dicen (Gastos) y para los que son ingresos solo (Ingresos)"
@@ -157,6 +164,30 @@ export const TransactionModal: React.FC = () => {
     }
   }
 
+  // Calculate if the transfer is eligible for VES bank / Pago Móvil commission
+  const isVesTransfer = type === 'transfer' && (
+    currency === 'VES' || 
+    sourceAccount?.currency === 'VES' || 
+    (sourceAccount?.type === 'bank_ves' && subFund === 'ves')
+  );
+
+  // Amount in VES for commission base
+  const effectiveVesAmount = currency === 'VES' 
+    ? currentAmount 
+    : (currentAmount * (rates.usdt || rates.bcv || 1));
+
+  // Automatic commission: 0.30% with minimum of Bs. 14.00
+  // Formula: Math.max(14.00, Number((effectiveVesAmount * 0.003).toFixed(2)))
+  const defaultCommission = effectiveVesAmount > 0
+    ? Math.max(14.00, Number((effectiveVesAmount * 0.003).toFixed(2)))
+    : 14.00;
+
+  useEffect(() => {
+    if (!isManualCommission && isVesTransfer) {
+      setCommissionAmountStr(defaultCommission.toFixed(2));
+    }
+  }, [defaultCommission, isManualCommission, isVesTransfer]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentAmount <= 0 || !accountId) return;
@@ -209,6 +240,35 @@ export const TransactionModal: React.FC = () => {
         createdAt: new Date().toISOString()
       };
       addTransaction(newTx);
+
+      // Si es una transferencia en Bs y está activa la comisión bancaria / pago móvil
+      if (type === 'transfer' && applyCommission && isVesTransfer) {
+        const commissionVal = parseFloat(commissionAmountStr) || 0;
+        if (commissionVal > 0) {
+          const commissionCat = categories.find(c => 
+            c.id === 'cat-comisiones' || 
+            c.name.toLowerCase().includes('comision') ||
+            c.name.toLowerCase().includes('comisión')
+          );
+
+          const commissionTx: Transaction = {
+            id: `tx-${Date.now() + 10}-${Math.random().toString(36).substring(2, 7)}`,
+            type: 'expense',
+            accountId,
+            subFund: (sourceAccount?.type === 'bank_ves') ? 'ves' : undefined,
+            amount: commissionVal,
+            currency: 'VES',
+            categoryId: commissionCat?.id || 'cat-comisiones',
+            categoryName: commissionCat?.name || 'Comisiones Bancarias',
+            categoryIcon: commissionCat?.icon || 'Receipt',
+            categoryColor: commissionCat?.color || '#F59E0B',
+            date: new Date(date).toISOString(),
+            note: `Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00)${note.trim() ? ` - ${note.trim()}` : ` - Transferencia a ${destAccount?.name || 'terceros'}`}`,
+            createdAt: new Date(Date.now() + 10).toISOString()
+          };
+          addTransaction(commissionTx);
+        }
+      }
     }
 
     setIsSuccess(true);
@@ -217,6 +277,7 @@ export const TransactionModal: React.FC = () => {
       setIsSuccess(false);
       setAmountStr('');
       setNote('');
+      setIsManualCommission(false);
       setEditingTransaction(null);
       setIsTxModalOpen(false);
     }, 500);
@@ -362,10 +423,10 @@ export const TransactionModal: React.FC = () => {
           </div>
 
           {/* Accounts Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {type !== 'transfer' ? (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-                {type === 'transfer' ? 'Cuenta Origen' : 'Cuenta'}
+                Cuenta
               </label>
               <div className="flex items-center gap-2">
                 {sourceAccount && <BankLogo name={sourceAccount.name} size="md" />}
@@ -401,19 +462,83 @@ export const TransactionModal: React.FC = () => {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="space-y-3">
+              {/* CUENTA ORIGEN (Arriba) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Cuenta Origen (Debitar)</span>
+                  </label>
+                  {sourceAccount && (
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      Saldo: {RatesService.formatMoney(sourceAccount.currentBalance, sourceAccount.currency)}
+                    </span>
+                  )}
+                </div>
 
-            {/* Destination account if transfer/exchange */}
-            {type === 'transfer' && (
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1.5">
-                  Cuenta Destino
-                </label>
+                <div className="flex items-center gap-2">
+                  {sourceAccount && <BankLogo name={sourceAccount.name} size="md" />}
+                  <select
+                    value={accountId}
+                    onChange={(e) => handleAccountChange(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                  >
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.currency} • Saldo: {RatesService.formatMoney(acc.currentBalance, acc.currency)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {sourceAccount?.type === 'bank_ves' && (
+                  <div className="mt-2.5 p-2 rounded-xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-700/60">
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      Fondo a debitar en origen:
+                    </label>
+                    <select
+                      value={subFund}
+                      onChange={(e) => handleSubFundChange(e.target.value as SubFundType)}
+                      className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold border border-slate-200 dark:border-slate-700"
+                    >
+                      <option value="ves">🏦 Cuenta Bolívares (VES)</option>
+                      <option value="digital_usd">💻 Cuenta $ Digitales (${sourceAccount.digitalUsdBalance || 0} USD)</option>
+                      <option value="physical_usd">💵 $ Físicos (${sourceAccount.physicalUsdBalance || 0} USD)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Flecha visual indicando flujo hacia abajo */}
+              <div className="flex items-center justify-center -my-1 relative z-10">
+                <div className="p-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-500 dark:text-blue-400 shadow-sm">
+                  <ArrowDown className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* CUENTA DESTINO (Abajo) */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/60">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Cuenta Destino (Acreditar)</span>
+                  </label>
+                  {destAccount && (
+                    <span className="text-[11px] font-semibold text-blue-600/80 dark:text-blue-400/80">
+                      Saldo: {RatesService.formatMoney(destAccount.currentBalance, destAccount.currency)}
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2">
                   {destAccount && <BankLogo name={destAccount.name} size="md" />}
                   <select
                     value={toAccountId}
                     onChange={(e) => setToAccountId(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium text-xs border border-blue-200 dark:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
                     <option value="">Seleccionar cuenta destino...</option>
@@ -425,11 +550,10 @@ export const TransactionModal: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Destination Sub-fondo selector if bank */}
                 {destAccount?.type === 'bank_ves' && (
-                  <div className="mt-2 p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">
-                      Fondo de acreditación destino:
+                  <div className="mt-2.5 p-2 rounded-xl bg-blue-100/60 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/60">
+                    <label className="block text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">
+                      Fondo de acreditación en destino:
                     </label>
                     <select
                       value={toSubFund}
@@ -443,8 +567,65 @@ export const TransactionModal: React.FC = () => {
                   </div>
                 )}
               </div>
-            )}
-          </div>
+
+              {/* Comisión de Transferencia Bancaria o Pago Móvil (0,30% • Mín. Bs. 14,00) */}
+              {isVesTransfer && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-4 h-4 text-amber-500 shrink-0" />
+                      <div>
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                          Comisión Transferencia / Pago Móvil
+                        </span>
+                        <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                          0,30% • Mínimo Bs. 14,00 (se creará como un egreso bancario)
+                        </span>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={applyCommission}
+                        onChange={(e) => setApplyCommission(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+
+                  {applyCommission && (
+                    <div className="flex items-center justify-between pt-2 border-t border-amber-500/20 text-xs">
+                      <div>
+                        <span className="text-slate-700 dark:text-slate-300 font-medium block">
+                          Monto comisión a debitar:
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {effectiveVesAmount <= 4667 
+                            ? 'Mínimo fijo de Bs. 14,00 para montos ≤ Bs. 4.667' 
+                            : '0,30% calculado sobre el monto de la operación'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={commissionAmountStr}
+                          onChange={(e) => {
+                            setCommissionAmountStr(e.target.value);
+                            setIsManualCommission(true);
+                          }}
+                          className="w-24 px-2.5 py-1 text-right font-black text-xs rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                        <span className="font-bold text-xs text-amber-600 dark:text-amber-400">Bs</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Transfer Exchange Rate & Converted Destination Preview */}
           {type === 'transfer' && sourceAccount && destAccount && sourceAccount.currency !== destAccount.currency && (

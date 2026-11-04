@@ -148,13 +148,21 @@ export const PREDEFINED_CATEGORIES: Category[] = [
     color: '#EAB308', // Amber
     type: 'expense',
     isPredefined: true
+  },
+  {
+    id: 'cat-comisiones',
+    name: 'Comisiones Bancarias',
+    icon: 'Receipt',
+    color: '#F59E0B', // Amber / Gold
+    type: 'expense',
+    isPredefined: true
   }
 ];
 
 export const AVAILABLE_CATEGORY_ICONS = [
   'Utensils', 'Home', 'User', 'Shirt', 'Gamepad2', 'Briefcase',
   'WalletCards', 'Store', 'Car', 'ShoppingCart', 'Coffee', 'Plane',
-  'HeartPulse', 'GraduationCap', 'Zap', 'Gift', 'Dumbbell', 'Phone'
+  'HeartPulse', 'GraduationCap', 'Zap', 'Gift', 'Dumbbell', 'Phone', 'Receipt'
 ];
 
 export const AVAILABLE_CATEGORY_COLORS = [
