@@ -6,6 +6,7 @@ import {
   Search, 
   Filter, 
   Trash2, 
+  Pencil,
   PlusCircle, 
   Calendar,
   Wallet,
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RatesService } from '../../services/ratesService';
-import { TimeFilter, TransactionType } from '../../types';
+import { TimeFilter, TransactionType, Transaction } from '../../types';
 
 export const TransactionsView: React.FC = () => {
   const { 
@@ -23,6 +24,7 @@ export const TransactionsView: React.FC = () => {
     rates, 
     deleteTransaction, 
     setIsTxModalOpen,
+    setEditingTransaction,
     timeFilter,
     setTimeFilter 
   } = useApp();
@@ -77,6 +79,11 @@ export const TransactionsView: React.FC = () => {
     if (window.confirm(`¿Estás seguro de eliminar el movimiento "${concept}"? El saldo de la cuenta será recalculado automáticamente.`)) {
       deleteTransaction(id);
     }
+  };
+
+  const handleEdit = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setIsTxModalOpen(true);
   };
 
   const handleExportCsv = () => {
@@ -301,6 +308,14 @@ export const TransactionsView: React.FC = () => {
                           : `≈ ${(tx.amount * rates.usdt).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs`}
                       </div>
                     </div>
+
+                    <button
+                      onClick={() => handleEdit(tx)}
+                      className="p-2 rounded-xl text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                      title="Editar movimiento"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
 
                     <button
                       onClick={() => handleDelete(tx.id, tx.categoryName)}

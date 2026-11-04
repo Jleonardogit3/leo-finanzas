@@ -22,7 +22,8 @@ import {
   Coins,
   ArrowDownLeft,
   ArrowUpRight,
-  Scale
+  Scale,
+  Pencil
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Debt, DebtStatus, DebtType } from '../../types';
@@ -33,6 +34,7 @@ export const DebtsView: React.FC = () => {
     debts, 
     rates, 
     setIsDebtModalOpen, 
+    setEditingDebt,
     setIsDebtPaymentModalOpen, 
     setActiveDebtForPayment, 
     deleteDebt,
@@ -70,6 +72,11 @@ export const DebtsView: React.FC = () => {
     if (confirm(msg)) {
       deleteDebt(debt.id);
     }
+  };
+
+  const handleEdit = (debt: Debt) => {
+    setEditingDebt(debt);
+    setIsDebtModalOpen(true);
   };
 
   const handleDeclareAsLoss = (debt: Debt) => {
@@ -606,6 +613,14 @@ export const DebtsView: React.FC = () => {
                           ¡Copiado!
                         </span>
                       )}
+                    </button>
+
+                    <button
+                      onClick={() => handleEdit(debt)}
+                      className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                      title="Editar registro de deuda"
+                    >
+                      <Pencil className="w-4 h-4" />
                     </button>
 
                     <button

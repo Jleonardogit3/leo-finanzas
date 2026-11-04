@@ -203,3 +203,4 @@ export class BiometricService {
     localStorage.setItem(BIO_AUTO_LOCK_KEY, enabled ? 'true' : 'false');
   }
 }
+

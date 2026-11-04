@@ -18,7 +18,8 @@ import {
   ArrowRight,
   TrendingUp,
   FileText,
-  DollarSign
+  DollarSign,
+  Pencil
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Loss, LossCategory, LossStatus } from '../../types';
@@ -29,6 +30,7 @@ export const LossesView: React.FC = () => {
     losses, 
     rates, 
     setIsLossModalOpen, 
+    setEditingLoss,
     setIsLossRecoveryModalOpen, 
     setActiveLossForRecovery, 
     deleteLoss,
@@ -70,6 +72,11 @@ export const LossesView: React.FC = () => {
     if (confirm(`¿Estás seguro de eliminar el registro de pérdida "${loss.concept}"?`)) {
       deleteLoss(loss.id);
     }
+  };
+
+  const handleEdit = (loss: Loss) => {
+    setEditingLoss(loss);
+    setIsLossModalOpen(true);
   };
 
   // Filtered losses
@@ -467,13 +474,23 @@ export const LossesView: React.FC = () => {
 
                 {/* Card Actions */}
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handleDelete(loss)}
-                    className="p-2 rounded-xl text-slate-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                    title="Eliminar registro"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleEdit(loss)}
+                      className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                      title="Editar registro de pérdida"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(loss)}
+                      className="p-2 rounded-xl text-slate-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      title="Eliminar registro"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
 
                   {!isFullyRecovered && (
                     <button

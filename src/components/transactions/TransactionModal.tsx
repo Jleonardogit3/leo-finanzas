@@ -25,6 +25,9 @@ export const TransactionModal: React.FC = () => {
     categories, 
     rates, 
     addTransaction,
+    updateTransaction,
+    editingTransaction,
+    setEditingTransaction,
     setIsCategoryModalOpen 
   } = useApp();
 
@@ -41,20 +44,53 @@ export const TransactionModal: React.FC = () => {
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Set default account and category when modal opens
+  // Filter categories by movement type:
+  // "para cuando selecciono gastos solo dame el menu de los que dicen (Gastos) y para los que son ingresos solo (Ingresos)"
+  const filteredCategories = categories.filter(c => {
+    if (type === 'expense') return c.type === 'expense' || c.type === 'both';
+    if (type === 'income') return c.type === 'income' || c.type === 'both';
+    return true;
+  });
+
+  // Ensure selected category matches current filter
+  useEffect(() => {
+    if (type !== 'transfer' && filteredCategories.length > 0) {
+      const exists = filteredCategories.some(c => c.id === categoryId);
+      if (!exists) {
+        setCategoryId(filteredCategories[0].id);
+      }
+    }
+  }, [type, filteredCategories, categoryId]);
+
+  // Set default account and category when modal opens, or load editing data
   useEffect(() => {
     if (isTxModalOpen) {
-      if (accounts.length > 0 && !accountId) {
-        setAccountId(accounts[0].id);
-        setCurrency(accounts[0].currency);
-        setSubFund('ves');
+      if (editingTransaction) {
+        setType(editingTransaction.type);
+        setAmountStr(editingTransaction.amount.toString());
+        setCurrency(editingTransaction.currency);
+        setAccountId(editingTransaction.accountId);
+        setToAccountId(editingTransaction.toAccountId || '');
+        setSubFund(editingTransaction.subFund || 'ves');
+        setToSubFund(editingTransaction.toSubFund || 'ves');
+        setCustomRate(editingTransaction.appliedRate ? editingTransaction.appliedRate.toString() : rates.usdt.toString());
+        setCategoryId(editingTransaction.categoryId);
+        setDate(editingTransaction.date ? new Date(editingTransaction.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16));
+        setNote(editingTransaction.note || '');
+      } else {
+        if (accounts.length > 0 && !accountId) {
+          setAccountId(accounts[0].id);
+          setCurrency(accounts[0].currency);
+          setSubFund('ves');
+        }
+        if (categories.length > 0 && !categoryId) {
+          setCategoryId(categories[0].id);
+        }
+        setCustomRate(rates.usdt.toString());
+        setDate(new Date().toISOString().slice(0, 16));
       }
-      if (categories.length > 0 && !categoryId) {
-        setCategoryId(categories[0].id);
-      }
-      setCustomRate(rates.usdt.toString());
     }
-  }, [isTxModalOpen, accounts, categories, rates]);
+  }, [isTxModalOpen, editingTransaction, accounts, categories, rates]);
 
   // When accountId changes, auto-set currency to that account's native currency
   const handleAccountChange = (id: string) => {
@@ -131,35 +167,59 @@ export const TransactionModal: React.FC = () => {
 
     const selectedCategory = categories.find(c => c.id === categoryId);
 
-    const newTx: Transaction = {
-      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      type,
-      accountId,
-      toAccountId: type === 'transfer' ? toAccountId : undefined,
-      subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
-      toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
-      amount: currentAmount,
-      currency,
-      appliedRate: type === 'transfer' ? effectiveRate : undefined,
-      destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
-      categoryId: selectedCategory?.id || 'cat-general',
-      categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
-      categoryIcon: selectedCategory?.icon,
-      categoryColor: selectedCategory?.color,
-      date: new Date(date).toISOString(),
-      note: note.trim() || undefined,
-      createdAt: new Date().toISOString()
-    };
+    if (editingTransaction) {
+      const updatedTx: Transaction = {
+        ...editingTransaction,
+        type,
+        accountId,
+        toAccountId: type === 'transfer' ? toAccountId : undefined,
+        subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
+        toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
+        amount: currentAmount,
+        currency,
+        appliedRate: type === 'transfer' ? effectiveRate : undefined,
+        destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
+        categoryId: selectedCategory?.id || 'cat-general',
+        categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
+        categoryIcon: selectedCategory?.icon,
+        categoryColor: selectedCategory?.color,
+        date: new Date(date).toISOString(),
+        note: note.trim() || undefined,
+        updatedAt: new Date().toISOString()
+      };
+      updateTransaction(updatedTx);
+    } else {
+      const newTx: Transaction = {
+        id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        type,
+        accountId,
+        toAccountId: type === 'transfer' ? toAccountId : undefined,
+        subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
+        toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
+        amount: currentAmount,
+        currency,
+        appliedRate: type === 'transfer' ? effectiveRate : undefined,
+        destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
+        categoryId: selectedCategory?.id || 'cat-general',
+        categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
+        categoryIcon: selectedCategory?.icon,
+        categoryColor: selectedCategory?.color,
+        date: new Date(date).toISOString(),
+        note: note.trim() || undefined,
+        createdAt: new Date().toISOString()
+      };
+      addTransaction(newTx);
+    }
 
-    addTransaction(newTx);
     setIsSuccess(true);
 
     setTimeout(() => {
       setIsSuccess(false);
       setAmountStr('');
       setNote('');
+      setEditingTransaction(null);
       setIsTxModalOpen(false);
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -172,14 +232,17 @@ export const TransactionModal: React.FC = () => {
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              Nuevo Movimiento
+              {editingTransaction ? 'Editar Movimiento' : 'Nuevo Movimiento'}
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Registra ingresos, gastos o cambios de divisas
+              {editingTransaction ? 'Modifica los datos del movimiento seleccionado' : 'Registra ingresos, gastos o cambios de divisas'}
             </p>
           </div>
           <button 
-            onClick={() => setIsTxModalOpen(false)}
+            onClick={() => {
+              setEditingTransaction(null);
+              setIsTxModalOpen(false);
+            }}
             className="p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="w-5 h-5" />
@@ -428,9 +491,9 @@ export const TransactionModal: React.FC = () => {
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                {categories.map(cat => (
+                {filteredCategories.map(cat => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.name} ({cat.type === 'both' ? 'Ingreso/Gasto' : cat.type === 'income' ? 'Ingreso' : 'Gasto'})
+                    {cat.name} ({cat.type === 'both' ? (type === 'expense' ? 'Gasto' : 'Ingreso') : cat.type === 'income' ? 'Ingreso' : 'Gasto'})
                   </option>
                 ))}
               </select>
@@ -485,7 +548,10 @@ export const TransactionModal: React.FC = () => {
               </>
             ) : (
               <span>
-                {type === 'expense' ? 'Registrar Egreso' : type === 'income' ? 'Registrar Ingreso' : 'Procesar Transferencia / Cambio'}
+                {editingTransaction 
+                  ? 'Guardar Modificación' 
+                  : (type === 'expense' ? 'Registrar Egreso' : type === 'income' ? 'Registrar Ingreso' : 'Procesar Transferencia / Cambio')
+                }
               </span>
             )}
           </button>

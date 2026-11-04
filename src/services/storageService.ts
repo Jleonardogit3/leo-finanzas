@@ -362,6 +362,21 @@ export class StorageService {
     }
   }
 
+  static deleteCategory(categoryId: string, userId?: string | null): Category[] {
+    const key = this.getKey(CATEGORIES_STORAGE_KEY, userId);
+    SyncService.recordDeletion(categoryId, 'category');
+    const categories = this.getCategories(userId).filter(c => c.id !== categoryId);
+    localStorage.setItem(key, JSON.stringify(categories));
+    if (userId) {
+      try {
+        deleteDoc(doc(db, `users/${userId}/categories`, categoryId));
+      } catch (err) {
+        console.warn('Delete category offline queued', err);
+      }
+    }
+    return categories;
+  }
+
   /**
    * Account Operations
    */
@@ -668,6 +683,89 @@ export class StorageService {
     }
 
     return updatedAccounts;
+  }
+
+  static updateTransaction(
+    updatedTx: Transaction,
+    userId?: string | null
+  ): { updatedAccounts: Account[], transaction: Transaction } {
+    const transactions = this.getTransactions(userId);
+    const oldTx = transactions.find(t => t.id === updatedTx.id);
+    if (!oldTx) {
+      return this.addTransaction(updatedTx, userId);
+    }
+
+    // 1. Revert old transaction's balances from accounts
+    let accounts = this.getAccounts(userId);
+    accounts = accounts.map(acc => {
+      if (acc.id === oldTx.accountId) {
+        let cur = acc.currentBalance;
+        let dig = acc.digitalUsdBalance ?? 0;
+        let phy = acc.physicalUsdBalance ?? 0;
+        const delta = (oldTx.type === 'expense' || oldTx.type === 'transfer') ? oldTx.amount : -oldTx.amount;
+        if (oldTx.subFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
+        else if (oldTx.subFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
+        else cur = Number((cur + delta).toFixed(2));
+        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy };
+      }
+      if (oldTx.type === 'transfer' && oldTx.toAccountId && acc.id === oldTx.toAccountId) {
+        const incomingAmount = oldTx.destinationAmount !== undefined ? oldTx.destinationAmount : oldTx.amount;
+        let cur = acc.currentBalance;
+        let dig = acc.digitalUsdBalance ?? 0;
+        let phy = acc.physicalUsdBalance ?? 0;
+        if (oldTx.toSubFund === 'digital_usd') dig = Number((dig - incomingAmount).toFixed(2));
+        else if (oldTx.toSubFund === 'physical_usd') phy = Number((phy - incomingAmount).toFixed(2));
+        else cur = Number((cur - incomingAmount).toFixed(2));
+        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy };
+      }
+      return acc;
+    });
+
+    // 2. Apply new updated transaction's balances to accounts
+    const updatedAccounts = accounts.map(acc => {
+      if (acc.id === updatedTx.accountId) {
+        let cur = acc.currentBalance;
+        let dig = acc.digitalUsdBalance ?? 0;
+        let phy = acc.physicalUsdBalance ?? 0;
+        const delta = (updatedTx.type === 'expense' || updatedTx.type === 'transfer') ? -updatedTx.amount : updatedTx.amount;
+        if (updatedTx.subFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
+        else if (updatedTx.subFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
+        else cur = Number((cur + delta).toFixed(2));
+        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy, updatedAt: new Date().toISOString() };
+      }
+      if (updatedTx.type === 'transfer' && updatedTx.toAccountId && acc.id === updatedTx.toAccountId) {
+        const incomingAmount = updatedTx.destinationAmount !== undefined ? updatedTx.destinationAmount : updatedTx.amount;
+        let cur = acc.currentBalance;
+        let dig = acc.digitalUsdBalance ?? 0;
+        let phy = acc.physicalUsdBalance ?? 0;
+        if (updatedTx.toSubFund === 'digital_usd') dig = Number((dig + incomingAmount).toFixed(2));
+        else if (updatedTx.toSubFund === 'physical_usd') phy = Number((phy + incomingAmount).toFixed(2));
+        else cur = Number((cur + incomingAmount).toFixed(2));
+        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy, updatedAt: new Date().toISOString() };
+      }
+      return acc;
+    });
+
+    const txWithUpdated: Transaction = {
+      ...updatedTx,
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedTxs = transactions.map(t => t.id === updatedTx.id ? txWithUpdated : t);
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
+    localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
+
+    if (userId) {
+      try {
+        const txRef = doc(db, `users/${userId}/transactions`, txWithUpdated.id);
+        setDoc(txRef, txWithUpdated);
+        this.batchSaveAccounts(updatedAccounts, userId);
+      } catch (e) {
+        console.warn('Update transaction offline queued', e);
+      }
+    }
+
+    return { updatedAccounts, transaction: txWithUpdated };
   }
 
   /**

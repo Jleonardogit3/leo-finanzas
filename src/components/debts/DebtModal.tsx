@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   HandCoins, 
@@ -10,13 +10,22 @@ import {
   FileText,
   CreditCard,
   ArrowDownLeft,
-  ArrowUpRight
+  ArrowUpRight,
+  Check
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Debt, DebtCurrencyType, DebtType } from '../../types';
 
 export const DebtModal: React.FC = () => {
-  const { isDebtModalOpen, setIsDebtModalOpen, saveDebt, rates } = useApp();
+  const { 
+    isDebtModalOpen, 
+    setIsDebtModalOpen, 
+    saveDebt, 
+    updateDebt,
+    editingDebt,
+    setEditingDebt,
+    rates 
+  } = useApp();
 
   const [debtType, setDebtType] = useState<DebtType>('receivable');
   const [debtorName, setDebtorName] = useState('');
@@ -26,6 +35,30 @@ export const DebtModal: React.FC = () => {
   const [currencyType, setCurrencyType] = useState<DebtCurrencyType>('USD_USDT');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (isDebtModalOpen) {
+      if (editingDebt) {
+        setDebtType(editingDebt.debtType || 'receivable');
+        setDebtorName(editingDebt.debtorName);
+        setPhone(editingDebt.phone || '');
+        setConcept(editingDebt.concept);
+        setAmountStr(editingDebt.originalAmount.toString());
+        setCurrencyType(editingDebt.currencyType);
+        setDueDate(editingDebt.dueDate ? editingDebt.dueDate.slice(0, 10) : '');
+        setNotes(editingDebt.notes || '');
+      } else {
+        setDebtType('receivable');
+        setDebtorName('');
+        setPhone('');
+        setConcept('');
+        setAmountStr('');
+        setCurrencyType('USD_USDT');
+        setDueDate('');
+        setNotes('');
+      }
+    }
+  }, [isDebtModalOpen, editingDebt]);
 
   if (!isDebtModalOpen) return null;
 
@@ -51,25 +84,60 @@ export const DebtModal: React.FC = () => {
 
     const appliedRate = currencyType === 'VES_BCV' ? rates.bcv : rates.usdt;
 
-    const newDebt: Debt = {
-      id: `debt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      debtType,
-      debtorName: debtorName.trim(),
-      phone: phone.trim() || undefined,
-      concept: concept.trim() || (isPayable ? 'Deuda Pendiente por Pagar' : 'Préstamo / Cuenta por Cobrar'),
-      originalAmount: currentAmount,
-      currencyType,
-      appliedRateAtCreation: appliedRate,
-      remainingAmount: currentAmount,
-      status: 'pending',
-      dueDate: dueDate || undefined,
-      notes: notes.trim() || undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      payments: []
-    };
+    if (editingDebt) {
+      const totalPaid = editingDebt.payments 
+        ? editingDebt.payments.reduce((sum, p) => sum + p.amount, 0)
+        : 0;
+      const newRemaining = Math.max(0, currentAmount - totalPaid);
+      let newStatus = editingDebt.status;
+      if (newRemaining <= 0) {
+        newStatus = 'paid';
+      } else if (totalPaid > 0) {
+        newStatus = 'partially_paid';
+      } else {
+        newStatus = 'pending';
+      }
 
-    saveDebt(newDebt);
+      const updatedDebt: Debt = {
+        ...editingDebt,
+        debtType,
+        debtorName: debtorName.trim(),
+        phone: phone.trim() || undefined,
+        concept: concept.trim() || (isPayable ? 'Deuda Pendiente por Pagar' : 'Préstamo / Cuenta por Cobrar'),
+        originalAmount: currentAmount,
+        currencyType,
+        appliedRateAtCreation: editingDebt.appliedRateAtCreation || appliedRate,
+        remainingAmount: newRemaining,
+        status: newStatus,
+        dueDate: dueDate || undefined,
+        notes: notes.trim() || undefined,
+        updatedAt: new Date().toISOString()
+      };
+
+      updateDebt(updatedDebt);
+    } else {
+      const newDebt: Debt = {
+        id: `debt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        debtType,
+        debtorName: debtorName.trim(),
+        phone: phone.trim() || undefined,
+        concept: concept.trim() || (isPayable ? 'Deuda Pendiente por Pagar' : 'Préstamo / Cuenta por Cobrar'),
+        originalAmount: currentAmount,
+        currencyType,
+        appliedRateAtCreation: appliedRate,
+        remainingAmount: currentAmount,
+        status: 'pending',
+        dueDate: dueDate || undefined,
+        notes: notes.trim() || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        payments: []
+      };
+
+      saveDebt(newDebt);
+    }
+
+    setEditingDebt(null);
     setIsDebtModalOpen(false);
 
     // Reset fields
@@ -94,24 +162,29 @@ export const DebtModal: React.FC = () => {
               {isPayable ? (
                 <>
                   <CreditCard className="w-5 h-5 text-rose-500" />
-                  <span>Registrar Deuda por Pagar (Yo Debo)</span>
+                  <span>{editingDebt ? 'Editar Deuda por Pagar' : 'Registrar Deuda por Pagar (Yo Debo)'}</span>
                 </>
               ) : (
                 <>
                   <HandCoins className="w-5 h-5 text-amber-500" />
-                  <span>Registrar Cuenta por Cobrar (Me Deben)</span>
+                  <span>{editingDebt ? 'Editar Cuenta por Cobrar' : 'Registrar Cuenta por Cobrar (Me Deben)'}</span>
                 </>
               )}
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              {isPayable 
-                ? 'Dinero que tienes pendiente de pagar a otra persona o comercio'
-                : 'Dinero que otras personas o clientes te deben a ti'
+              {editingDebt 
+                ? 'Modifica los montos, deudor o condiciones acordadas'
+                : (isPayable 
+                  ? 'Dinero que tienes pendiente de pagar a otra persona o comercio'
+                  : 'Dinero que otras personas o clientes te deben a ti')
               }
             </p>
           </div>
           <button 
-            onClick={() => setIsDebtModalOpen(false)}
+            onClick={() => {
+              setEditingDebt(null);
+              setIsDebtModalOpen(false);
+            }}
             className="p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="w-5 h-5" />
@@ -340,8 +413,13 @@ export const DebtModal: React.FC = () => {
                   : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 shadow-amber-600/30'
               }`}
             >
-              <PlusCircle className="w-4 h-4" />
-              <span>{isPayable ? 'Guardar Deuda por Pagar' : 'Guardar Deudor Pendiente'}</span>
+              {editingDebt ? <Check className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
+              <span>
+                {editingDebt 
+                  ? 'Guardar Modificación' 
+                  : (isPayable ? 'Guardar Deuda por Pagar' : 'Guardar Deudor Pendiente')
+                }
+              </span>
             </button>
           </div>
         </form>

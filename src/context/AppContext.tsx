@@ -114,23 +114,40 @@ interface AppContextType {
 
   // Actions
   addTransaction: (tx: Transaction) => void;
+  updateTransaction: (tx: Transaction) => void;
   deleteTransaction: (id: string) => void;
+  editingTransaction: Transaction | null;
+  setEditingTransaction: (tx: Transaction | null) => void;
+
   saveAccount: (account: Account) => void;
   deleteAccount: (accountId: string) => void;
   batchSaveAccounts: (accounts: Account[]) => void;
+
   saveCategory: (category: Category) => void;
+  deleteCategory: (categoryId: string) => void;
+  editingCategory: Category | null;
+  setEditingCategory: (cat: Category | null) => void;
+
   savePortfolioAsset: (asset: PortfolioAsset) => void;
   deletePortfolioAsset: (id: string) => void;
   saveGoal: (goal: FinancialGoal) => void;
   deleteGoal: (id: string) => void;
+
   saveDebt: (debt: Debt) => void;
+  updateDebt: (debt: Debt) => void;
   deleteDebt: (id: string) => void;
   revertDebt: (id: string) => void;
+  editingDebt: Debt | null;
+  setEditingDebt: (debt: Debt | null) => void;
   addDebtPayment: (debtId: string, payment: Omit<DebtPayment, 'id'>) => void;
   deleteDebtPayment: (debtId: string, paymentId: string) => void;
+
   saveLoss: (loss: Loss, deductFromAccount?: boolean) => void;
+  updateLoss: (loss: Loss) => void;
   deleteLoss: (id: string) => void;
   revertLoss: (id: string) => void;
+  editingLoss: Loss | null;
+  setEditingLoss: (loss: Loss | null) => void;
   recoverLoss: (lossId: string, recoveryData: Omit<LossRecovery, 'id'>) => void;
   deleteLossRecovery: (lossId: string, recoveryId: string) => void;
   declareDebtAsLoss: (debtId: string, reason?: string) => void;
@@ -432,16 +449,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Modal States
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
   const [isInitialSetupModalOpen, setIsInitialSetupModalOpen] = useState(() => !StorageService.isInitialSetupDone());
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [isDebtPaymentModalOpen, setIsDebtPaymentModalOpen] = useState(false);
   const [activeDebtForPayment, setActiveDebtForPayment] = useState<Debt | null>(null);
   const [isLossModalOpen, setIsLossModalOpen] = useState(false);
+  const [editingLoss, setEditingLoss] = useState<Loss | null>(null);
   const [isLossRecoveryModalOpen, setIsLossRecoveryModalOpen] = useState(false);
   const [activeLossForRecovery, setActiveLossForRecovery] = useState<Loss | null>(null);
 
@@ -655,6 +676,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTransactions(StorageService.getTransactions(user?.uid));
   };
 
+  const updateTransaction = (tx: Transaction) => {
+    const result = StorageService.updateTransaction(tx, user?.uid);
+    setAccounts(result.updatedAccounts);
+    setTransactions(StorageService.getTransactions(user?.uid));
+  };
+
   const deleteTransaction = (id: string) => {
     const updatedAccounts = StorageService.deleteTransaction(id, user?.uid);
     setAccounts(updatedAccounts);
@@ -675,6 +702,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveCategory = (cat: Category) => {
     StorageService.saveCategory(cat, user?.uid);
     setCategories(StorageService.getCategories(user?.uid));
+  };
+
+  const deleteCategory = (categoryId: string) => {
+    const updated = StorageService.deleteCategory(categoryId, user?.uid);
+    setCategories(updated);
   };
 
   const savePortfolioAsset = (asset: PortfolioAsset) => {
@@ -703,6 +735,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDebts(updated);
   };
 
+  const updateDebt = (debt: Debt) => {
+    const updated = StorageService.saveDebt(debt, user?.uid);
+    setDebts(updated);
+  };
+
   const deleteDebt = (id: string) => {
     const updated = StorageService.deleteDebt(id, user?.uid);
     setDebts(updated);
@@ -725,6 +762,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (deductFromAccount && loss.affectedAccountId) {
       setTransactions(StorageService.getTransactions());
     }
+  };
+
+  const updateLoss = (loss: Loss) => {
+    const result = StorageService.saveLoss(loss, user?.uid, false);
+    setLosses(result.updatedLosses);
+    setAccounts(result.updatedAccounts);
   };
 
   const deleteLoss = (id: string) => {
@@ -1085,23 +1128,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeLossForRecovery,
         setActiveLossForRecovery,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
+        editingTransaction,
+        setEditingTransaction,
         saveAccount,
         deleteAccount,
         batchSaveAccounts,
         saveCategory,
+        deleteCategory,
+        editingCategory,
+        setEditingCategory,
         savePortfolioAsset,
         deletePortfolioAsset,
         saveGoal,
         deleteGoal,
         saveDebt,
+        updateDebt,
         deleteDebt,
         revertDebt,
+        editingDebt,
+        setEditingDebt,
         addDebtPayment,
         deleteDebtPayment,
         saveLoss,
+        updateLoss,
         deleteLoss,
         revertLoss,
+        editingLoss,
+        setEditingLoss,
         recoverLoss,
         deleteLossRecovery,
         declareDebtAsLoss,

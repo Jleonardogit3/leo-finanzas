@@ -35,7 +35,10 @@ export const LossModal: React.FC = () => {
     setIsLossModalOpen, 
     accounts, 
     rates, 
-    saveLoss 
+    saveLoss,
+    updateLoss,
+    editingLoss,
+    setEditingLoss
   } = useApp();
 
   const [concept, setConcept] = useState('');
@@ -51,18 +54,31 @@ export const LossModal: React.FC = () => {
 
   useEffect(() => {
     if (isLossModalOpen) {
-      setConcept('');
-      setCategory('damage_merchandise');
-      setAmountStr('');
-      setCurrency('USD');
-      setAffectedAccountId('');
-      setSubFund('ves');
-      setDeductFromAccount(false);
-      setDate(new Date().toISOString().slice(0, 10));
-      setNotes('');
-      setIsSuccess(false);
+      if (editingLoss) {
+        setConcept(editingLoss.concept);
+        setCategory(editingLoss.category);
+        setAmountStr(editingLoss.amount.toString());
+        setCurrency(editingLoss.currency);
+        setAffectedAccountId(editingLoss.affectedAccountId || '');
+        setSubFund(editingLoss.subFund || 'ves');
+        setDeductFromAccount(false);
+        setDate(editingLoss.date ? editingLoss.date.slice(0, 10) : new Date().toISOString().slice(0, 10));
+        setNotes(editingLoss.notes || '');
+        setIsSuccess(false);
+      } else {
+        setConcept('');
+        setCategory('damage_merchandise');
+        setAmountStr('');
+        setCurrency('USD');
+        setAffectedAccountId('');
+        setSubFund('ves');
+        setDeductFromAccount(false);
+        setDate(new Date().toISOString().slice(0, 10));
+        setNotes('');
+        setIsSuccess(false);
+      }
     }
-  }, [isLossModalOpen]);
+  }, [isLossModalOpen, editingLoss]);
 
   if (!isLossModalOpen) return null;
 
@@ -82,28 +98,46 @@ export const LossModal: React.FC = () => {
     e.preventDefault();
     if (!concept.trim() || currentAmount <= 0) return;
 
-    const newLoss: Loss = {
-      id: `loss-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      concept: concept.trim(),
-      category,
-      amount: currentAmount,
-      currency,
-      appliedRate: currency === 'USD' ? rates.usdt : rates.bcv,
-      date: new Date(date).toISOString(),
-      status: 'total_loss',
-      recoveredAmount: 0,
-      affectedAccountId: affectedAccountId || undefined,
-      subFund: selectedAccount?.type === 'bank_ves' ? subFund : undefined,
-      notes: notes.trim() || undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    if (editingLoss) {
+      const updatedLoss: Loss = {
+        ...editingLoss,
+        concept: concept.trim(),
+        category,
+        amount: currentAmount,
+        currency,
+        appliedRate: currency === 'USD' ? rates.usdt : rates.bcv,
+        date: new Date(date).toISOString(),
+        affectedAccountId: affectedAccountId || undefined,
+        subFund: selectedAccount?.type === 'bank_ves' ? subFund : undefined,
+        notes: notes.trim() || undefined,
+        updatedAt: new Date().toISOString()
+      };
+      updateLoss(updatedLoss);
+    } else {
+      const newLoss: Loss = {
+        id: `loss-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        concept: concept.trim(),
+        category,
+        amount: currentAmount,
+        currency,
+        appliedRate: currency === 'USD' ? rates.usdt : rates.bcv,
+        date: new Date(date).toISOString(),
+        status: 'total_loss',
+        recoveredAmount: 0,
+        affectedAccountId: affectedAccountId || undefined,
+        subFund: selectedAccount?.type === 'bank_ves' ? subFund : undefined,
+        notes: notes.trim() || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      saveLoss(newLoss, deductFromAccount && !!affectedAccountId);
+    }
 
-    saveLoss(newLoss, deductFromAccount && !!affectedAccountId);
     setIsSuccess(true);
 
     setTimeout(() => {
       setIsSuccess(false);
+      setEditingLoss(null);
       setIsLossModalOpen(false);
     }, 400);
   };
@@ -122,15 +156,21 @@ export const LossModal: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                Registrar Pérdida o Merma
+                {editingLoss ? 'Editar Pérdida o Merma' : 'Registrar Pérdida o Merma'}
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                Audita imprevistos, desvalorización, mercancía rota o deudas incobrables
+                {editingLoss 
+                  ? 'Modifica el concepto, categoría, monto o detalles de la pérdida'
+                  : 'Audita imprevistos, desvalorización, mercancía rota o deudas incobrables'
+                }
               </p>
             </div>
           </div>
           <button 
-            onClick={() => setIsLossModalOpen(false)}
+            onClick={() => {
+              setEditingLoss(null);
+              setIsLossModalOpen(false);
+            }}
             className="p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="w-5 h-5" />
@@ -354,12 +394,12 @@ export const LossModal: React.FC = () => {
               {isSuccess ? (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>¡Registrado!</span>
+                  <span>¡Guardado!</span>
                 </>
               ) : (
                 <>
                   <TrendingDown className="w-4 h-4" />
-                  <span>Guardar Pérdida</span>
+                  <span>{editingLoss ? 'Guardar Modificación' : 'Guardar Pérdida'}</span>
                 </>
               )}
             </button>

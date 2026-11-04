@@ -211,3 +211,4 @@ export const BiometricLockModal: React.FC = () => {
     </div>
   );
 };
+
