@@ -22,7 +22,8 @@ import {
   Loss,
   LossRecovery,
   AuditLogEntry,
-  UnifiedActivityItem
+  UnifiedActivityItem,
+  RegisteredUser
 } from '../types';
 import { PRECONFIGURED_ACCOUNTS, PREDEFINED_CATEGORIES } from '../utils/constants';
 import { SyncService } from './syncService';
@@ -37,8 +38,194 @@ const DEBTS_STORAGE_KEY = 'finanzas_vzla_debts';
 const LOSSES_STORAGE_KEY = 'finanzas_vzla_losses';
 const AUDIT_LOGS_STORAGE_KEY = 'finanzas_vzla_audit_logs';
 const SETUP_COMPLETED_KEY = 'finanzas_vzla_setup_completed';
+const REGISTERED_USERS_KEY = 'finanzas_vzla_registered_users';
+
+export const DEFAULT_ADMIN_USER: RegisteredUser = {
+  uid: 'jleonardo-admin',
+  username: 'Jleonardo',
+  password: 'Jleofinanzas',
+  createdAt: '2026-11-02T00:00:00.000Z',
+  isDefaultAdmin: true
+};
 
 export class StorageService {
+  /**
+   * Obtiene la clave de almacenamiento adecuada según el usuario activo
+   */
+  static getKey(baseKey: string, userId?: string | null): string {
+    if (!userId || userId === 'jleonardo-admin') {
+      return baseKey;
+    }
+    return `${baseKey}_${userId}`;
+  }
+
+  /**
+   * Gestión de Usuarios Registrados
+   */
+  static getRegisteredUsers(): RegisteredUser[] {
+    try {
+      const cached = localStorage.getItem(REGISTERED_USERS_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasAdmin = parsed.some((u: RegisteredUser) => u.username.toLowerCase() === 'jleonardo');
+          if (!hasAdmin) {
+            parsed.unshift(DEFAULT_ADMIN_USER);
+            localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(parsed));
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error leyendo usuarios registrados', e);
+    }
+    const defaults = [DEFAULT_ADMIN_USER];
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(defaults));
+    return defaults;
+  }
+
+  static registerUser(username: string, password: string): { success: boolean; user?: RegisteredUser; message?: string } {
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+
+    if (!cleanUser || cleanUser.length < 3) {
+      return { success: false, message: 'El nombre de usuario debe tener al menos 3 caracteres.' };
+    }
+    if (!cleanPass || cleanPass.length < 4) {
+      return { success: false, message: 'La contraseña debe tener al menos 4 caracteres.' };
+    }
+
+    const users = this.getRegisteredUsers();
+    const exists = users.some(u => u.username.toLowerCase() === cleanUser.toLowerCase());
+    if (exists) {
+      return { success: false, message: `El usuario "${cleanUser}" ya existe. Elige otro nombre.` };
+    }
+
+    const newUid = `user-${Date.now()}`;
+    const newUser: RegisteredUser = {
+      uid: newUid,
+      username: cleanUser,
+      password: cleanPass,
+      createdAt: new Date().toISOString(),
+      isDefaultAdmin: false
+    };
+
+    const updatedUsers = [...users, newUser];
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(updatedUsers));
+
+    // Inicializar cuentas en 0 para este nuevo usuario
+    this.initUserZeroAccounts(newUid);
+
+    return { success: true, user: newUser };
+  }
+
+  static deleteRegisteredUser(uid: string): { success: boolean; message?: string } {
+    if (uid === 'jleonardo-admin') {
+      return { success: false, message: 'No se puede eliminar la cuenta de administrador principal (Jleonardo).' };
+    }
+
+    const users = this.getRegisteredUsers();
+    const target = users.find(u => u.uid === uid);
+    if (!target) {
+      return { success: false, message: 'Usuario no encontrado.' };
+    }
+
+    const updated = users.filter(u => u.uid !== uid);
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(updated));
+
+    try {
+      localStorage.removeItem(`${ACCOUNTS_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${TRANSACTIONS_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${DEBTS_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${LOSSES_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${GOALS_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${CATEGORIES_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${AUDIT_LOGS_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${ASSETS_STORAGE_KEY}_${uid}`);
+    } catch (e) {
+      console.warn('Error limpiando datos de usuario eliminado', e);
+    }
+
+    return { success: true };
+  }
+
+  static initUserZeroAccounts(uid: string): Account[] {
+    const zeroAccounts: Account[] = [
+      {
+        id: `acc-${uid}-bdv`,
+        name: 'Banco de Venezuela',
+        type: 'bank_ves',
+        currency: 'VES',
+        initialBalance: 0,
+        currentBalance: 0,
+        digitalUsdBalance: 0,
+        initialDigitalUsdBalance: 0,
+        physicalUsdBalance: 0,
+        initialPhysicalUsdBalance: 0,
+        color: '#B91C1C',
+        icon: 'Building2',
+        bankCode: '0102',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: `acc-${uid}-provincial`,
+        name: 'Banco Provincial (BBVA)',
+        type: 'bank_ves',
+        currency: 'VES',
+        initialBalance: 0,
+        currentBalance: 0,
+        digitalUsdBalance: 0,
+        initialDigitalUsdBalance: 0,
+        physicalUsdBalance: 0,
+        initialPhysicalUsdBalance: 0,
+        color: '#1D4ED8',
+        icon: 'Landmark',
+        bankCode: '0108',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: `acc-${uid}-binance`,
+        name: 'Binance ($)',
+        type: 'wallet_crypto',
+        currency: 'USD',
+        initialBalance: 0,
+        currentBalance: 0,
+        digitalUsdBalance: 0,
+        initialDigitalUsdBalance: 0,
+        physicalUsdBalance: 0,
+        initialPhysicalUsdBalance: 0,
+        color: '#F59E0B',
+        icon: 'Coins',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: `acc-${uid}-cash`,
+        name: 'Efectivo ($)',
+        type: 'cash_usd',
+        currency: 'USD',
+        initialBalance: 0,
+        currentBalance: 0,
+        digitalUsdBalance: 0,
+        initialDigitalUsdBalance: 0,
+        physicalUsdBalance: 0,
+        initialPhysicalUsdBalance: 0,
+        color: '#10B981',
+        icon: 'Banknote',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+
+    localStorage.setItem(`${ACCOUNTS_STORAGE_KEY}_${uid}`, JSON.stringify(zeroAccounts));
+    localStorage.setItem(`${TRANSACTIONS_STORAGE_KEY}_${uid}`, JSON.stringify([]));
+    localStorage.setItem(`${DEBTS_STORAGE_KEY}_${uid}`, JSON.stringify([]));
+    localStorage.setItem(`${LOSSES_STORAGE_KEY}_${uid}`, JSON.stringify([]));
+    localStorage.setItem(`${GOALS_STORAGE_KEY}_${uid}`, JSON.stringify([]));
+    return zeroAccounts;
+  }
   /**
    * Checks if initial setup has been performed
    */
@@ -53,7 +240,24 @@ export class StorageService {
   /**
    * Initializes default accounts if empty
    */
-  static getInitialAccounts(): Account[] {
+  static getInitialAccounts(userId?: string | null): Account[] {
+    const key = this.getKey(ACCOUNTS_STORAGE_KEY, userId);
+
+    // Si es un usuario secundario registrado
+    if (userId && userId !== 'jleonardo-admin') {
+      const cachedUser = localStorage.getItem(key);
+      if (cachedUser) {
+        try {
+          const parsed = JSON.parse(cachedUser);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch {}
+      }
+      return this.initUserZeroAccounts(userId);
+    }
+
+    // Para el usuario principal Jleonardo
     const SEED_MIGRATION_KEY = 'finanzas_vzla_seed_migrated_v3';
     const isMigrated = localStorage.getItem(SEED_MIGRATION_KEY) === 'true';
     const cached = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
@@ -109,8 +313,9 @@ export class StorageService {
   /**
    * Initializes categories if empty
    */
-  static getCategories(): Category[] {
-    const cached = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+  static getCategories(userId?: string | null): Category[] {
+    const key = this.getKey(CATEGORIES_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -126,16 +331,17 @@ export class StorageService {
       ? SEED_DATABASE.categories
       : PREDEFINED_CATEGORIES;
 
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+    localStorage.setItem(key, JSON.stringify(categories));
     return categories;
   }
 
   static saveCategory(category: Category, userId?: string | null): void {
+    const key = this.getKey(CATEGORIES_STORAGE_KEY, userId);
     const catToSave: Category = {
       ...category,
       updatedAt: category.updatedAt || new Date().toISOString()
     };
-    const categories = this.getCategories();
+    const categories = this.getCategories(userId);
     const existingIndex = categories.findIndex(c => c.id === catToSave.id);
     let updated: Category[];
     if (existingIndex >= 0) {
@@ -144,7 +350,7 @@ export class StorageService {
     } else {
       updated = [catToSave, ...categories];
     }
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
 
     if (userId) {
       try {
@@ -159,12 +365,13 @@ export class StorageService {
   /**
    * Account Operations
    */
-  static getAccounts(): Account[] {
-    return this.getInitialAccounts();
+  static getAccounts(userId?: string | null): Account[] {
+    return this.getInitialAccounts(userId);
   }
 
   static saveAccount(account: Account, userId?: string | null): void {
-    const accounts = this.getAccounts();
+    const key = this.getKey(ACCOUNTS_STORAGE_KEY, userId);
+    const accounts = this.getAccounts(userId);
     const idx = accounts.findIndex(a => a.id === account.id);
     let updated: Account[];
     if (idx >= 0) {
@@ -208,7 +415,7 @@ export class StorageService {
         snapshotAfter: account
       }, userId);
     }
-    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
 
     if (userId) {
       try {
@@ -220,8 +427,48 @@ export class StorageService {
     }
   }
 
+  /**
+   * Elimina una cuenta bancaria o billetera seleccionada
+   */
+  static deleteAccount(accountId: string, userId?: string | null): Account[] {
+    const key = this.getKey(ACCOUNTS_STORAGE_KEY, userId);
+    const accounts = this.getAccounts(userId);
+    const target = accounts.find(a => a.id === accountId);
+    if (!target) return accounts;
+
+    const updated = accounts.filter(a => a.id !== accountId);
+    localStorage.setItem(key, JSON.stringify(updated));
+
+    this.saveAuditLog({
+      id: `audit-del-acc-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: 'account_adjustment',
+      action: 'delete',
+      title: `Cuenta eliminada: ${target.name}`,
+      details: `Se eliminó la cuenta con saldo final de ${target.currentBalance} ${target.currency}`,
+      entityId: accountId,
+      amount: target.currentBalance,
+      currency: target.currency,
+      snapshotBefore: target,
+      snapshotAfter: null
+    }, userId);
+
+    SyncService.recordDeletion(accountId, 'account');
+
+    if (userId) {
+      try {
+        deleteDoc(doc(db, `users/${userId}/accounts`, accountId));
+      } catch (e) {
+        console.warn('Offline delete account firestore queued', e);
+      }
+    }
+
+    return updated;
+  }
+
   static batchSaveAccounts(accountsList: Account[], userId?: string | null): void {
-    const oldAccounts = this.getAccounts();
+    const key = this.getKey(ACCOUNTS_STORAGE_KEY, userId);
+    const oldAccounts = this.getAccounts(userId);
     const hasAnyChange = oldAccounts.some(oldAcc => {
       const newAcc = accountsList.find(a => a.id === oldAcc.id);
       if (!newAcc) return false;
@@ -244,7 +491,7 @@ export class StorageService {
       }, userId);
     }
 
-    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accountsList));
+    localStorage.setItem(key, JSON.stringify(accountsList));
     if (userId) {
       accountsList.forEach(acc => {
         try {
@@ -260,8 +507,9 @@ export class StorageService {
   /**
    * Transaction Operations
    */
-  static getTransactions(): Transaction[] {
-    const cached = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+  static getTransactions(userId?: string | null): Transaction[] {
+    const key = this.getKey(TRANSACTIONS_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
     if (!cached) return [];
     try {
       return JSON.parse(cached);
@@ -271,8 +519,8 @@ export class StorageService {
   }
 
   static addTransaction(tx: Transaction, userId?: string | null): { updatedAccounts: Account[], transaction: Transaction } {
-    const transactions = this.getTransactions();
-    const accounts = this.getAccounts();
+    const transactions = this.getTransactions(userId);
+    const accounts = this.getAccounts(userId);
 
     // Calculate balance impacts
     const updatedAccounts = accounts.map(acc => {
@@ -333,8 +581,8 @@ export class StorageService {
       updatedAt: tx.updatedAt || new Date().toISOString()
     };
     const updatedTxs = [txWithUpdated, ...transactions];
-    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTxs));
-    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
+    localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
     if (userId) {
       try {
@@ -351,11 +599,11 @@ export class StorageService {
 
   static deleteTransaction(txId: string, userId?: string | null): Account[] {
     SyncService.recordDeletion(txId, 'transaction');
-    const transactions = this.getTransactions();
+    const transactions = this.getTransactions(userId);
     const txToDelete = transactions.find(t => t.id === txId);
-    if (!txToDelete) return this.getAccounts();
+    if (!txToDelete) return this.getAccounts(userId);
 
-    const accounts = this.getAccounts();
+    const accounts = this.getAccounts(userId);
     // Revert balance changes
     const updatedAccounts = accounts.map(acc => {
       if (acc.id === txToDelete.accountId) {
@@ -407,8 +655,8 @@ export class StorageService {
     });
 
     const updatedTxs = transactions.filter(t => t.id !== txId);
-    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTxs));
-    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
+    localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
     if (userId) {
       try {
@@ -425,8 +673,9 @@ export class StorageService {
   /**
    * Portfolio & Assets
    */
-  static getPortfolioAssets(): PortfolioAsset[] {
-    const cached = localStorage.getItem(ASSETS_STORAGE_KEY);
+  static getPortfolioAssets(userId?: string | null): PortfolioAsset[] {
+    const key = this.getKey(ASSETS_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
     if (!cached) return [];
     try {
       return JSON.parse(cached);
@@ -436,11 +685,12 @@ export class StorageService {
   }
 
   static savePortfolioAsset(asset: PortfolioAsset, userId?: string | null): PortfolioAsset[] {
+    const key = this.getKey(ASSETS_STORAGE_KEY, userId);
     const assetToSave: PortfolioAsset = {
       ...asset,
       updatedAt: new Date().toISOString()
     };
-    const assets = this.getPortfolioAssets();
+    const assets = this.getPortfolioAssets(userId);
     const idx = assets.findIndex(a => a.id === assetToSave.id);
     let updated: PortfolioAsset[];
     if (idx >= 0) {
@@ -449,7 +699,7 @@ export class StorageService {
     } else {
       updated = [assetToSave, ...assets];
     }
-    localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
 
     if (userId) {
       try {
@@ -462,9 +712,10 @@ export class StorageService {
   }
 
   static deletePortfolioAsset(id: string, userId?: string | null): PortfolioAsset[] {
+    const key = this.getKey(ASSETS_STORAGE_KEY, userId);
     SyncService.recordDeletion(id, 'asset');
-    const assets = this.getPortfolioAssets().filter(a => a.id !== id);
-    localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assets));
+    const assets = this.getPortfolioAssets(userId).filter(a => a.id !== id);
+    localStorage.setItem(key, JSON.stringify(assets));
     if (userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/portfolio`, id));
@@ -478,8 +729,20 @@ export class StorageService {
   /**
    * Financial Goals
    */
-  static getGoals(): FinancialGoal[] {
-    const cached = localStorage.getItem(GOALS_STORAGE_KEY);
+  static getGoals(userId?: string | null): FinancialGoal[] {
+    const key = this.getKey(GOALS_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
+
+    if (userId && userId !== 'jleonardo-admin') {
+      if (!cached) return [];
+      try {
+        const parsed = JSON.parse(cached);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
     if (!cached) {
       const defaultGoals: FinancialGoal[] = (SEED_DATABASE.goals && SEED_DATABASE.goals.length > 0)
         ? SEED_DATABASE.goals
@@ -514,7 +777,8 @@ export class StorageService {
   }
 
   static saveGoal(goal: FinancialGoal, userId?: string | null): FinancialGoal[] {
-    const goals = this.getGoals();
+    const key = this.getKey(GOALS_STORAGE_KEY, userId);
+    const goals = this.getGoals(userId);
     const idx = goals.findIndex(g => g.id === goal.id);
     let updated: FinancialGoal[];
     if (idx >= 0) {
@@ -523,7 +787,7 @@ export class StorageService {
     } else {
       updated = [goal, ...goals];
     }
-    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
 
     if (userId) {
       try {
@@ -536,9 +800,10 @@ export class StorageService {
   }
 
   static deleteGoal(id: string, userId?: string | null): FinancialGoal[] {
+    const key = this.getKey(GOALS_STORAGE_KEY, userId);
     SyncService.recordDeletion(id, 'goal');
-    const goals = this.getGoals().filter(g => g.id !== id);
-    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
+    const goals = this.getGoals(userId).filter(g => g.id !== id);
+    localStorage.setItem(key, JSON.stringify(goals));
     if (userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/goals`, id));
@@ -552,8 +817,20 @@ export class StorageService {
   /**
    * Debts & Debtors Management (Cuentas por Cobrar / Deudores Pendientes)
    */
-  static getDebts(): Debt[] {
-    const cached = localStorage.getItem(DEBTS_STORAGE_KEY);
+  static getDebts(userId?: string | null): Debt[] {
+    const key = this.getKey(DEBTS_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
+
+    if (userId && userId !== 'jleonardo-admin') {
+      if (!cached) return [];
+      try {
+        const parsed = JSON.parse(cached);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
     if (!cached) {
       if (SEED_DATABASE.debts && SEED_DATABASE.debts.length > 0) {
         localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.debts));
@@ -577,7 +854,8 @@ export class StorageService {
   }
 
   static saveDebt(debt: Debt, userId?: string | null): Debt[] {
-    const debts = this.getDebts();
+    const key = this.getKey(DEBTS_STORAGE_KEY, userId);
+    const debts = this.getDebts(userId);
     const idx = debts.findIndex(d => d.id === debt.id);
     let updated: Debt[];
     if (idx >= 0) {
@@ -586,7 +864,7 @@ export class StorageService {
     } else {
       updated = [{ ...debt, updatedAt: new Date().toISOString() }, ...debts];
     }
-    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
 
     if (userId) {
       try {
@@ -599,9 +877,10 @@ export class StorageService {
   }
 
   static deleteDebt(id: string, userId?: string | null): Debt[] {
+    const key = this.getKey(DEBTS_STORAGE_KEY, userId);
     SyncService.recordDeletion(id, 'debt');
-    const debts = this.getDebts().filter(d => d.id !== id);
-    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(debts));
+    const debts = this.getDebts(userId).filter(d => d.id !== id);
+    localStorage.setItem(key, JSON.stringify(debts));
     if (userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/debts`, id));
@@ -876,8 +1155,20 @@ export class StorageService {
   /**
    * Losses & Damage Management (Registro de Pérdidas, Mermas e Incobrables)
    */
-  static getLosses(): Loss[] {
-    const cached = localStorage.getItem(LOSSES_STORAGE_KEY);
+  static getLosses(userId?: string | null): Loss[] {
+    const key = this.getKey(LOSSES_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
+
+    if (userId && userId !== 'jleonardo-admin') {
+      if (!cached) return [];
+      try {
+        const parsed = JSON.parse(cached);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
     if (!cached) {
       if (SEED_DATABASE.losses && SEED_DATABASE.losses.length > 0) {
         localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(SEED_DATABASE.losses));
@@ -905,7 +1196,8 @@ export class StorageService {
     userId?: string | null,
     deductFromAccount = false
   ): { updatedLosses: Loss[], updatedAccounts: Account[] } {
-    const losses = this.getLosses();
+    const key = this.getKey(LOSSES_STORAGE_KEY, userId);
+    const losses = this.getLosses(userId);
     const idx = losses.findIndex(l => l.id === loss.id);
     let updatedLosses: Loss[];
     const isNew = idx < 0;
@@ -916,9 +1208,9 @@ export class StorageService {
     } else {
       updatedLosses = [{ ...loss, updatedAt: new Date().toISOString() }, ...losses];
     }
-    localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(updatedLosses));
+    localStorage.setItem(key, JSON.stringify(updatedLosses));
 
-    let updatedAccounts = this.getAccounts();
+    let updatedAccounts = this.getAccounts(userId);
 
     // If new and requested to deduct from an account, record an expense transaction
     if (isNew && deductFromAccount && loss.affectedAccountId) {
@@ -957,9 +1249,10 @@ export class StorageService {
   }
 
   static deleteLoss(id: string, userId?: string | null): Loss[] {
+    const key = this.getKey(LOSSES_STORAGE_KEY, userId);
     SyncService.recordDeletion(id, 'loss');
-    const losses = this.getLosses().filter(l => l.id !== id);
-    localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(losses));
+    const losses = this.getLosses(userId).filter(l => l.id !== id);
+    localStorage.setItem(key, JSON.stringify(losses));
     if (userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/losses`, id));
@@ -1498,8 +1791,9 @@ export class StorageService {
   /**
    * Historial y Auditoría Global de Cambios
    */
-  static getAuditLogs(): AuditLogEntry[] {
-    const cached = localStorage.getItem(AUDIT_LOGS_STORAGE_KEY);
+  static getAuditLogs(userId?: string | null): AuditLogEntry[] {
+    const key = this.getKey(AUDIT_LOGS_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
     if (!cached) return [];
     try {
       return JSON.parse(cached);
@@ -1509,9 +1803,10 @@ export class StorageService {
   }
 
   static saveAuditLog(entry: AuditLogEntry, userId?: string | null): AuditLogEntry[] {
-    const logs = this.getAuditLogs();
+    const key = this.getKey(AUDIT_LOGS_STORAGE_KEY, userId);
+    const logs = this.getAuditLogs(userId);
     const updated = [entry, ...logs.slice(0, 199)];
-    localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
     if (userId) {
       try {
         setDoc(doc(db, `users/${userId}/audit_logs`, entry.id), entry, { merge: true });

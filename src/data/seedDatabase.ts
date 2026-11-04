@@ -528,3 +528,4 @@ export const SEED_DATABASE: DatabaseSchema = {
   ],
   "auditLogs": []
 };
+

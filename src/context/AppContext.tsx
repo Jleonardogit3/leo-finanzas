@@ -15,7 +15,8 @@ import {
   SyncResult,
   AuditLogEntry,
   UnifiedActivityItem,
-  AppUser
+  AppUser,
+  RegisteredUser
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { RatesService } from '../services/ratesService';
@@ -35,7 +36,10 @@ interface AppContextType {
   // Connectivity & Auth
   isOnline: boolean;
   user: AppUser | null;
+  registeredUsers: RegisteredUser[];
   login: (username: string, password: string) => { success: boolean; message?: string };
+  register: (username: string, password: string) => { success: boolean; message?: string };
+  deleteUser: (uid: string) => { success: boolean; message?: string };
   logout: () => void;
 
   // Data states
@@ -100,6 +104,7 @@ interface AppContextType {
   addTransaction: (tx: Transaction) => void;
   deleteTransaction: (id: string) => void;
   saveAccount: (account: Account) => void;
+  deleteAccount: (accountId: string) => void;
   batchSaveAccounts: (accounts: Account[]) => void;
   saveCategory: (category: Category) => void;
   savePortfolioAsset: (asset: PortfolioAsset) => void;
@@ -155,6 +160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Network status
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>(() => StorageService.getRegisteredUsers());
   const [user, setUser] = useState<AppUser | null>(() => {
     try {
       const cached = localStorage.getItem('finanzas_vzla_auth_session');
@@ -167,41 +173,107 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   });
 
+  // Core Data
+  const [accounts, setAccounts] = useState<Account[]>(() => StorageService.getAccounts(user?.uid));
+  const [transactions, setTransactions] = useState<Transaction[]>(() => StorageService.getTransactions(user?.uid));
+  const [categories, setCategories] = useState<Category[]>(() => StorageService.getCategories(user?.uid));
+  const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>(() => StorageService.getPortfolioAssets(user?.uid));
+  const [goals, setGoals] = useState<FinancialGoal[]>(() => StorageService.getGoals(user?.uid));
+  const [debts, setDebts] = useState<Debt[]>(() => StorageService.getDebts(user?.uid));
+  const [losses, setLosses] = useState<Loss[]>(() => StorageService.getLosses(user?.uid));
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => StorageService.getAuditLogs(user?.uid));
+  const [rates, setRates] = useState<ExchangeRates>(() => RatesService.getCachedRates());
+
+  const reloadDataForUser = (targetUserId?: string | null) => {
+    setAccounts(StorageService.getAccounts(targetUserId));
+    setTransactions(StorageService.getTransactions(targetUserId));
+    setCategories(StorageService.getCategories(targetUserId));
+    setPortfolioAssets(StorageService.getPortfolioAssets(targetUserId));
+    setGoals(StorageService.getGoals(targetUserId));
+    setDebts(StorageService.getDebts(targetUserId));
+    setLosses(StorageService.getLosses(targetUserId));
+    setAuditLogs(StorageService.getAuditLogs(targetUserId));
+  };
+
   const login = (usernameInput: string, passwordInput: string): { success: boolean; message?: string } => {
     const cleanUser = usernameInput.trim();
     const cleanPass = passwordInput.trim();
 
-    if (cleanUser === 'Jleonardo' && cleanPass === 'Jleofinanzas') {
+    const currentUsers = StorageService.getRegisteredUsers();
+    setRegisteredUsers(currentUsers);
+
+    // Buscar coincidencia en usuarios registrados
+    const matched = currentUsers.find(
+      u => u.username.toLowerCase() === cleanUser.toLowerCase() && u.password === cleanPass
+    );
+
+    if (matched) {
       const appUser: AppUser = {
-        uid: 'jleonardo-admin',
-        username: 'Jleonardo',
-        displayName: 'Jleonardo',
-        email: 'jleonardo@finanzas.vzla',
+        uid: matched.uid,
+        username: matched.username,
+        displayName: matched.username,
+        email: `${matched.username.toLowerCase()}@finanzas.vzla`,
         loginAt: new Date().toISOString()
       };
       localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
       setUser(appUser);
+      reloadDataForUser(appUser.uid);
       return { success: true };
     }
 
     return { success: false, message: 'Usuario o contraseña incorrectos. Verifica tus credenciales.' };
   };
 
+  const register = (usernameInput: string, passwordInput: string): { success: boolean; message?: string } => {
+    const res = StorageService.registerUser(usernameInput, passwordInput);
+    if (!res.success || !res.user) {
+      return { success: false, message: res.message || 'Error al registrar usuario.' };
+    }
+
+    const updatedUsers = StorageService.getRegisteredUsers();
+    setRegisteredUsers(updatedUsers);
+
+    // Iniciar sesión automáticamente con el nuevo usuario registrado (sus cuentas inician en 0)
+    const appUser: AppUser = {
+      uid: res.user.uid,
+      username: res.user.username,
+      displayName: res.user.username,
+      email: `${res.user.username.toLowerCase()}@finanzas.vzla`,
+      loginAt: new Date().toISOString()
+    };
+    localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+    setUser(appUser);
+    reloadDataForUser(appUser.uid);
+    return { success: true };
+  };
+
+  const deleteUser = (uid: string): { success: boolean; message?: string } => {
+    const res = StorageService.deleteRegisteredUser(uid);
+    if (!res.success) {
+      return { success: false, message: res.message };
+    }
+
+    const updatedUsers = StorageService.getRegisteredUsers();
+    setRegisteredUsers(updatedUsers);
+
+    if (user?.uid === uid) {
+      logout();
+    }
+
+    return { success: true };
+  };
+
   const logout = () => {
     localStorage.removeItem('finanzas_vzla_auth_session');
     setUser(null);
+    reloadDataForUser(null);
   };
 
-  // Core Data
-  const [accounts, setAccounts] = useState<Account[]>(() => StorageService.getAccounts());
-  const [transactions, setTransactions] = useState<Transaction[]>(() => StorageService.getTransactions());
-  const [categories, setCategories] = useState<Category[]>(() => StorageService.getCategories());
-  const [portfolioAssets, setPortfolioAssets] = useState<PortfolioAsset[]>(() => StorageService.getPortfolioAssets());
-  const [goals, setGoals] = useState<FinancialGoal[]>(() => StorageService.getGoals());
-  const [debts, setDebts] = useState<Debt[]>(() => StorageService.getDebts());
-  const [losses, setLosses] = useState<Loss[]>(() => StorageService.getLosses());
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => StorageService.getAuditLogs());
-  const [rates, setRates] = useState<ExchangeRates>(() => RatesService.getCachedRates());
+  const deleteAccount = (accountId: string) => {
+    const updated = StorageService.deleteAccount(accountId, user?.uid);
+    setAccounts(updated);
+    setAuditLogs(StorageService.getAuditLogs(user?.uid));
+  };
 
   // Modal States
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
@@ -425,18 +497,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addTransaction = (tx: Transaction) => {
     const result = StorageService.addTransaction(tx, user?.uid);
     setAccounts(result.updatedAccounts);
-    setTransactions(StorageService.getTransactions());
+    setTransactions(StorageService.getTransactions(user?.uid));
   };
 
   const deleteTransaction = (id: string) => {
     const updatedAccounts = StorageService.deleteTransaction(id, user?.uid);
     setAccounts(updatedAccounts);
-    setTransactions(StorageService.getTransactions());
+    setTransactions(StorageService.getTransactions(user?.uid));
   };
 
   const saveAccount = (account: Account) => {
     StorageService.saveAccount(account, user?.uid);
-    setAccounts(StorageService.getAccounts());
+    setAccounts(StorageService.getAccounts(user?.uid));
   };
 
   const batchSaveAccounts = (newAccounts: Account[]) => {
@@ -447,7 +519,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveCategory = (cat: Category) => {
     StorageService.saveCategory(cat, user?.uid);
-    setCategories(StorageService.getCategories());
+    setCategories(StorageService.getCategories(user?.uid));
   };
 
   const savePortfolioAsset = (asset: PortfolioAsset) => {
@@ -807,7 +879,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTimeFilter,
         isOnline,
         user,
+        registeredUsers,
         login,
+        register,
+        deleteUser,
         logout,
         accounts,
         transactions,
@@ -848,6 +923,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTransaction,
         deleteTransaction,
         saveAccount,
+        deleteAccount,
         batchSaveAccounts,
         saveCategory,
         savePortfolioAsset,

@@ -272,4 +272,12 @@ export interface AppUser {
   loginAt: string;
 }
 
+export interface RegisteredUser {
+  uid: string;
+  username: string;
+  password?: string;
+  createdAt: string;
+  isDefaultAdmin?: boolean;
+}
+
 

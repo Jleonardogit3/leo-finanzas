@@ -90,3 +90,4 @@ export default function handler(req, res) {
 
   res.status(405).json({ error: 'Método no permitido' });
 }
+

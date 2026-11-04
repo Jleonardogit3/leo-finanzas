@@ -24,3 +24,4 @@ export default function handler(req, res) {
     serverTime: new Date().toISOString()
   });
 }
+

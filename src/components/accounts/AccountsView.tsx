@@ -13,11 +13,14 @@ import {
   Building,
   TrendingUp,
   LayoutGrid,
-  LayoutList
+  LayoutList,
+  Trash2,
+  X
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RatesService } from '../../services/ratesService';
 import { BankLogo } from '../common/BankLogo';
+import { Account } from '../../types';
 
 export const AccountsView: React.FC = () => {
   const { 
@@ -25,10 +28,12 @@ export const AccountsView: React.FC = () => {
     rates, 
     setIsAccountModalOpen, 
     setIsInitialSetupModalOpen, 
-    setIsTxModalOpen 
+    setIsTxModalOpen,
+    deleteAccount
   } = useApp();
 
   const [isCompactView, setIsCompactView] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
 
   const vesAccounts = accounts.filter(a => a.currency === 'VES');
   const usdAccounts = accounts.filter(a => a.currency === 'USD');
@@ -222,9 +227,19 @@ export const AccountsView: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                        MULTIFONDO
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          MULTIFONDO
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAccountToDelete(acc)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          title={`Eliminar cuenta ${acc.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Multifund breakdown container */}
@@ -341,9 +356,19 @@ export const AccountsView: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      USD
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        USD
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAccountToDelete(acc)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        title={`Eliminar cuenta ${acc.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-2.5">
@@ -373,6 +398,75 @@ export const AccountsView: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* CONFIRMATION MODAL: DELETE FINANCIAL ACCOUNT */}
+      {accountToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
+                <Trash2 className="w-4 h-4" />
+                <span>Eliminar Cuenta</span>
+              </div>
+              <button 
+                onClick={() => setAccountToDelete(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
+              <p>
+                ¿Deseas eliminar la cuenta <strong>{accountToDelete.name}</strong>?
+              </p>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Saldo registrado:</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {RatesService.formatMoney(accountToDelete.currentBalance, accountToDelete.currency)}
+                  </span>
+                </div>
+                {(accountToDelete.digitalUsdBalance || 0) > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>$ Digitales:</span>
+                    <span className="font-bold">${accountToDelete.digitalUsdBalance?.toFixed(2)}</span>
+                  </div>
+                )}
+                {(accountToDelete.physicalUsdBalance || 0) > 0 && (
+                  <div className="flex justify-between text-teal-600">
+                    <span>$ Físicos:</span>
+                    <span className="font-bold">${accountToDelete.physicalUsdBalance?.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                Esta cuenta se retirará de tu balance y cálculos patrimoniales.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setAccountToDelete(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteAccount(accountToDelete.id);
+                  setAccountToDelete(null);
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/30 transition-all active:scale-95"
+              >
+                Sí, Eliminar Cuenta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
