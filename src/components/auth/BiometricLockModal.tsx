@@ -21,6 +21,7 @@ export const BiometricLockModal: React.FC = () => {
     user, 
     unlockWithBiometric, 
     unlockWithPassword, 
+    unlockDirectly,
     logout,
     isBiometricSupported,
     enrollBiometric
@@ -101,8 +102,7 @@ export const BiometricLockModal: React.FC = () => {
 
   // Desbloqueo rápido si el dispositivo ya fue verificado hoy
   const handleDirectUnlockToday = () => {
-    sessionStorage.removeItem('finanzas_vzla_session_locked');
-    window.location.reload();
+    unlockDirectly();
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {

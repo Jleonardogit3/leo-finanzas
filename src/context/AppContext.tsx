@@ -53,6 +53,7 @@ interface AppContextType {
   enrollBiometric: (username: string) => Promise<{ success: boolean; message?: string }>;
   unlockWithBiometric: () => Promise<{ success: boolean; message?: string }>;
   unlockWithPassword: (password: string) => { success: boolean; message?: string };
+  unlockDirectly: () => void;
 
   // Data states
   accounts: Account[];
@@ -207,9 +208,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
       if (wasLocked === 'true') return true;
+
+      const sessionUnlocked = sessionStorage.getItem('finanzas_vzla_unlocked_session');
+      if (sessionUnlocked === 'true') return false;
+
       const cached = localStorage.getItem('finanzas_vzla_auth_session');
       if (cached) {
         const parsed = JSON.parse(cached);
+        // Si el dispositivo ya fue desbloqueado el día de hoy, NO bloquear al abrir/recargar
+        if (parsed?.username && BiometricService.isDeviceUnlockedToday(parsed.username)) {
+          return false;
+        }
         if (parsed?.username && BiometricService.isEnrolled(parsed.username) && BiometricService.isAutoLockEnabled()) {
           return true;
         }
@@ -421,6 +430,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const verifyRes = await BiometricService.verifyBiometric(user.username);
     if (verifyRes.success) {
       sessionStorage.removeItem('finanzas_vzla_session_locked');
+      sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
       BiometricService.markDeviceUnlockedToday(user.username);
       setIsAppLocked(false);
       return { success: true };
@@ -441,12 +451,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (matched) {
       sessionStorage.removeItem('finanzas_vzla_session_locked');
+      sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
       BiometricService.markDeviceUnlockedToday(user.username);
       setIsAppLocked(false);
       return { success: true };
     }
 
     return { success: false, message: 'Contraseña incorrecta. Inténtalo de nuevo.' };
+  };
+
+  const unlockDirectly = () => {
+    sessionStorage.removeItem('finanzas_vzla_session_locked');
+    sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+    if (user?.username) {
+      BiometricService.markDeviceUnlockedToday(user.username);
+    }
+    setIsAppLocked(false);
   };
 
   const deleteAccount = (accountId: string) => {
@@ -1172,6 +1192,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         enrollBiometric,
         unlockWithBiometric,
         unlockWithPassword,
+        unlockDirectly,
         accounts,
         transactions,
         categories,
