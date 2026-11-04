@@ -38,6 +38,39 @@ import { RatesService } from '../../services/ratesService';
 import { TimeFilter, Category } from '../../types';
 import { AVAILABLE_CATEGORY_COLORS } from '../../utils/constants';
 
+interface CustomDonutTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  total: number;
+}
+
+const CustomDonutTooltip: React.FC<CustomDonutTooltipProps> = ({ active, payload, total }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const pct = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0';
+    return (
+      <div className="px-3.5 py-2.5 rounded-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/80 shadow-2xl text-white pointer-events-none">
+        <div className="flex items-center gap-2 mb-1">
+          <span 
+            className="w-3 h-3 rounded-full flex-shrink-0 border border-white/20 shadow-xs" 
+            style={{ backgroundColor: data.color }} 
+          />
+          <span className="font-bold text-xs text-white tracking-wide">
+            {data.name}
+          </span>
+        </div>
+        <div className="flex items-baseline gap-2 font-black text-sm text-emerald-400">
+          <span>${data.value.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-white">
+            {pct}%
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const DashboardView: React.FC = () => {
   const { 
     totalNetWorthUsdBcv, 
@@ -481,12 +514,15 @@ export const DashboardView: React.FC = () => {
                 <YAxis stroke="#64748B" fontSize={11} tickLine={false} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#1E293B', 
+                    backgroundColor: '#0F172A', 
                     borderColor: '#334155', 
-                    borderRadius: '12px',
-                    color: '#fff',
-                    fontSize: '12px'
+                    borderRadius: '16px',
+                    color: '#FFFFFF',
+                    fontSize: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
                   }}
+                  itemStyle={{ color: '#FFFFFF', fontWeight: 'bold' }}
+                  labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
                   formatter={(val: number) => [`$${val.toFixed(2)} USD`, '']}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
@@ -625,19 +661,7 @@ export const DashboardView: React.FC = () => {
                           <Cell key={`cell-exp-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#0F172A', 
-                          borderColor: '#334155', 
-                          borderRadius: '12px',
-                          color: '#fff',
-                          fontSize: '12px'
-                        }}
-                        formatter={(val: number) => {
-                          const pct = totalExpenseVal > 0 ? ((val / totalExpenseVal) * 100).toFixed(1) : '0';
-                          return [`$${val.toFixed(2)} USD (${pct}%)`, ''];
-                        }}
-                      />
+                      <Tooltip content={<CustomDonutTooltip total={totalExpenseVal} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -646,13 +670,16 @@ export const DashboardView: React.FC = () => {
 
             {/* Interactive Legend with Clickable Color Swatch */}
             {expenseCategoryChartData.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   {expenseCategoryChartData.map(cat => {
                     const pct = totalExpenseVal > 0 ? ((cat.value / totalExpenseVal) * 100).toFixed(1) : '0';
                     return (
-                      <div key={cat.name} className="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div 
+                        key={cat.name} 
+                        className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 transition-all group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <label 
                             className="w-4 h-4 rounded-full cursor-pointer relative shadow-xs border border-black/10 shrink-0 group-hover:scale-125 transition-transform"
                             style={{ backgroundColor: cat.color }}
@@ -665,15 +692,15 @@ export const DashboardView: React.FC = () => {
                               className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
                             />
                           </label>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate text-[11px]" title={cat.name}>
+                          <span className="font-bold text-slate-800 dark:text-slate-100 truncate text-xs" title={cat.name}>
                             {cat.name}
                           </span>
                         </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="font-bold text-slate-900 dark:text-white text-[11px] block">
-                            ${cat.value.toFixed(2)}
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="font-black text-slate-900 dark:text-white text-xs">
+                            ${cat.value.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
+                          <span className="px-1.5 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
                             {pct}%
                           </span>
                         </div>
@@ -810,19 +837,7 @@ export const DashboardView: React.FC = () => {
                           <Cell key={`cell-inc-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#0F172A', 
-                          borderColor: '#334155', 
-                          borderRadius: '12px',
-                          color: '#fff',
-                          fontSize: '12px'
-                        }}
-                        formatter={(val: number) => {
-                          const pct = totalIncomeVal > 0 ? ((val / totalIncomeVal) * 100).toFixed(1) : '0';
-                          return [`$${val.toFixed(2)} USD (${pct}%)`, ''];
-                        }}
-                      />
+                      <Tooltip content={<CustomDonutTooltip total={totalIncomeVal} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -831,13 +846,16 @@ export const DashboardView: React.FC = () => {
 
             {/* Interactive Legend with Clickable Color Swatch */}
             {incomeCategoryChartData.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   {incomeCategoryChartData.map(cat => {
                     const pct = totalIncomeVal > 0 ? ((cat.value / totalIncomeVal) * 100).toFixed(1) : '0';
                     return (
-                      <div key={cat.name} className="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div 
+                        key={cat.name} 
+                        className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 transition-all group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <label 
                             className="w-4 h-4 rounded-full cursor-pointer relative shadow-xs border border-black/10 shrink-0 group-hover:scale-125 transition-transform"
                             style={{ backgroundColor: cat.color }}
@@ -850,15 +868,15 @@ export const DashboardView: React.FC = () => {
                               className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
                             />
                           </label>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 truncate text-[11px]" title={cat.name}>
+                          <span className="font-bold text-slate-800 dark:text-slate-100 truncate text-xs" title={cat.name}>
                             {cat.name}
                           </span>
                         </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className="font-bold text-slate-900 dark:text-white text-[11px] block">
-                            ${cat.value.toFixed(2)}
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="font-black text-slate-900 dark:text-white text-xs">
+                            ${cat.value.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
+                          <span className="px-1.5 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
                             {pct}%
                           </span>
                         </div>
