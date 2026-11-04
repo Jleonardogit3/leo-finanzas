@@ -14,14 +14,24 @@ import {
   UserPlus,
   Trash2,
   Users,
-  X
+  X,
+  Fingerprint
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { RegisteredUser } from '../../types';
 
 export const LoginView: React.FC = () => {
-  const { login, register, deleteUser, registeredUsers } = useApp();
+  const { 
+    login, 
+    register, 
+    deleteUser, 
+    registeredUsers,
+    isBiometricSupported,
+    isBiometricEnrolled,
+    loginWithBiometric,
+    enrollBiometric
+  } = useApp();
   const { isDark, toggleTheme } = useTheme();
 
   // Mode: 'login' | 'register'
@@ -31,6 +41,8 @@ export const LoginView: React.FC = () => {
   const [username, setUsername] = useState('Jleonardo');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
+  const [enableBiometricOnLogin, setEnableBiometricOnLogin] = useState(true);
 
   // Register form
   const [regUsername, setRegUsername] = useState('');
@@ -47,7 +59,26 @@ export const LoginView: React.FC = () => {
   const [showManageUsers, setShowManageUsers] = useState(false);
   const [userToDelete, setUserToDelete] = useState<RegisteredUser | null>(null);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const isEnrolled = isBiometricEnrolled(username);
+
+  const handleBiometricLogin = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsBiometricLoading(true);
+
+    try {
+      const res = await loginWithBiometric(username);
+      if (!res.success) {
+        setErrorMessage(res.message || 'No se pudo verificar la huella dactilar.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error al comunicarse con el sensor de huella.');
+    } finally {
+      setIsBiometricLoading(false);
+    }
+  };
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -59,13 +90,22 @@ export const LoginView: React.FC = () => {
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      const result = login(username, password);
-      if (!result.success) {
-        setErrorMessage(result.message || 'Usuario o contraseña incorrectos.');
-        setIsLoading(false);
+    const result = login(username, password);
+    if (!result.success) {
+      setErrorMessage(result.message || 'Usuario o contraseña incorrectos.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Si es Jleonardo y aún no tiene huella o marcó activar en este dispositivo
+    if (isBiometricSupported && (enableBiometricOnLogin || !isEnrolled) && username.toLowerCase() === 'jleonardo') {
+      try {
+        await enrollBiometric(username);
+      } catch {
+        // Enrolamiento biométrico completado o cancelado
       }
-    }, 300);
+    }
+    setIsLoading(false);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -315,6 +355,41 @@ export const LoginView: React.FC = () => {
               </div>
             )}
 
+            {/* Quick Biometric Fingerprint Login Card */}
+            {isBiometricSupported && isEnrolled && (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 text-center space-y-3 shadow-sm animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Fingerprint className="w-4 h-4 text-emerald-500" />
+                    Acceso con Huella Dactilar
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold">
+                    Activo
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleBiometricLogin}
+                  disabled={isBiometricLoading || isLoading}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 active:scale-98 transition-all flex items-center justify-center gap-2.5"
+                >
+                  <Fingerprint className="w-5 h-5 animate-pulse" />
+                  <span>
+                    {isBiometricLoading ? 'Escaneando huella...' : `Ingresar con Huella (${username})`}
+                  </span>
+                </button>
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                  <span className="flex-shrink mx-2 text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                    o usa tu contraseña
+                  </span>
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                </div>
+              </div>
+            )}
+
             {/* Username Input */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
@@ -366,6 +441,34 @@ export const LoginView: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Toggle to enroll fingerprint for Jleonardo */}
+            {isBiometricSupported && !isEnrolled && username.toLowerCase() === 'jleonardo' && (
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+                    <Fingerprint className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                      Activar huella en este teléfono
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                      Ingresa tu clave para registrar el sensor y entrar más rápido
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={enableBiometricOnLogin}
+                    onChange={(e) => setEnableBiometricOnLogin(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button

@@ -20,7 +20,8 @@ import {
   ArrowUpDown,
   MoreVertical,
   Info,
-  History
+  History,
+  Lock
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/AppContext';
@@ -45,7 +46,8 @@ export const Navbar: React.FC = () => {
     setIsSyncModalOpen,
     syncWithServer,
     setCurrentView,
-    logout
+    logout,
+    setIsAppLocked
   } = useApp();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -420,6 +422,15 @@ export const Navbar: React.FC = () => {
             >
               <PlusCircle className="w-4 h-4" />
               <span>Registrar</span>
+            </button>
+
+            {/* Quick Lock Button */}
+            <button
+              onClick={() => setIsAppLocked(true)}
+              className="p-1.5 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 transition-colors"
+              title="Bloquear pantalla con huella dactilar"
+            >
+              <Lock className="w-4 h-4 text-emerald-500" />
             </button>
 
             {/* User Profile / Logout */}

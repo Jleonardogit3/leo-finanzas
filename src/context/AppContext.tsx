@@ -21,6 +21,7 @@ import {
 import { StorageService } from '../services/storageService';
 import { RatesService } from '../services/ratesService';
 import { SyncService } from '../services/syncService';
+import { BiometricService } from '../services/biometricService';
 import { auth, onAuthStateChanged, User } from '../services/firebase';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 
@@ -41,6 +42,17 @@ interface AppContextType {
   register: (username: string, password: string) => { success: boolean; message?: string };
   deleteUser: (uid: string) => { success: boolean; message?: string };
   logout: () => void;
+
+  // Biometrics & Security Lock
+  isAppLocked: boolean;
+  setIsAppLocked: (locked: boolean) => void;
+  isBiometricSupported: boolean;
+  isBiometricAvailable: boolean;
+  isBiometricEnrolled: (username?: string) => boolean;
+  loginWithBiometric: (username?: string) => Promise<{ success: boolean; message?: string; isNotEnrolled?: boolean }>;
+  enrollBiometric: (username: string) => Promise<{ success: boolean; message?: string }>;
+  unlockWithBiometric: () => Promise<{ success: boolean; message?: string }>;
+  unlockWithPassword: (password: string) => { success: boolean; message?: string };
 
   // Data states
   accounts: Account[];
@@ -173,6 +185,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   });
 
+  // Biometric & Security Lock States
+  const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
+    try {
+      const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
+      if (wasLocked === 'true') return true;
+      const cached = localStorage.getItem('finanzas_vzla_auth_session');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.username && BiometricService.isEnrolled(parsed.username) && BiometricService.isAutoLockEnabled()) {
+          return true;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
+
+  const [isBiometricAvailable, setIsBiometricAvailable] = useState<boolean>(false);
+  const isBiometricSupported = BiometricService.isSupported();
+
+  useEffect(() => {
+    BiometricService.isAvailable().then(avail => setIsBiometricAvailable(avail));
+  }, []);
+
+  // Eventos de ciclo de vida para bloquear la aplicación al salir / minimizar / cerrar
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // El usuario minimizó la app, cambió de app o bloqueó la pantalla del teléfono
+        if (BiometricService.isAutoLockEnabled()) {
+          sessionStorage.setItem('finanzas_vzla_session_locked', 'true');
+          setIsAppLocked(true);
+        }
+      } else if (document.visibilityState === 'visible') {
+        // Al volver, si estaba marcado como bloqueado, asegurar pantalla de bloqueo
+        if (sessionStorage.getItem('finanzas_vzla_session_locked') === 'true') {
+          setIsAppLocked(true);
+        }
+      }
+    };
+
+    const handlePageHide = () => {
+      if (BiometricService.isAutoLockEnabled()) {
+        sessionStorage.setItem('finanzas_vzla_session_locked', 'true');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [user]);
+
   // Core Data
   const [accounts, setAccounts] = useState<Account[]>(() => StorageService.getAccounts(user?.uid));
   const [transactions, setTransactions] = useState<Transaction[]>(() => StorageService.getTransactions(user?.uid));
@@ -265,8 +336,92 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = () => {
     localStorage.removeItem('finanzas_vzla_auth_session');
+    sessionStorage.removeItem('finanzas_vzla_session_locked');
     setUser(null);
+    setIsAppLocked(false);
     reloadDataForUser(null);
+  };
+
+  const loginWithBiometric = async (targetUsername?: string): Promise<{ success: boolean; message?: string; isNotEnrolled?: boolean }> => {
+    const cleanUser = (targetUsername || 'Jleonardo').trim();
+    if (!BiometricService.isEnrolled(cleanUser)) {
+      return {
+        success: false,
+        isNotEnrolled: true,
+        message: `La huella dactilar aún no está configurada para ${cleanUser}. Inicia sesión con la clave una vez para vincularla.`
+      };
+    }
+
+    const verifyRes = await BiometricService.verifyBiometric(cleanUser);
+    if (!verifyRes.success) {
+      return { success: false, message: verifyRes.message || 'Error en sensor biométrico.' };
+    }
+
+    const currentUsers = StorageService.getRegisteredUsers();
+    const matched = currentUsers.find(
+      u => u.username.toLowerCase() === cleanUser.toLowerCase()
+    );
+
+    if (matched) {
+      const appUser: AppUser = {
+        uid: matched.uid,
+        username: matched.username,
+        displayName: matched.username,
+        email: `${matched.username.toLowerCase()}@finanzas.vzla`,
+        loginAt: new Date().toISOString()
+      };
+      localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+      sessionStorage.removeItem('finanzas_vzla_session_locked');
+      setUser(appUser);
+      setIsAppLocked(false);
+      reloadDataForUser(appUser.uid);
+      return { success: true };
+    }
+
+    return { success: false, message: 'Usuario no encontrado en el sistema.' };
+  };
+
+  const enrollBiometric = async (usernameInput: string): Promise<{ success: boolean; message?: string }> => {
+    return await BiometricService.enrollBiometric(usernameInput);
+  };
+
+  const isBiometricEnrolled = (usernameInput?: string): boolean => {
+    const target = usernameInput || user?.username || 'Jleonardo';
+    return BiometricService.isEnrolled(target);
+  };
+
+  const unlockWithBiometric = async (): Promise<{ success: boolean; message?: string }> => {
+    if (!user) {
+      return { success: false, message: 'No hay usuario autenticado.' };
+    }
+
+    const verifyRes = await BiometricService.verifyBiometric(user.username);
+    if (verifyRes.success) {
+      sessionStorage.removeItem('finanzas_vzla_session_locked');
+      setIsAppLocked(false);
+      return { success: true };
+    }
+    return { success: false, message: verifyRes.message || 'Verificación de huella fallida.' };
+  };
+
+  const unlockWithPassword = (passwordInput: string): { success: boolean; message?: string } => {
+    if (!user) {
+      return { success: false, message: 'No hay usuario autenticado.' };
+    }
+
+    const cleanPass = passwordInput.trim();
+    const currentUsers = StorageService.getRegisteredUsers();
+    const matched = currentUsers.find(
+      u => u.username.toLowerCase() === user.username.toLowerCase() && u.password === cleanPass
+    );
+
+    if (matched) {
+      sessionStorage.removeItem('finanzas_vzla_session_locked');
+      setIsAppLocked(false);
+      return { success: true };
+    }
+
+    return { success: false, message: 'Contraseña incorrecta. Inténtalo de nuevo.' };
   };
 
   const deleteAccount = (accountId: string) => {
@@ -884,6 +1039,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         register,
         deleteUser,
         logout,
+        isAppLocked,
+        setIsAppLocked,
+        isBiometricSupported,
+        isBiometricAvailable,
+        isBiometricEnrolled,
+        loginWithBiometric,
+        enrollBiometric,
+        unlockWithBiometric,
+        unlockWithPassword,
         accounts,
         transactions,
         categories,

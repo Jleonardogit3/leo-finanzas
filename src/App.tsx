@@ -30,6 +30,7 @@ import { LossModal } from './components/losses/LossModal';
 import { LossRecoveryModal } from './components/losses/LossRecoveryModal';
 import { PwaInstallModal } from './components/layout/PwaInstallModal';
 import { SyncModal } from './components/layout/SyncModal';
+import { BiometricLockModal } from './components/auth/BiometricLockModal';
 
 export const App: React.FC = () => {
   const { 
@@ -113,6 +114,7 @@ export const App: React.FC = () => {
         isInstalled={isInstalled}
       />
       <SyncModal />
+      <BiometricLockModal />
 
     </div>
   );
