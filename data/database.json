@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-04T19:57:22.378Z",
+  "lastUpdated": "2026-11-04T20:57:47.542Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -18,7 +18,7 @@
       "id": "acc-1",
       "currentBalance": 5252.87,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.531Z"
+      "updatedAt": "2026-11-04T19:59:41.445Z"
     },
     {
       "name": "Banco Provincial (BBVA)",
@@ -35,7 +35,7 @@
       "id": "acc-2",
       "currentBalance": 30835.62,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-04T15:50:02.644Z"
+      "updatedAt": "2026-11-04T20:56:00.080Z"
     },
     {
       "name": "Banco Mercantil",
@@ -86,7 +86,7 @@
       "id": "acc-5",
       "currentBalance": 1361.66,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-04T19:46:17.460Z"
+      "updatedAt": "2026-11-04T20:56:00.080Z"
     },
     {
       "name": "Binance ($)",
@@ -119,6 +119,72 @@
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
       "updatedAt": "2026-11-03T21:43:14.532Z"
+    },
+    {
+      "id": "acc-user-1793822555088-bdv",
+      "name": "Banco de Venezuela",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 0,
+      "currentBalance": 0,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#B91C1C",
+      "icon": "Building2",
+      "bankCode": "0102",
+      "createdAt": "2026-11-04T20:02:35.089Z",
+      "updatedAt": "2026-11-04T20:02:35.089Z"
+    },
+    {
+      "id": "acc-user-1793822555088-provincial",
+      "name": "Banco Provincial (BBVA)",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 0,
+      "currentBalance": 0,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#1D4ED8",
+      "icon": "Landmark",
+      "bankCode": "0108",
+      "createdAt": "2026-11-04T20:02:35.089Z",
+      "updatedAt": "2026-11-04T20:02:35.089Z"
+    },
+    {
+      "id": "acc-user-1793822555088-binance",
+      "name": "Binance ($)",
+      "type": "wallet_crypto",
+      "currency": "USD",
+      "initialBalance": 0,
+      "currentBalance": 0,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#F59E0B",
+      "icon": "Coins",
+      "createdAt": "2026-11-04T20:02:35.089Z",
+      "updatedAt": "2026-11-04T20:02:35.089Z"
+    },
+    {
+      "id": "acc-user-1793822555088-cash",
+      "name": "Efectivo ($)",
+      "type": "cash_usd",
+      "currency": "USD",
+      "initialBalance": 0,
+      "currentBalance": 0,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#10B981",
+      "icon": "Banknote",
+      "createdAt": "2026-11-04T20:02:35.089Z",
+      "updatedAt": "2026-11-04T20:02:35.089Z"
     }
   ],
   "transactions": [
@@ -131,11 +197,11 @@
       "categoryId": "cat-custom-1793807086076",
       "categoryName": "Local",
       "categoryIcon": "Tag",
-      "categoryColor": "#10B981",
+      "categoryColor": "#3B82F6",
       "date": "2026-11-04T17:00:00.000Z",
       "note": "Venta Router Mercusys Mx60",
       "createdAt": "2026-11-04T15:45:22.804Z",
-      "updatedAt": "2026-11-04T15:45:22.804Z"
+      "updatedAt": "2026-11-04T20:05:06.130Z"
     },
     {
       "id": "tx-1793807065002-3iwif",
@@ -590,10 +656,10 @@
       "id": "cat-local",
       "name": "Local",
       "icon": "Store",
-      "color": "#EAB308",
+      "color": "#3B82F6",
       "type": "expense",
       "isPredefined": true,
-      "updatedAt": "2026-11-02T16:21:05.759Z"
+      "updatedAt": "2026-11-04T20:05:06.129Z"
     },
     {
       "id": "cat-custom-1793807086076",
@@ -666,11 +732,11 @@
       "name": "Fondo de Emergencia en USDT",
       "targetAmountUsd": 1000,
       "currentSavedUsd": 250,
-      "deadline": "2027-05-02",
+      "deadline": "2027-05-03",
       "category": "Seguridad",
       "color": "#10B981",
-      "createdAt": "2026-11-03T17:21:03.658Z",
-      "updatedAt": "2026-11-03T17:21:03.658Z"
+      "createdAt": "2026-11-04T13:50:31.419Z",
+      "updatedAt": "2026-11-04T13:50:31.419Z"
     }
   ],
   "deletedItems": [
@@ -693,6 +759,21 @@
       "id": "debt-1793651628751-d6396",
       "type": "debt",
       "deletedAt": "2026-11-04T18:31:17.785Z"
+    },
+    {
+      "id": "tx-1793822368796-8ag2u",
+      "type": "transaction",
+      "deletedAt": "2026-11-04T19:59:41.444Z"
+    },
+    {
+      "id": "tx-1793825702738-owfba",
+      "type": "transaction",
+      "deletedAt": "2026-11-04T20:55:46.232Z"
+    },
+    {
+      "id": "tx-1793825702726-h26xx",
+      "type": "transaction",
+      "deletedAt": "2026-11-04T20:56:00.080Z"
     }
   ],
   "auditLogs": []

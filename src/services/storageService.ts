@@ -53,6 +53,9 @@ export class StorageService {
    * Obtiene la clave de almacenamiento adecuada según el usuario activo
    */
   static getKey(baseKey: string, userId?: string | null): string {
+    if (userId === '__logged_out__') {
+      return `${baseKey}_logged_out`;
+    }
     if (!userId || userId === 'jleonardo-admin') {
       return baseKey;
     }
@@ -1014,10 +1017,10 @@ export class StorageService {
     paymentData: Omit<DebtPayment, 'id'>, 
     userId?: string | null
   ): { updatedDebts: Debt[], updatedAccounts: Account[] } {
-    const debts = this.getDebts();
+    const debts = this.getDebts(userId);
     const debtIdx = debts.findIndex(d => d.id === debtId);
     if (debtIdx < 0) {
-      return { updatedDebts: debts, updatedAccounts: this.getAccounts() };
+      return { updatedDebts: debts, updatedAccounts: this.getAccounts(userId) };
     }
 
     const currentDebt = debts[debtIdx];
@@ -1040,9 +1043,9 @@ export class StorageService {
 
     const updatedDebts = [...debts];
     updatedDebts[debtIdx] = updatedDebt;
-    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updatedDebts));
+    localStorage.setItem(this.getKey(DEBTS_STORAGE_KEY, userId), JSON.stringify(updatedDebts));
 
-    let updatedAccounts = this.getAccounts();
+    let updatedAccounts = this.getAccounts(userId);
 
     // If user specified an account, register the financial transaction
     if (paymentData.receivedInAccountId) {
@@ -1090,13 +1093,13 @@ export class StorageService {
     userId?: string | null
   ): { updatedDebts: Debt[], updatedAccounts: Account[], updatedTransactions: Transaction[] } {
     SyncService.recordDeletion(paymentId, 'debt_payment' as any);
-    const debts = this.getDebts();
+    const debts = this.getDebts(userId);
     const debtIdx = debts.findIndex(d => d.id === debtId);
     if (debtIdx < 0) {
       return { 
         updatedDebts: debts, 
-        updatedAccounts: this.getAccounts(), 
-        updatedTransactions: this.getTransactions() 
+        updatedAccounts: this.getAccounts(userId), 
+        updatedTransactions: this.getTransactions(userId) 
       };
     }
 
@@ -1106,8 +1109,8 @@ export class StorageService {
     if (!paymentToDelete) {
       return { 
         updatedDebts: debts, 
-        updatedAccounts: this.getAccounts(), 
-        updatedTransactions: this.getTransactions() 
+        updatedAccounts: this.getAccounts(userId), 
+        updatedTransactions: this.getTransactions(userId) 
       };
     }
 
@@ -1125,10 +1128,10 @@ export class StorageService {
 
     const updatedDebts = [...debts];
     updatedDebts[debtIdx] = updatedDebt;
-    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updatedDebts));
+    localStorage.setItem(this.getKey(DEBTS_STORAGE_KEY, userId), JSON.stringify(updatedDebts));
 
-    let updatedAccounts = this.getAccounts();
-    let updatedTransactions = this.getTransactions();
+    let updatedAccounts = this.getAccounts(userId);
+    let updatedTransactions = this.getTransactions(userId);
 
     if (paymentToDelete.receivedInAccountId) {
       const isPayable = currentDebt.debtType === 'payable';
@@ -1159,7 +1162,7 @@ export class StorageService {
         return acc;
       });
 
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
       // Remove matching transaction if exists
       const txIndex = updatedTransactions.findIndex(t => 
@@ -1173,7 +1176,7 @@ export class StorageService {
         const removedTx = updatedTransactions[txIndex];
         SyncService.recordDeletion(removedTx.id, 'transaction');
         updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
-        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+        localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
         if (userId) {
           try {
             deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
@@ -1386,10 +1389,10 @@ export class StorageService {
     recoveryData: Omit<LossRecovery, 'id'>,
     userId?: string | null
   ): { updatedLosses: Loss[], updatedAccounts: Account[] } {
-    const losses = this.getLosses();
+    const losses = this.getLosses(userId);
     const idx = losses.findIndex(l => l.id === lossId);
     if (idx < 0) {
-      return { updatedLosses: losses, updatedAccounts: this.getAccounts() };
+      return { updatedLosses: losses, updatedAccounts: this.getAccounts(userId) };
     }
 
     const currentLoss = losses[idx];
@@ -1418,9 +1421,9 @@ export class StorageService {
 
     const updatedLosses = [...losses];
     updatedLosses[idx] = updatedLoss;
-    localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(updatedLosses));
+    localStorage.setItem(this.getKey(LOSSES_STORAGE_KEY, userId), JSON.stringify(updatedLosses));
 
-    let updatedAccounts = this.getAccounts();
+    let updatedAccounts = this.getAccounts(userId);
 
     // If destination account specified, register income
     if (recoveryData.receivedInAccountId) {
@@ -1463,13 +1466,13 @@ export class StorageService {
     userId?: string | null
   ): { updatedLosses: Loss[], updatedAccounts: Account[], updatedTransactions: Transaction[] } {
     SyncService.recordDeletion(recoveryId, 'loss_recovery' as any);
-    const losses = this.getLosses();
+    const losses = this.getLosses(userId);
     const lossIdx = losses.findIndex(l => l.id === lossId);
     if (lossIdx < 0) {
       return { 
         updatedLosses: losses, 
-        updatedAccounts: this.getAccounts(), 
-        updatedTransactions: this.getTransactions() 
+        updatedAccounts: this.getAccounts(userId), 
+        updatedTransactions: this.getTransactions(userId) 
       };
     }
 
@@ -1479,8 +1482,8 @@ export class StorageService {
     if (!recoveryToDelete) {
       return { 
         updatedLosses: losses, 
-        updatedAccounts: this.getAccounts(), 
-        updatedTransactions: this.getTransactions() 
+        updatedAccounts: this.getAccounts(userId), 
+        updatedTransactions: this.getTransactions(userId) 
       };
     }
 
@@ -1503,10 +1506,10 @@ export class StorageService {
 
     const updatedLosses = [...losses];
     updatedLosses[lossIdx] = updatedLoss;
-    localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(updatedLosses));
+    localStorage.setItem(this.getKey(LOSSES_STORAGE_KEY, userId), JSON.stringify(updatedLosses));
 
-    let updatedAccounts = this.getAccounts();
-    let updatedTransactions = this.getTransactions();
+    let updatedAccounts = this.getAccounts(userId);
+    let updatedTransactions = this.getTransactions(userId);
 
     if (recoveryToDelete.receivedInAccountId) {
       updatedAccounts = updatedAccounts.map(acc => {
@@ -1534,7 +1537,7 @@ export class StorageService {
         return acc;
       });
 
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
       // Remove matching transaction
       const txIndex = updatedTransactions.findIndex(t => 
@@ -1548,7 +1551,7 @@ export class StorageService {
         const removedTx = updatedTransactions[txIndex];
         SyncService.recordDeletion(removedTx.id, 'transaction');
         updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
-        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+        localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
         if (userId) {
           try {
             deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
@@ -1625,7 +1628,7 @@ export class StorageService {
         const removedTx = updatedTransactions[txIndex];
         SyncService.recordDeletion(removedTx.id, 'transaction');
         updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
-        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+        localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
         if (userId) {
           try {
             deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
@@ -1633,7 +1636,7 @@ export class StorageService {
         }
       }
 
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
+      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
       if (userId) {
         this.batchSaveAccounts(updatedAccounts, userId);
       }
@@ -1683,8 +1686,8 @@ export class StorageService {
           }
         }
       }
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
-      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
+      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
+      localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
       if (userId) {
         this.batchSaveAccounts(updatedAccounts, userId);
       }
@@ -1701,7 +1704,7 @@ export class StorageService {
           status: hasRemaining ? (d.remainingAmount < d.originalAmount ? 'partially_paid' : 'pending') : 'paid',
           updatedAt: new Date().toISOString()
         };
-        localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updatedDebts));
+        localStorage.setItem(this.getKey(DEBTS_STORAGE_KEY, userId), JSON.stringify(updatedDebts));
         if (userId) {
           try {
             setDoc(doc(db, `users/${userId}/debts`, d.id), updatedDebts[debtIdx], { merge: true });
@@ -1721,10 +1724,10 @@ export class StorageService {
     reason?: string,
     userId?: string | null
   ): { updatedDebts: Debt[], updatedLosses: Loss[] } {
-    const debts = this.getDebts();
+    const debts = this.getDebts(userId);
     const debtIdx = debts.findIndex(d => d.id === debtId);
     if (debtIdx < 0) {
-      return { updatedDebts: debts, updatedLosses: this.getLosses() };
+      return { updatedDebts: debts, updatedLosses: this.getLosses(userId) };
     }
 
     const currentDebt = debts[debtIdx];
@@ -1737,7 +1740,7 @@ export class StorageService {
 
     const updatedDebts = [...debts];
     updatedDebts[debtIdx] = updatedDebt;
-    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(updatedDebts));
+    localStorage.setItem(this.getKey(DEBTS_STORAGE_KEY, userId), JSON.stringify(updatedDebts));
 
     // Create Loss item from this uncollectible debt
     const lossItem: Loss = {

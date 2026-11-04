@@ -37,7 +37,8 @@ export const BiometricLockModal: React.FC = () => {
 
   if (!isAppLocked) return null;
 
-  const currentUsername = user?.username || 'Jleonardo';
+  const lastActiveUser = BiometricService.getLastActiveUser();
+  const currentUsername = user?.username || lastActiveUser || 'Jleonardo';
   const isUnlockedToday = BiometricService.isDeviceUnlockedToday(currentUsername);
   const isEnrolledOnThisOrigin = BiometricService.isEnrolledOnCurrentOrigin(currentUsername);
 

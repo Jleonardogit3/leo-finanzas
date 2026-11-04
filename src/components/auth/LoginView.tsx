@@ -38,12 +38,26 @@ export const LoginView: React.FC = () => {
   // Mode: 'login' | 'register'
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
-  // Login form
-  const [username, setUsername] = useState('Jleonardo');
+  // Login form - inicializar con el último usuario activo en este dispositivo
+  const [username, setUsername] = useState<string>(() => {
+    const lastActive = BiometricService.getLastActiveUser();
+    if (lastActive) return lastActive;
+    return 'Jleonardo';
+  });
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [enableBiometricOnLogin, setEnableBiometricOnLogin] = useState(true);
+
+  // Sincronizar usuario activo si la lista de usuarios cambia
+  React.useEffect(() => {
+    const lastActive = BiometricService.getLastActiveUser();
+    if (lastActive && registeredUsers.some(u => u.username.toLowerCase() === lastActive.toLowerCase())) {
+      setUsername(lastActive);
+    } else if (registeredUsers.length > 0 && !registeredUsers.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+      setUsername(registeredUsers[0].username);
+    }
+  }, [registeredUsers]);
 
   // Register form
   const [regUsername, setRegUsername] = useState('');
@@ -117,10 +131,11 @@ export const LoginView: React.FC = () => {
       return;
     }
 
+    BiometricService.setLastActiveUser(username);
     BiometricService.markDeviceUnlockedToday(username);
 
-    // Si es Jleonardo y aún no tiene huella o marcó activar en este dispositivo
-    if (isBiometricSupported && (enableBiometricOnLogin || !isEnrolled) && username.toLowerCase() === 'jleonardo') {
+    // Si aún no tiene huella y seleccionó activar en este dispositivo
+    if (isBiometricSupported && (enableBiometricOnLogin || !isEnrolled)) {
       try {
         await enrollBiometric(username);
       } catch {
@@ -163,6 +178,12 @@ export const LoginView: React.FC = () => {
         setIsLoading(false);
       } else {
         setSuccessMessage(`¡Usuario ${cleanUser} creado exitosamente con cuentas en 0!`);
+        setUsername(cleanUser);
+        setPassword('');
+        setRegUsername('');
+        setRegPassword('');
+        setRegConfirmPassword('');
+        BiometricService.setLastActiveUser(cleanUser);
       }
     }, 350);
   };
@@ -174,7 +195,10 @@ export const LoginView: React.FC = () => {
       setErrorMessage(res.message || 'No se pudo eliminar el usuario.');
     } else {
       if (username.toLowerCase() === userToDelete.username.toLowerCase()) {
-        setUsername('Jleonardo');
+        const remaining = registeredUsers.filter(u => u.uid !== userToDelete.uid);
+        const nextUser = remaining[0]?.username || 'Jleonardo';
+        setUsername(nextUser);
+        BiometricService.setLastActiveUser(nextUser);
         setPassword('');
       }
     }
@@ -312,6 +336,7 @@ export const LoginView: React.FC = () => {
                           setUsername(u.username);
                           setPassword('');
                           setErrorMessage(null);
+                          BiometricService.setLastActiveUser(u.username);
                         }}
                         className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
                           isSelected
@@ -386,10 +411,10 @@ export const LoginView: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                      Dispositivo verificado hoy
+                      Dispositivo verificado hoy ({username})
                     </p>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                      No necesitas escribir contraseña por el resto del día en este equipo.
+                      Sesión activa para <strong className="text-emerald-600 dark:text-emerald-300">{username}</strong>. Puedes entrar directamente sin contraseña.
                     </p>
                   </div>
                 </div>
@@ -397,10 +422,10 @@ export const LoginView: React.FC = () => {
                   type="button"
                   onClick={handleQuickUnlockToday}
                   disabled={isLoading}
-                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shrink-0 active:scale-95 transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shrink-0 active:scale-95 transition-all flex items-center gap-1.5"
                 >
-                  <span>Entrar</span>
-                  <LogIn className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Desbloquear Inmediatamente</span>
                 </button>
               </div>
             )}

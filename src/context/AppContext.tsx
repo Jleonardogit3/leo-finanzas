@@ -195,7 +195,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const cached = localStorage.getItem('finanzas_vzla_auth_session');
       if (cached) {
-        return JSON.parse(cached);
+        const parsed = JSON.parse(cached);
+        if (parsed?.uid && parsed?.username) {
+          return parsed;
+        }
+      }
+      // Si no hay sesión explícita, comprobar si hay un último usuario activo que fue desbloqueado hoy
+      const lastUser = BiometricService.getLastActiveUser();
+      if (lastUser) {
+        const allUsers = StorageService.getRegisteredUsers();
+        const matched = allUsers.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
+        if (matched && BiometricService.isDeviceUnlockedToday(matched.username)) {
+          const restored: AppUser = {
+            uid: matched.uid,
+            username: matched.username,
+            displayName: matched.username,
+            email: `${matched.username.toLowerCase()}@finanzas.vzla`,
+            loginAt: new Date().toISOString()
+          };
+          localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(restored));
+          return restored;
+        }
       }
     } catch (e) {
       console.warn('Error reading cached auth session', e);
@@ -206,22 +226,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Biometric & Security Lock States
   const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
     try {
-      const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
-      if (wasLocked === 'true') return true;
-
       const sessionUnlocked = sessionStorage.getItem('finanzas_vzla_unlocked_session');
       if (sessionUnlocked === 'true') return false;
 
+      const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
+
       const cached = localStorage.getItem('finanzas_vzla_auth_session');
+      const lastUsername = BiometricService.getLastActiveUser();
+      let targetUser = '';
       if (cached) {
-        const parsed = JSON.parse(cached);
-        // Si el dispositivo ya fue desbloqueado el día de hoy, NO bloquear al abrir/recargar
-        if (parsed?.username && BiometricService.isDeviceUnlockedToday(parsed.username)) {
-          return false;
-        }
-        if (parsed?.username && BiometricService.isEnrolled(parsed.username) && BiometricService.isAutoLockEnabled()) {
-          return true;
-        }
+        try { targetUser = JSON.parse(cached)?.username || ''; } catch {}
+      }
+      if (!targetUser) targetUser = lastUsername || '';
+
+      // Si el dispositivo ya fue desbloqueado el día de hoy para el usuario activo, NO bloquear al abrir/recargar
+      if (targetUser && BiometricService.isDeviceUnlockedToday(targetUser)) {
+        return false;
+      }
+
+      if (wasLocked === 'true') return true;
+
+      if (targetUser && BiometricService.isEnrolled(targetUser) && BiometricService.isAutoLockEnabled()) {
+        return true;
       }
     } catch {
       // ignore
@@ -305,6 +331,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (matched) {
+      // 1. Cerrar cualquier sesión previa y limpiar desbloqueos de otros usuarios
+      BiometricService.clearAllDeviceUnlockedToday();
+
       const appUser: AppUser = {
         uid: matched.uid,
         username: matched.username,
@@ -312,9 +341,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: `${matched.username.toLowerCase()}@finanzas.vzla`,
         loginAt: new Date().toISOString()
       };
+
       localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+      sessionStorage.removeItem('finanzas_vzla_session_locked');
+      sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+
+      BiometricService.setLastActiveUser(matched.username);
       BiometricService.markDeviceUnlockedToday(matched.username);
+
       setUser(appUser);
+      setIsAppLocked(false);
       reloadDataForUser(appUser.uid);
       return { success: true };
     }
@@ -331,6 +367,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedUsers = StorageService.getRegisteredUsers();
     setRegisteredUsers(updatedUsers);
 
+    // CRITICAL: Al crear un usuario nuevo se cierra la sesión en los demás usuarios registrados.
+    // Solo se mantiene la sesión del nuevo usuario iniciado con sus credenciales.
+    BiometricService.clearAllDeviceUnlockedToday();
+    sessionStorage.removeItem('finanzas_vzla_session_locked');
+    sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+
     // Iniciar sesión automáticamente con el nuevo usuario registrado (sus cuentas inician en 0)
     const appUser: AppUser = {
       uid: res.user.uid,
@@ -339,9 +381,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email: `${res.user.username.toLowerCase()}@finanzas.vzla`,
       loginAt: new Date().toISOString()
     };
+
     localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+    BiometricService.setLastActiveUser(res.user.username);
     BiometricService.markDeviceUnlockedToday(res.user.username);
+
     setUser(appUser);
+    setIsAppLocked(false);
     reloadDataForUser(appUser.uid);
     return { success: true };
   };
@@ -363,18 +409,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = () => {
-    if (user?.username) {
-      BiometricService.revokeDeviceUnlockedToday(user.username);
-    }
+    // Revocar cualquier desbloqueo en este dispositivo
+    BiometricService.clearAllDeviceUnlockedToday();
     localStorage.removeItem('finanzas_vzla_auth_session');
     sessionStorage.removeItem('finanzas_vzla_session_locked');
+    sessionStorage.removeItem('finanzas_vzla_unlocked_session');
+
+    // Mantener BiometricService.getLastActiveUser() para que el LoginView muestre
+    // al último usuario que salió y no salte a Jleonardo
     setUser(null);
     setIsAppLocked(false);
-    reloadDataForUser(null);
+
+    // Evitar que queden datos privados de Jleonardo en memoria al cerrar sesión
+    const lastUser = BiometricService.getLastActiveUser();
+    const allUsers = StorageService.getRegisteredUsers();
+    const matched = allUsers.find(u => u.username.toLowerCase() === (lastUser || '').toLowerCase());
+    reloadDataForUser(matched ? matched.uid : '__logged_out__');
   };
 
   const loginWithBiometric = async (targetUsername?: string): Promise<{ success: boolean; message?: string; isNotEnrolled?: boolean }> => {
-    const cleanUser = (targetUsername || 'Jleonardo').trim();
+    const cleanUser = (targetUsername || BiometricService.getLastActiveUser() || 'Jleonardo').trim();
     if (!BiometricService.isEnrolled(cleanUser)) {
       return {
         success: false,
@@ -394,6 +448,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (matched) {
+      BiometricService.clearAllDeviceUnlockedToday();
       const appUser: AppUser = {
         uid: matched.uid,
         username: matched.username,
@@ -403,6 +458,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
       sessionStorage.removeItem('finanzas_vzla_session_locked');
+      sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+      BiometricService.setLastActiveUser(matched.username);
       BiometricService.markDeviceUnlockedToday(matched.username);
       setUser(appUser);
       setIsAppLocked(false);
@@ -418,20 +475,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const isBiometricEnrolled = (usernameInput?: string): boolean => {
-    const target = usernameInput || user?.username || 'Jleonardo';
+    const target = usernameInput || user?.username || BiometricService.getLastActiveUser() || 'Jleonardo';
     return BiometricService.isEnrolled(target);
   };
 
   const unlockWithBiometric = async (): Promise<{ success: boolean; message?: string }> => {
-    if (!user) {
-      return { success: false, message: 'No hay usuario autenticado.' };
-    }
-
-    const verifyRes = await BiometricService.verifyBiometric(user.username);
+    const targetUsername = user?.username || BiometricService.getLastActiveUser() || 'Jleonardo';
+    const verifyRes = await BiometricService.verifyBiometric(targetUsername);
     if (verifyRes.success) {
+      const currentUsers = StorageService.getRegisteredUsers();
+      const matched = currentUsers.find(
+        u => u.username.toLowerCase() === targetUsername.toLowerCase()
+      );
+      if (matched) {
+        const appUser: AppUser = {
+          uid: matched.uid,
+          username: matched.username,
+          displayName: matched.username,
+          email: `${matched.username.toLowerCase()}@finanzas.vzla`,
+          loginAt: new Date().toISOString()
+        };
+        localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
+        setUser(appUser);
+        reloadDataForUser(appUser.uid);
+      }
       sessionStorage.removeItem('finanzas_vzla_session_locked');
       sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
-      BiometricService.markDeviceUnlockedToday(user.username);
+      BiometricService.setLastActiveUser(targetUsername);
+      BiometricService.markDeviceUnlockedToday(targetUsername);
       setIsAppLocked(false);
       return { success: true };
     }
@@ -439,21 +510,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const unlockWithPassword = (passwordInput: string): { success: boolean; message?: string } => {
-    if (!user) {
-      return { success: false, message: 'No hay usuario autenticado.' };
-    }
-
     const cleanPass = passwordInput.trim();
     const currentUsers = StorageService.getRegisteredUsers();
+    const targetUsername = user?.username || BiometricService.getLastActiveUser() || 'Jleonardo';
     const matched = currentUsers.find(
-      u => u.username.toLowerCase() === user.username.toLowerCase() && u.password === cleanPass
+      u => u.username.toLowerCase() === targetUsername.toLowerCase() && u.password === cleanPass
     );
 
     if (matched) {
+      const appUser: AppUser = {
+        uid: matched.uid,
+        username: matched.username,
+        displayName: matched.username,
+        email: `${matched.username.toLowerCase()}@finanzas.vzla`,
+        loginAt: new Date().toISOString()
+      };
+      localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(appUser));
       sessionStorage.removeItem('finanzas_vzla_session_locked');
       sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
-      BiometricService.markDeviceUnlockedToday(user.username);
+      BiometricService.setLastActiveUser(matched.username);
+      BiometricService.markDeviceUnlockedToday(matched.username);
+      setUser(appUser);
       setIsAppLocked(false);
+      reloadDataForUser(appUser.uid);
       return { success: true };
     }
 
@@ -463,8 +542,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const unlockDirectly = () => {
     sessionStorage.removeItem('finanzas_vzla_session_locked');
     sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
-    if (user?.username) {
-      BiometricService.markDeviceUnlockedToday(user.username);
+
+    let activeUser = user;
+    if (!activeUser) {
+      const lastUsername = BiometricService.getLastActiveUser();
+      const allUsers = StorageService.getRegisteredUsers();
+      const matched = lastUsername 
+        ? allUsers.find(u => u.username.toLowerCase() === lastUsername.toLowerCase())
+        : allUsers.find(u => u.username.toLowerCase() === 'jleonardo') || allUsers[0];
+
+      if (matched) {
+        activeUser = {
+          uid: matched.uid,
+          username: matched.username,
+          displayName: matched.username,
+          email: `${matched.username.toLowerCase()}@finanzas.vzla`,
+          loginAt: new Date().toISOString()
+        };
+        localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(activeUser));
+        setUser(activeUser);
+        reloadDataForUser(activeUser.uid);
+      }
+    }
+
+    if (activeUser?.username) {
+      BiometricService.setLastActiveUser(activeUser.username);
+      BiometricService.markDeviceUnlockedToday(activeUser.username);
     }
     setIsAppLocked(false);
   };

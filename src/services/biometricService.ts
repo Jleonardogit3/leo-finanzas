@@ -7,6 +7,7 @@ const BIO_ENROLLED_PREFIX = 'finanzas_vzla_bio_enrolled_';
 const BIO_CRED_ID_PREFIX = 'finanzas_vzla_bio_cred_';
 const BIO_AUTO_LOCK_KEY = 'finanzas_vzla_bio_auto_lock';
 const BIO_UNLOCKED_DATE_PREFIX = 'finanzas_vzla_device_unlocked_date_';
+const LAST_ACTIVE_USER_KEY = 'finanzas_vzla_last_active_user';
 
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -44,11 +45,55 @@ export class BiometricService {
   }
 
   /**
+   * Obtiene el último usuario que inició sesión o se registró en este dispositivo
+   */
+  static getLastActiveUser(): string | null {
+    try {
+      const last = localStorage.getItem(LAST_ACTIVE_USER_KEY);
+      if (last && last.trim()) return last.trim();
+
+      const session = localStorage.getItem('finanzas_vzla_auth_session');
+      if (session) {
+        const parsed = JSON.parse(session);
+        if (parsed?.username) return parsed.username;
+      }
+    } catch {}
+    return null;
+  }
+
+  /**
+   * Guarda el último usuario activo en este dispositivo
+   */
+  static setLastActiveUser(username: string): void {
+    if (!username) return;
+    try {
+      localStorage.setItem(LAST_ACTIVE_USER_KEY, username.trim());
+    } catch {}
+  }
+
+  /**
+   * Limpia el registro de todos los usuarios desbloqueados en este dispositivo
+   */
+  static clearAllDeviceUnlockedToday(): void {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(BIO_UNLOCKED_DATE_PREFIX)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch {}
+  }
+
+  /**
    * Comprueba si este dispositivo ya fue desbloqueado el día de hoy
    * (Una vez desbloqueado, no pedir más la contraseña por ese día en este dispositivo)
    */
   static isDeviceUnlockedToday(username?: string): boolean {
-    const cleanUser = (username || 'jleonardo').trim().toLowerCase();
+    const targetUser = username || this.getLastActiveUser() || 'jleonardo';
+    const cleanUser = targetUser.trim().toLowerCase();
     const today = this.getTodayDateString();
     const savedDate = localStorage.getItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`);
     return savedDate === today;
@@ -56,19 +101,29 @@ export class BiometricService {
 
   /**
    * Marca este dispositivo como desbloqueado y verificado para todo el día de hoy
+   * Cierra cualquier sesión o marca previa para asegurar que sólo el usuario activo queda activo.
    */
   static markDeviceUnlockedToday(username?: string): void {
-    const cleanUser = (username || 'jleonardo').trim().toLowerCase();
+    const targetUser = username || this.getLastActiveUser() || 'jleonardo';
+    const cleanUser = targetUser.trim().toLowerCase();
     const today = this.getTodayDateString();
+
+    // Limpiar marcas de otros usuarios: sólo se mantiene la sesión del último usuario iniciado
+    this.clearAllDeviceUnlockedToday();
     localStorage.setItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`, today);
+    this.setLastActiveUser(targetUser);
   }
 
   /**
    * Revoca la marca de desbloqueo diario (por ejemplo al cerrar sesión manualmente)
    */
   static revokeDeviceUnlockedToday(username?: string): void {
-    const cleanUser = (username || 'jleonardo').trim().toLowerCase();
-    localStorage.removeItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`);
+    if (username) {
+      const cleanUser = username.trim().toLowerCase();
+      localStorage.removeItem(`${BIO_UNLOCKED_DATE_PREFIX}${cleanUser}`);
+    } else {
+      this.clearAllDeviceUnlockedToday();
+    }
   }
 
   /**
