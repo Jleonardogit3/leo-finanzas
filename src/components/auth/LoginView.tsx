@@ -29,7 +29,7 @@ export const LoginView: React.FC = () => {
 
   // Login form
   const [username, setUsername] = useState('Jleonardo');
-  const [password, setPassword] = useState('Jleofinanzas');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Register form
@@ -113,7 +113,7 @@ export const LoginView: React.FC = () => {
     } else {
       if (username.toLowerCase() === userToDelete.username.toLowerCase()) {
         setUsername('Jleonardo');
-        setPassword('Jleofinanzas');
+        setPassword('');
       }
     }
     setUserToDelete(null);
@@ -248,11 +248,7 @@ export const LoginView: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setUsername(u.username);
-                          if (u.username === 'Jleonardo') {
-                            setPassword('Jleofinanzas');
-                          } else {
-                            setPassword('');
-                          }
+                          setPassword('');
                           setErrorMessage(null);
                         }}
                         className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
