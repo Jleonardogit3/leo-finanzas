@@ -5,9 +5,9 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     name: 'Banco de Venezuela',
     type: 'bank_ves',
     currency: 'VES',
-    initialBalance: 0,
-    digitalUsdBalance: 0,
-    initialDigitalUsdBalance: 0,
+    initialBalance: 5252.87,
+    digitalUsdBalance: 0.18,
+    initialDigitalUsdBalance: 0.18,
     physicalUsdBalance: 0,
     initialPhysicalUsdBalance: 0,
     color: '#B91C1C', // Red BDV
@@ -18,9 +18,9 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     name: 'Banco Provincial (BBVA)',
     type: 'bank_ves',
     currency: 'VES',
-    initialBalance: 0,
-    digitalUsdBalance: 0,
-    initialDigitalUsdBalance: 0,
+    initialBalance: 29489.04,
+    digitalUsdBalance: 931.32,
+    initialDigitalUsdBalance: 931.32,
     physicalUsdBalance: 0,
     initialPhysicalUsdBalance: 0,
     color: '#1D4ED8', // Blue Provincial
@@ -31,7 +31,7 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     name: 'Banco Mercantil',
     type: 'bank_ves',
     currency: 'VES',
-    initialBalance: 0,
+    initialBalance: 7.15,
     digitalUsdBalance: 0,
     initialDigitalUsdBalance: 0,
     physicalUsdBalance: 0,
@@ -45,8 +45,8 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     type: 'bank_ves',
     currency: 'VES',
     initialBalance: 0,
-    digitalUsdBalance: 0,
-    initialDigitalUsdBalance: 0,
+    digitalUsdBalance: 2.63,
+    initialDigitalUsdBalance: 2.63,
     physicalUsdBalance: 0,
     initialPhysicalUsdBalance: 0,
     color: '#047857', // Green BNC
@@ -57,7 +57,7 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     name: 'Banco del Tesoro',
     type: 'bank_ves',
     currency: 'VES',
-    initialBalance: 0,
+    initialBalance: 106.83,
     digitalUsdBalance: 0,
     initialDigitalUsdBalance: 0,
     physicalUsdBalance: 0,
@@ -70,7 +70,7 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     name: 'Binance ($)',
     type: 'wallet_crypto',
     currency: 'USD',
-    initialBalance: 0,
+    initialBalance: 1493.63,
     color: '#F59E0B', // Binance Yellow
     icon: 'Coins'
   },
@@ -78,7 +78,7 @@ export const PRECONFIGURED_ACCOUNTS: Omit<Account, 'id' | 'currentBalance' | 'cr
     name: 'Efectivo ($)',
     type: 'cash_usd',
     currency: 'USD',
-    initialBalance: 0,
+    initialBalance: 1279,
     color: '#10B981', // Emerald Green USD Cash
     icon: 'Banknote'
   }

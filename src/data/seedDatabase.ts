@@ -1,0 +1,530 @@
+import { Account, Category, Debt, Loss, FinancialGoal, PortfolioAsset, Transaction, DeletedItem } from '../types';
+
+export interface DatabaseSchema {
+  version: number;
+  serverCreatedAt: string;
+  lastUpdated: string;
+  accounts: Account[];
+  transactions: Transaction[];
+  debts: Debt[];
+  losses: Loss[];
+  categories: Category[];
+  portfolioAssets: PortfolioAsset[];
+  goals: FinancialGoal[];
+  deletedItems: DeletedItem[];
+  auditLogs: any[];
+}
+
+export const SEED_DATABASE: DatabaseSchema = {
+  "version": 1,
+  "serverCreatedAt": "2026-11-02T14:54:19.941Z",
+  "lastUpdated": "2026-11-04T13:38:16.697Z",
+  "accounts": [
+    {
+      "name": "Banco de Venezuela",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 5252.87,
+      "digitalUsdBalance": 0.18,
+      "initialDigitalUsdBalance": 0.18,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#B91C1C",
+      "icon": "Building2",
+      "bankCode": "0102",
+      "id": "acc-1",
+      "currentBalance": 5252.87,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.531Z"
+    },
+    {
+      "name": "Banco Provincial (BBVA)",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 29489.04,
+      "digitalUsdBalance": 931.32,
+      "initialDigitalUsdBalance": 931.32,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#1D4ED8",
+      "icon": "Landmark",
+      "bankCode": "0108",
+      "id": "acc-2",
+      "currentBalance": 29489.04,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.532Z"
+    },
+    {
+      "name": "Banco Mercantil",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 7.15,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#0284C7",
+      "icon": "Building",
+      "bankCode": "0105",
+      "id": "acc-3",
+      "currentBalance": 7.15,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.532Z"
+    },
+    {
+      "name": "Banco Nacional de Crédito (BNC)",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 0,
+      "digitalUsdBalance": 2.63,
+      "initialDigitalUsdBalance": 2.63,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#047857",
+      "icon": "CreditCard",
+      "bankCode": "0191",
+      "id": "acc-4",
+      "currentBalance": 0,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.532Z"
+    },
+    {
+      "name": "Banco del Tesoro",
+      "type": "bank_ves",
+      "currency": "VES",
+      "initialBalance": 106.83,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "color": "#B45309",
+      "icon": "ShieldCheck",
+      "bankCode": "0163",
+      "id": "acc-5",
+      "currentBalance": 106.83,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.532Z"
+    },
+    {
+      "name": "Binance ($)",
+      "type": "wallet_crypto",
+      "currency": "USD",
+      "initialBalance": 1493.63,
+      "color": "#F59E0B",
+      "icon": "Coins",
+      "id": "acc-6",
+      "currentBalance": 1493.63,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.532Z"
+    },
+    {
+      "name": "Efectivo ($)",
+      "type": "cash_usd",
+      "currency": "USD",
+      "initialBalance": 1279,
+      "color": "#10B981",
+      "icon": "Banknote",
+      "id": "acc-7",
+      "currentBalance": 1279,
+      "digitalUsdBalance": 0,
+      "initialDigitalUsdBalance": 0,
+      "physicalUsdBalance": 0,
+      "initialPhysicalUsdBalance": 0,
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "2026-11-03T21:43:14.532Z"
+    }
+  ],
+  "transactions": [],
+  "debts": [
+    {
+      "id": "debt-1793653134206-rhenl",
+      "debtType": "payable",
+      "debtorName": "Abuela Marcela",
+      "concept": "Compra dolares",
+      "originalAmount": 60,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1000.3438,
+      "remainingAmount": 60,
+      "status": "pending",
+      "dueDate": "2026-10-30",
+      "createdAt": "2026-11-02T20:58:54.206Z",
+      "updatedAt": "2026-11-02T20:58:54.207Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793651628751-d6396",
+      "debtType": "receivable",
+      "debtorName": "Rancer",
+      "concept": "Prestamo emergencia",
+      "originalAmount": 40,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1000.3438,
+      "remainingAmount": 40,
+      "status": "pending",
+      "dueDate": "2026-10-30",
+      "createdAt": "2026-11-02T20:33:48.751Z",
+      "updatedAt": "2026-11-02T20:33:48.752Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793753085019-79so3",
+      "debtType": "receivable",
+      "debtorName": "Devolución provincial",
+      "concept": "Compra bolso",
+      "originalAmount": 37,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 37,
+      "status": "pending",
+      "createdAt": "2026-11-04T00:44:45.020Z",
+      "updatedAt": "2026-11-04T00:44:45.022Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793752830461-wcfsz",
+      "debtType": "receivable",
+      "debtorName": "García gym",
+      "concept": "Arreglo audífonos",
+      "originalAmount": 5,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 5,
+      "status": "pending",
+      "createdAt": "2026-11-04T00:40:30.461Z",
+      "updatedAt": "2026-11-04T00:40:30.462Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743971139-munnw",
+      "debtType": "receivable",
+      "debtorName": "Juan Carlos",
+      "concept": "Prestamo biblioteca BCV",
+      "originalAmount": 26734,
+      "currencyType": "VES_BCV",
+      "appliedRateAtCreation": 891.1054,
+      "remainingAmount": 26734,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:12:51.139Z",
+      "updatedAt": "2026-11-03T22:12:51.139Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743905571-4ww4y",
+      "debtType": "receivable",
+      "debtorName": "Samuel",
+      "concept": "Préstamo Binance",
+      "originalAmount": 10,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 10,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:11:45.571Z",
+      "updatedAt": "2026-11-03T22:11:45.571Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743866478-etyy7",
+      "debtType": "receivable",
+      "debtorName": "Yasmeli",
+      "concept": "Servicio de reparación teléfonos",
+      "originalAmount": 40,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 40,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:11:06.478Z",
+      "updatedAt": "2026-11-03T22:11:06.479Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743639616-s7bml",
+      "debtType": "payable",
+      "debtorName": "Abuela Marcela",
+      "concept": "Compra $ por banco",
+      "originalAmount": 60,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 60,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:07:19.616Z",
+      "updatedAt": "2026-11-03T22:07:19.617Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743499244-x6hg5",
+      "debtType": "receivable",
+      "debtorName": "Papa",
+      "concept": "Prestamo compra internet",
+      "originalAmount": 87,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 87,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:04:59.244Z",
+      "updatedAt": "2026-11-03T22:04:59.244Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743462774-rx5nb",
+      "debtType": "receivable",
+      "debtorName": "Neno",
+      "concept": "Laptop reparada",
+      "originalAmount": 15,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 15,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:04:22.774Z",
+      "updatedAt": "2026-11-03T22:04:22.774Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793743329113-immx8",
+      "debtType": "receivable",
+      "debtorName": "Joan",
+      "concept": "Préstamo bs",
+      "originalAmount": 54357.42,
+      "currencyType": "VES_BCV",
+      "appliedRateAtCreation": 891.1054,
+      "remainingAmount": 54357.42,
+      "status": "pending",
+      "createdAt": "2026-11-03T22:02:09.114Z",
+      "updatedAt": "2026-11-03T22:02:09.116Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793742821497-83pub",
+      "debtType": "receivable",
+      "debtorName": "Willy anggela",
+      "concept": "Préstamo binance",
+      "originalAmount": 300,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 300,
+      "status": "pending",
+      "createdAt": "2026-11-03T21:53:41.498Z",
+      "updatedAt": "2026-11-03T21:53:41.499Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793742702950-tocmp",
+      "debtType": "receivable",
+      "debtorName": "Anggela",
+      "concept": "Prestamos y servicios pendientes",
+      "originalAmount": 98,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 98,
+      "status": "pending",
+      "createdAt": "2026-11-03T21:51:42.950Z",
+      "updatedAt": "2026-11-03T21:51:42.950Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793742657746-2tykb",
+      "debtType": "receivable",
+      "debtorName": "Rancer",
+      "concept": "Préstamo binance",
+      "originalAmount": 40,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 40,
+      "status": "pending",
+      "createdAt": "2026-11-03T21:50:57.746Z",
+      "updatedAt": "2026-11-03T21:50:57.746Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793742590630-8dsa3",
+      "debtType": "receivable",
+      "debtorName": "Lourdes",
+      "concept": "Préstamo Binance",
+      "originalAmount": 50,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 50,
+      "status": "pending",
+      "createdAt": "2026-11-03T21:49:50.630Z",
+      "updatedAt": "2026-11-03T21:49:50.630Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793742366661-xi0r8",
+      "debtType": "receivable",
+      "debtorName": "Andrews",
+      "concept": "Préstamo BCV",
+      "originalAmount": 55249,
+      "currencyType": "VES_BCV",
+      "appliedRateAtCreation": 891.1054,
+      "remainingAmount": 55249,
+      "status": "pending",
+      "dueDate": "2026-11-30",
+      "createdAt": "2026-11-03T21:46:06.661Z",
+      "updatedAt": "2026-11-03T21:46:06.662Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793742298754-b0ods",
+      "debtType": "receivable",
+      "debtorName": "Andrews",
+      "concept": "Préstamo Binance",
+      "originalAmount": 100,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1004.3248,
+      "remainingAmount": 100,
+      "status": "pending",
+      "dueDate": "2026-11-30",
+      "createdAt": "2026-11-03T21:44:58.754Z",
+      "updatedAt": "2026-11-03T21:44:58.755Z",
+      "payments": []
+    }
+  ],
+  "losses": [
+    {
+      "id": "loss-1793753808448-pp71",
+      "concept": "Robo compra laptop Barquisimeto",
+      "category": "theft_scam",
+      "amount": 250,
+      "currency": "USD",
+      "appliedRate": 1004.3248,
+      "date": "2026-11-04T00:00:00.000Z",
+      "status": "total_loss",
+      "recoveredAmount": 0,
+      "createdAt": "2026-11-04T00:56:48.448Z",
+      "updatedAt": "2026-11-04T00:56:48.448Z"
+    },
+    {
+      "id": "loss-1793753778612-89a4",
+      "concept": "Laptop Hp",
+      "category": "uncollectible_debt",
+      "amount": 70,
+      "currency": "USD",
+      "appliedRate": 1004.3248,
+      "date": "2026-11-04T00:00:00.000Z",
+      "status": "total_loss",
+      "recoveredAmount": 0,
+      "notes": "Mantenimiento, sistema operativo y cambio de SSD",
+      "createdAt": "2026-11-04T00:56:18.612Z",
+      "updatedAt": "2026-11-04T00:56:18.613Z"
+    },
+    {
+      "id": "loss-1793753734725-zun8",
+      "concept": "Tío mario",
+      "category": "uncollectible_debt",
+      "amount": 45,
+      "currency": "USD",
+      "appliedRate": 1004.3248,
+      "date": "2026-11-04T00:00:00.000Z",
+      "status": "total_loss",
+      "recoveredAmount": 0,
+      "notes": "Reparación laptop",
+      "createdAt": "2026-11-04T00:55:34.725Z",
+      "updatedAt": "2026-11-04T00:55:34.725Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-comida",
+      "name": "Comida",
+      "icon": "Utensils",
+      "color": "#F97316",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-casa",
+      "name": "Casa",
+      "icon": "Home",
+      "color": "#3B82F6",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-personal",
+      "name": "Personal",
+      "icon": "User",
+      "color": "#EC4899",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-ropa",
+      "name": "Ropa",
+      "icon": "Shirt",
+      "color": "#8B5CF6",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-entretenimiento",
+      "name": "Entretenimiento",
+      "icon": "Gamepad2",
+      "color": "#06B6D4",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-trabajo",
+      "name": "Trabajo",
+      "icon": "Briefcase",
+      "color": "#64748B",
+      "type": "both",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-sueldo",
+      "name": "Sueldo de nómina",
+      "icon": "WalletCards",
+      "color": "#10B981",
+      "type": "income",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    },
+    {
+      "id": "cat-local",
+      "name": "Local",
+      "icon": "Store",
+      "color": "#EAB308",
+      "type": "expense",
+      "isPredefined": true,
+      "updatedAt": "2026-11-02T16:21:05.759Z"
+    }
+  ],
+  "portfolioAssets": [],
+  "goals": [
+    {
+      "id": "goal-emergency-fund",
+      "name": "Fondo de Emergencia en USDT",
+      "targetAmountUsd": 1000,
+      "currentSavedUsd": 250,
+      "deadline": "2027-05-02",
+      "category": "Seguridad",
+      "color": "#10B981",
+      "createdAt": "2026-11-03T17:21:03.658Z",
+      "updatedAt": "2026-11-03T17:21:03.658Z"
+    }
+  ],
+  "deletedItems": [
+    {
+      "id": "test-acc",
+      "type": "account",
+      "deletedAt": "2026-11-02T10:45:00Z"
+    },
+    {
+      "id": "debt-1793743275428-jniif",
+      "type": "debt",
+      "deletedAt": "2026-11-03T22:01:30.197Z"
+    }
+  ],
+  "auditLogs": []
+};

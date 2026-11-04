@@ -26,6 +26,7 @@ import {
 } from '../types';
 import { PRECONFIGURED_ACCOUNTS, PREDEFINED_CATEGORIES } from '../utils/constants';
 import { SyncService } from './syncService';
+import { SEED_DATABASE } from '../data/seedDatabase';
 
 const ACCOUNTS_STORAGE_KEY = 'finanzas_vzla_accounts';
 const TRANSACTIONS_STORAGE_KEY = 'finanzas_vzla_transactions';
@@ -53,11 +54,25 @@ export class StorageService {
    * Initializes default accounts if empty
    */
   static getInitialAccounts(): Account[] {
+    const SEED_MIGRATION_KEY = 'finanzas_vzla_seed_migrated_v3';
+    const isMigrated = localStorage.getItem(SEED_MIGRATION_KEY) === 'true';
     const cached = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Si el caché tiene cuentas con balance total 0 o desactualizadas y no se ha migrado, actualizar con los datos reales
+          const totalBalance = parsed.reduce((sum: number, acc: Account) => 
+            sum + (Number(acc.currentBalance) || 0) + (Number(acc.digitalUsdBalance) || 0) + (Number(acc.physicalUsdBalance) || 0), 0);
+
+          if (!isMigrated && totalBalance === 0 && SEED_DATABASE.accounts.length > 0) {
+            localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.accounts));
+            localStorage.setItem(SEED_MIGRATION_KEY, 'true');
+            return SEED_DATABASE.accounts;
+          }
+
+          localStorage.setItem(SEED_MIGRATION_KEY, 'true');
           // Normalize accounts to guarantee new digital and physical USD fields
           return parsed.map((acc: Account) => ({
             ...acc,
@@ -72,19 +87,22 @@ export class StorageService {
       }
     }
 
-    const seeded: Account[] = PRECONFIGURED_ACCOUNTS.map((acc, index) => ({
-      ...acc,
-      id: `acc-${index + 1}`,
-      currentBalance: acc.initialBalance,
-      digitalUsdBalance: acc.digitalUsdBalance ?? 0,
-      initialDigitalUsdBalance: acc.initialDigitalUsdBalance ?? 0,
-      physicalUsdBalance: acc.physicalUsdBalance ?? 0,
-      initialPhysicalUsdBalance: acc.initialPhysicalUsdBalance ?? 0,
-      createdAt: '1970-01-01T00:00:00.000Z',
-      updatedAt: '1970-01-01T00:00:00.000Z'
-    }));
+    const seeded: Account[] = SEED_DATABASE.accounts.length > 0
+      ? SEED_DATABASE.accounts
+      : PRECONFIGURED_ACCOUNTS.map((acc, index) => ({
+          ...acc,
+          id: `acc-${index + 1}`,
+          currentBalance: acc.initialBalance,
+          digitalUsdBalance: acc.digitalUsdBalance ?? 0,
+          initialDigitalUsdBalance: acc.initialDigitalUsdBalance ?? 0,
+          physicalUsdBalance: acc.physicalUsdBalance ?? 0,
+          initialPhysicalUsdBalance: acc.initialPhysicalUsdBalance ?? 0,
+          createdAt: '1970-01-01T00:00:00.000Z',
+          updatedAt: '1970-01-01T00:00:00.000Z'
+        }));
 
     localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(seeded));
+    localStorage.setItem(SEED_MIGRATION_KEY, 'true');
     return seeded;
   }
 
@@ -104,8 +122,12 @@ export class StorageService {
       }
     }
 
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(PREDEFINED_CATEGORIES));
-    return PREDEFINED_CATEGORIES;
+    const categories = (SEED_DATABASE.categories && SEED_DATABASE.categories.length > 0)
+      ? SEED_DATABASE.categories
+      : PREDEFINED_CATEGORIES;
+
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+    return categories;
   }
 
   static saveCategory(category: Category, userId?: string | null): void {
@@ -459,26 +481,35 @@ export class StorageService {
   static getGoals(): FinancialGoal[] {
     const cached = localStorage.getItem(GOALS_STORAGE_KEY);
     if (!cached) {
-      // Default goal for demo / onboarding
-      const defaultGoals: FinancialGoal[] = [
-        {
-          id: 'goal-emergency-fund',
-          name: 'Fondo de Emergencia en USDT',
-          targetAmountUsd: 1000,
-          currentSavedUsd: 250,
-          deadline: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          category: 'Seguridad',
-          color: '#10B981',
-          createdAt: new Date().toISOString()
-        }
-      ];
+      const defaultGoals: FinancialGoal[] = (SEED_DATABASE.goals && SEED_DATABASE.goals.length > 0)
+        ? SEED_DATABASE.goals
+        : [
+            {
+              id: 'goal-emergency-fund',
+              name: 'Fondo de Emergencia en USDT',
+              targetAmountUsd: 1000,
+              currentSavedUsd: 250,
+              deadline: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              category: 'Seguridad',
+              color: '#10B981',
+              createdAt: new Date().toISOString()
+            }
+          ];
       localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(defaultGoals));
       return defaultGoals;
     }
     try {
-      return JSON.parse(cached);
-    } catch {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 0 && SEED_DATABASE.goals && SEED_DATABASE.goals.length > 0) {
+          localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.goals));
+          return SEED_DATABASE.goals;
+        }
+        return parsed;
+      }
       return [];
+    } catch {
+      return SEED_DATABASE.goals || [];
     }
   }
 
@@ -524,12 +555,24 @@ export class StorageService {
   static getDebts(): Debt[] {
     const cached = localStorage.getItem(DEBTS_STORAGE_KEY);
     if (!cached) {
+      if (SEED_DATABASE.debts && SEED_DATABASE.debts.length > 0) {
+        localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.debts));
+        return SEED_DATABASE.debts;
+      }
       return [];
     }
     try {
-      return JSON.parse(cached);
-    } catch {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 0 && SEED_DATABASE.debts && SEED_DATABASE.debts.length > 0) {
+          localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.debts));
+          return SEED_DATABASE.debts;
+        }
+        return parsed;
+      }
       return [];
+    } catch {
+      return SEED_DATABASE.debts || [];
     }
   }
 
@@ -836,12 +879,24 @@ export class StorageService {
   static getLosses(): Loss[] {
     const cached = localStorage.getItem(LOSSES_STORAGE_KEY);
     if (!cached) {
+      if (SEED_DATABASE.losses && SEED_DATABASE.losses.length > 0) {
+        localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(SEED_DATABASE.losses));
+        return SEED_DATABASE.losses;
+      }
       return [];
     }
     try {
-      return JSON.parse(cached);
-    } catch {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) {
+        if (parsed.length === 0 && SEED_DATABASE.losses && SEED_DATABASE.losses.length > 0) {
+          localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(SEED_DATABASE.losses));
+          return SEED_DATABASE.losses;
+        }
+        return parsed;
+      }
       return [];
+    } catch {
+      return SEED_DATABASE.losses || [];
     }
   }
 
