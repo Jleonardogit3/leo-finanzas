@@ -171,8 +171,18 @@ export default async function handler(req, res) {
           if (timeB !== timeA) return timeB - timeA;
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         }),
-        debts: debtsResult.merged,
-        losses: lossesResult.merged,
+        debts: debtsResult.merged.sort((a, b) => {
+          const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+          const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+          if (timeB !== timeA) return timeB - timeA;
+          return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+        }),
+        losses: lossesResult.merged.sort((a, b) => {
+          const timeB = new Date(b.date || b.createdAt || 0).getTime();
+          const timeA = new Date(a.date || a.createdAt || 0).getTime();
+          if (timeB !== timeA) return timeB - timeA;
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        }),
         categories: categoriesResult.merged,
         portfolioAssets: assetsResult.merged,
         goals: goalsResult.merged,

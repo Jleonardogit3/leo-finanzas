@@ -959,11 +959,20 @@ export class StorageService {
     const key = this.getKey(DEBTS_STORAGE_KEY, userId);
     const cached = localStorage.getItem(key);
 
+    const sortDebts = (list: Debt[]): Debt[] => {
+      return [...list].sort((a, b) => {
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+      });
+    };
+
     if (userId && userId !== 'jleonardo-admin') {
       if (!cached) return [];
       try {
         const parsed = JSON.parse(cached);
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? sortDebts(parsed) : [];
       } catch {
         return [];
       }
@@ -971,8 +980,9 @@ export class StorageService {
 
     if (!cached) {
       if (SEED_DATABASE.debts && SEED_DATABASE.debts.length > 0) {
-        localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.debts));
-        return SEED_DATABASE.debts;
+        const sorted = sortDebts(SEED_DATABASE.debts);
+        localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(sorted));
+        return sorted;
       }
       return [];
     }
@@ -980,14 +990,15 @@ export class StorageService {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed)) {
         if (parsed.length === 0 && SEED_DATABASE.debts && SEED_DATABASE.debts.length > 0) {
-          localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(SEED_DATABASE.debts));
-          return SEED_DATABASE.debts;
+          const sorted = sortDebts(SEED_DATABASE.debts);
+          localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(sorted));
+          return sorted;
         }
-        return parsed;
+        return sortDebts(parsed);
       }
       return [];
     } catch {
-      return SEED_DATABASE.debts || [];
+      return sortDebts(SEED_DATABASE.debts || []);
     }
   }
 
@@ -1002,6 +1013,12 @@ export class StorageService {
     } else {
       updated = [{ ...debt, updatedAt: new Date().toISOString() }, ...debts];
     }
+    updated.sort((a, b) => {
+      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+    });
     localStorage.setItem(key, JSON.stringify(updated));
 
     if (userId) {
@@ -1297,11 +1314,20 @@ export class StorageService {
     const key = this.getKey(LOSSES_STORAGE_KEY, userId);
     const cached = localStorage.getItem(key);
 
+    const sortLosses = (list: Loss[]): Loss[] => {
+      return [...list].sort((a, b) => {
+        const timeB = new Date(b.date || b.createdAt || 0).getTime();
+        const timeA = new Date(a.date || a.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+    };
+
     if (userId && userId !== 'jleonardo-admin') {
       if (!cached) return [];
       try {
         const parsed = JSON.parse(cached);
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? sortLosses(parsed) : [];
       } catch {
         return [];
       }
@@ -1309,8 +1335,9 @@ export class StorageService {
 
     if (!cached) {
       if (SEED_DATABASE.losses && SEED_DATABASE.losses.length > 0) {
-        localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(SEED_DATABASE.losses));
-        return SEED_DATABASE.losses;
+        const sorted = sortLosses(SEED_DATABASE.losses);
+        localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(sorted));
+        return sorted;
       }
       return [];
     }
@@ -1318,14 +1345,15 @@ export class StorageService {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed)) {
         if (parsed.length === 0 && SEED_DATABASE.losses && SEED_DATABASE.losses.length > 0) {
-          localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(SEED_DATABASE.losses));
-          return SEED_DATABASE.losses;
+          const sorted = sortLosses(SEED_DATABASE.losses);
+          localStorage.setItem(LOSSES_STORAGE_KEY, JSON.stringify(sorted));
+          return sorted;
         }
-        return parsed;
+        return sortLosses(parsed);
       }
       return [];
     } catch {
-      return SEED_DATABASE.losses || [];
+      return sortLosses(SEED_DATABASE.losses || []);
     }
   }
 
@@ -1346,6 +1374,12 @@ export class StorageService {
     } else {
       updatedLosses = [{ ...loss, updatedAt: new Date().toISOString() }, ...losses];
     }
+    updatedLosses.sort((a, b) => {
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
     localStorage.setItem(key, JSON.stringify(updatedLosses));
 
     let updatedAccounts = this.getAccounts(userId);
@@ -1842,10 +1876,22 @@ export class StorageService {
       localStorage.setItem(key(GOALS_STORAGE_KEY), JSON.stringify(merged.goals));
     }
     if (merged.debts) {
-      localStorage.setItem(key(DEBTS_STORAGE_KEY), JSON.stringify(merged.debts));
+      const sortedDebts = [...merged.debts].sort((a, b) => {
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+      });
+      localStorage.setItem(key(DEBTS_STORAGE_KEY), JSON.stringify(sortedDebts));
     }
     if (merged.losses) {
-      localStorage.setItem(key(LOSSES_STORAGE_KEY), JSON.stringify(merged.losses));
+      const sortedLosses = [...merged.losses].sort((a, b) => {
+        const timeB = new Date(b.date || b.createdAt || 0).getTime();
+        const timeA = new Date(a.date || a.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+      localStorage.setItem(key(LOSSES_STORAGE_KEY), JSON.stringify(sortedLosses));
     }
     if (merged.auditLogs) {
       localStorage.setItem(key(AUDIT_LOGS_STORAGE_KEY), JSON.stringify(merged.auditLogs));

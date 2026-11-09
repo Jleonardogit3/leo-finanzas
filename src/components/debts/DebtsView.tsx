@@ -126,16 +126,23 @@ export const DebtsView: React.FC = () => {
     window.open(url, '_blank');
   };
 
-  // Filtered debts
-  const filteredDebts = debts.filter(debt => {
-    const isPayable = debt.debtType === 'payable';
-    const matchesType = typeFilter === 'all' || (typeFilter === 'payable' ? isPayable : !isPayable);
-    const matchesStatus = statusFilter === 'all' || debt.status === statusFilter;
-    const matchesSearch = debt.debtorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      debt.concept.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (debt.phone && debt.phone.includes(searchQuery));
-    return matchesType && matchesStatus && matchesSearch;
-  });
+  // Filtered and sorted debts (newest/most recently registered first)
+  const filteredDebts = debts
+    .filter(debt => {
+      const isPayable = debt.debtType === 'payable';
+      const matchesType = typeFilter === 'all' || (typeFilter === 'payable' ? isPayable : !isPayable);
+      const matchesStatus = statusFilter === 'all' || debt.status === statusFilter;
+      const matchesSearch = debt.debtorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        debt.concept.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (debt.phone && debt.phone.includes(searchQuery));
+      return matchesType && matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+    });
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">

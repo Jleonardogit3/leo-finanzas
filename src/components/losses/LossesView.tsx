@@ -79,14 +79,21 @@ export const LossesView: React.FC = () => {
     setIsLossModalOpen(true);
   };
 
-  // Filtered losses
-  const filteredLosses = losses.filter(loss => {
-    const matchesCategory = categoryFilter === 'all' || loss.category === categoryFilter;
-    const matchesStatus = statusFilter === 'all' || loss.status === statusFilter;
-    const matchesSearch = loss.concept.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (loss.notes && loss.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesStatus && matchesSearch;
-  });
+  // Filtered and sorted losses (newest/most recently registered first)
+  const filteredLosses = losses
+    .filter(loss => {
+      const matchesCategory = categoryFilter === 'all' || loss.category === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || loss.status === statusFilter;
+      const matchesSearch = loss.concept.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (loss.notes && loss.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchesCategory && matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
 
   // Calculate recovered totals
   const totalRecoveredUsd = losses.reduce((sum, l) => {

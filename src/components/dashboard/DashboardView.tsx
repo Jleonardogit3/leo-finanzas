@@ -815,8 +815,8 @@ export const DashboardView: React.FC = () => {
                   formatter={(val: number, name: string) => [`$${val.toFixed(2)} USD`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Bar dataKey="Ingresos" fill="#10B981" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="Egresos" fill="#F43F5E" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Ingresos" name="Ingresos" fill="#10B981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Egresos" name="Egresos" fill="#F43F5E" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

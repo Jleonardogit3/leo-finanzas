@@ -213,6 +213,20 @@ function performFullSync(clientPayload) {
         if (timeB !== timeA) return timeB - timeA;
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       });
+    } else if (col === 'debts') {
+      mergedDb[col] = result.merged.sort((a, b) => {
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+      });
+    } else if (col === 'losses') {
+      mergedDb[col] = result.merged.sort((a, b) => {
+        const timeB = new Date(b.date || b.createdAt || 0).getTime();
+        const timeA = new Date(a.date || a.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
     } else {
       mergedDb[col] = result.merged;
     }
