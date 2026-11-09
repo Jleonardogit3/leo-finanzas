@@ -84,6 +84,11 @@ export const TransactionModal: React.FC = () => {
   const [commissionAmountStr, setCommissionAmountStr] = useState<string>('14.00');
   const [isManualCommission, setIsManualCommission] = useState<boolean>(false);
 
+  // Binance transfer commissions state (Bank: 2.45% or 1.5%, Binance: 4.1% fixed)
+  const [bankCommissionPercentStr, setBankCommissionPercentStr] = useState<string>('2.45');
+  const [isManualBankPercent, setIsManualBankPercent] = useState<boolean>(false);
+  const [applyBinanceTransferCommissions, setApplyBinanceTransferCommissions] = useState<boolean>(true);
+
   // Filter categories by movement type (memoized to avoid new array reference on every render):
   const filteredCategories = useMemo(() => {
     return categories.filter(c => {
@@ -200,12 +205,53 @@ export const TransactionModal: React.FC = () => {
     ? (currentAmount * rates.usdt).toFixed(2) 
     : currentAmount.toFixed(2);
 
+  // Check if transfer is from electronic USD in supported bank to Binance
+  const sourceName = (sourceAccount?.name || '').toLowerCase();
+  const isVenezuela = sourceName.includes('venezuela');
+  const isTesoro = sourceName.includes('tesoro');
+  const isBnc = sourceName.includes('bnc') || sourceName.includes('nacional de crédito') || sourceName.includes('nacional de credito');
+  const isMercantil = sourceName.includes('mercantil');
+  const isProvincial = sourceName.includes('provincial') || sourceName.includes('bbva');
+  const isSupportedBank = isVenezuela || isTesoro || isBnc || isMercantil || isProvincial;
+
+  const isDestBinance = (destAccount?.name || '').toLowerCase().includes('binance') || destAccount?.type === 'wallet_crypto';
+
+  // Transfer is from electronic USD (digital_usd) in a supported bank to Binance
+  const isBankToBinanceTransfer = type === 'transfer' &&
+    isSupportedBank &&
+    (subFund === 'digital_usd' || (sourceAccount?.currency === 'USD' && subFund !== 'ves' && subFund !== 'physical_usd')) &&
+    isDestBinance;
+
+  // Auto-set default bank commission percent when bank changes (Provincial: 1.5%, others: 2.45%)
+  useEffect(() => {
+    if (!isManualBankPercent && isBankToBinanceTransfer) {
+      if (isProvincial) {
+        setBankCommissionPercentStr('1.5');
+      } else {
+        setBankCommissionPercentStr('2.45');
+      }
+    }
+  }, [isBankToBinanceTransfer, isProvincial, isManualBankPercent]);
+
+  // Commission calculations for Bank -> Binance USD transfers
+  const bankCommPercent = parseFloat(bankCommissionPercentStr) || 0;
+  const binanceCommPercent = 4.1; // 4.1% fijo de Binance por el depósito
+
+  const bankCommissionUsd = Number(((currentAmount * bankCommPercent) / 100).toFixed(2));
+  const binanceCommissionUsd = Number(((currentAmount * binanceCommPercent) / 100).toFixed(2));
+  const totalCommissionsUsd = Number((bankCommissionUsd + binanceCommissionUsd).toFixed(2));
+
+  // Amount arriving at Binance after Binance's 4.1% deposit fee
+  const netDestAmountToBinance = Math.max(0, Number((currentAmount - binanceCommissionUsd).toFixed(2)));
+
   // Cross-currency transfer destination amount calculation
   const effectiveRate = parseFloat(customRate) || (rates.usdt || rates.bcv);
   let calculatedDestAmount = currentAmount;
 
   if (type === 'transfer' && sourceAccount && destAccount) {
-    if (sourceEffectiveCurrency === 'USD' && destEffectiveCurrency === 'VES') {
+    if (isBankToBinanceTransfer && applyBinanceTransferCommissions) {
+      calculatedDestAmount = netDestAmountToBinance;
+    } else if (sourceEffectiveCurrency === 'USD' && destEffectiveCurrency === 'VES') {
       calculatedDestAmount = Number((currentAmount * effectiveRate).toFixed(2));
     } else if (sourceEffectiveCurrency === 'VES' && destEffectiveCurrency === 'USD') {
       calculatedDestAmount = effectiveRate > 0 ? Number((currentAmount / effectiveRate).toFixed(2)) : 0;
@@ -215,7 +261,7 @@ export const TransactionModal: React.FC = () => {
   }
 
   // Calculate if the transfer is eligible for VES bank / Pago Móvil commission
-  const isVesTransfer = type === 'transfer' && (
+  const isVesTransfer = type === 'transfer' && !isBankToBinanceTransfer && (
     currency === 'VES' || 
     sourceAccount?.currency === 'VES' || 
     (sourceAccount?.type === 'bank_ves' && subFund === 'ves')
@@ -319,6 +365,35 @@ export const TransactionModal: React.FC = () => {
           addTransaction(commissionTx);
         }
       }
+
+      // Si es una transferencia de dólares electrónicos a Binance y están activas las comisiones
+      if (type === 'transfer' && applyBinanceTransferCommissions && isBankToBinanceTransfer && !editingTransaction) {
+        if (bankCommissionUsd > 0) {
+          const commissionCat = categories.find(c => 
+            c.id === 'cat-custom-1793806188173' ||
+            c.id === 'cat-comisiones' || 
+            c.name.toLowerCase().includes('comision') ||
+            c.name.toLowerCase().includes('comisión')
+          );
+
+          const bankCommissionTx: Transaction = {
+            id: `tx-${Date.now() + 15}-${Math.random().toString(36).substring(2, 7)}`,
+            type: 'expense',
+            accountId,
+            subFund: 'digital_usd',
+            amount: bankCommissionUsd,
+            currency: 'USD',
+            categoryId: commissionCat?.id || 'cat-custom-1793806188173',
+            categoryName: commissionCat?.name || 'Comision Banco',
+            categoryIcon: commissionCat?.icon || 'Receipt',
+            categoryColor: commissionCat?.color || '#ffffff',
+            date: safeToISO(date),
+            note: `Comisión bancaria (${bankCommissionPercentStr}%) por transferencia a Binance (${destAccount?.name || 'Binance'})${note.trim() ? ` - ${note.trim()}` : ''}`,
+            createdAt: new Date(Date.now() + 15).toISOString()
+          };
+          addTransaction(bankCommissionTx);
+        }
+      }
     }
 
     setIsSuccess(true);
@@ -328,6 +403,7 @@ export const TransactionModal: React.FC = () => {
       setAmountStr('');
       setNote('');
       setIsManualCommission(false);
+      setIsManualBankPercent(false);
       setEditingTransaction(null);
       setIsTxModalOpen(false);
     }, 500);
@@ -679,8 +755,127 @@ export const TransactionModal: React.FC = () => {
             </div>
           )}
 
+          {/* Card Especial de Transferencia Dólares Digitales -> Binance */}
+          {isBankToBinanceTransfer && (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-500/30 space-y-3.5 shadow-sm animate-in fade-in">
+              
+              {/* Header con switch */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                      Comisiones Dólares Banco &rarr; Binance
+                    </h4>
+                    <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 block">
+                      {isProvincial 
+                        ? 'Provincial (1,50% editable) • Binance (4,10% fijo depósito)' 
+                        : `${sourceAccount?.name || 'Banco'} (2,45% editable) • Binance (4,10% fijo depósito)`}
+                    </span>
+                  </div>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={applyBinanceTransferCommissions}
+                    onChange={(e) => setApplyBinanceTransferCommissions(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {applyBinanceTransferCommissions && (
+                <div className="space-y-3 pt-2 border-t border-amber-500/20 text-xs">
+                  
+                  {/* Comisión 1: Banco (2.45% o 1.5% editable) */}
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-500/20">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        Comisión {sourceAccount?.name || 'Banco'}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Debitado del banco en $ Digitales
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-300 dark:border-amber-700">
+                        <input
+                          type="number"
+                          step="0.05"
+                          min="0"
+                          max="100"
+                          value={bankCommissionPercentStr}
+                          onChange={(e) => {
+                            setBankCommissionPercentStr(e.target.value);
+                            setIsManualBankPercent(true);
+                          }}
+                          className="w-12 text-right font-black text-xs bg-transparent text-amber-700 dark:text-amber-300 focus:outline-none"
+                        />
+                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">%</span>
+                      </div>
+                      <span className="font-black text-xs text-rose-600 dark:text-rose-400 min-w-[65px] text-right">
+                        -${bankCommissionUsd.toFixed(2)} USD
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Comisión 2: Binance (4.1% fijo por depósito) */}
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-500/20">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        Comisión Depósito Binance
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Descontado por Binance al acreditar
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 font-extrabold text-[11px] border border-amber-500/20">
+                        4,10% fijo
+                      </span>
+                      <span className="font-black text-xs text-rose-600 dark:text-rose-400 min-w-[65px] text-right">
+                        -${binanceCommissionUsd.toFixed(2)} USD
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Resumen de Montos Finales */}
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 space-y-1.5 text-xs font-semibold">
+                    <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                      <span>Monto enviado desde {sourceAccount?.name}:</span>
+                      <span className="font-bold">${currentAmount.toFixed(2)} USD</span>
+                    </div>
+                    <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 text-[11px]">
+                      <span>Total comisiones ({((parseFloat(bankCommissionPercentStr) || 0) + 4.1).toFixed(2)}%):</span>
+                      <span className="font-bold">-${totalCommissionsUsd.toFixed(2)} USD</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-amber-500/20 font-black text-xs">
+                      <span className="text-emerald-700 dark:text-emerald-300">Neto a recibir en Binance:</span>
+                      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-black">
+                        +${netDestAmountToBinance.toFixed(2)} USD
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Total debitado de {sourceAccount?.name}:</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        ${(currentAmount + bankCommissionUsd).toFixed(2)} USD
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Transfer Exchange Rate & Converted Destination Preview */}
-          {type === 'transfer' && sourceAccount && destAccount && sourceAccount.currency !== destAccount.currency && (
+          {type === 'transfer' && sourceAccount && destAccount && sourceEffectiveCurrency !== destEffectiveCurrency && !isBankToBinanceTransfer && (
             <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-blue-700 dark:text-blue-300">
