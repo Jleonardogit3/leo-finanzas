@@ -249,7 +249,14 @@ export const DashboardView: React.FC = () => {
     }
   };
 
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    }).slice(0, 5);
+  }, [transactions]);
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-20 md:pb-8">

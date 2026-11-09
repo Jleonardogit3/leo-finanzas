@@ -86,6 +86,14 @@ export const TransactionsView: React.FC = () => {
       }
 
       return true;
+    }).sort((a, b) => {
+      // Orden estrictamente descendente: el último movimiento registrado sale de primero
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      const createdB = new Date(b.createdAt || 0).getTime();
+      const createdA = new Date(a.createdAt || 0).getTime();
+      return createdB - createdA;
     });
   }, [transactions, search, typeFilter, selectedAccount, timeFilter]);
 

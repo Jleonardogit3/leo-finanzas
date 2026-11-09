@@ -165,7 +165,12 @@ export default async function handler(req, res) {
 
       const mergedData = {
         accounts: accountsResult.merged,
-        transactions: transactionsResult.merged,
+        transactions: transactionsResult.merged.sort((a, b) => {
+          const timeB = new Date(b.date || b.createdAt || 0).getTime();
+          const timeA = new Date(a.date || a.createdAt || 0).getTime();
+          if (timeB !== timeA) return timeB - timeA;
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        }),
         debts: debtsResult.merged,
         losses: lossesResult.merged,
         categories: categoriesResult.merged,

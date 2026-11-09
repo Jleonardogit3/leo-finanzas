@@ -206,7 +206,16 @@ function performFullSync(clientPayload) {
     const clientItems = clientPayload[col] || [];
     const result = mergeCollections(serverItems, clientItems, deletedMap);
     
-    mergedDb[col] = result.merged;
+    if (col === 'transactions') {
+      mergedDb[col] = result.merged.sort((a, b) => {
+        const timeB = new Date(b.date || b.createdAt || 0).getTime();
+        const timeA = new Date(a.date || a.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+    } else {
+      mergedDb[col] = result.merged;
+    }
     totalStats.uploaded += result.stats.uploaded;
     totalStats.downloaded += result.stats.downloaded;
     totalStats.resolved += result.stats.resolved;

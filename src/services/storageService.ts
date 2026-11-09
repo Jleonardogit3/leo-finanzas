@@ -550,7 +550,14 @@ export class StorageService {
     const cached = localStorage.getItem(key);
     if (!cached) return [];
     try {
-      return JSON.parse(cached);
+      const parsed = JSON.parse(cached);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.sort((a, b) => {
+        const timeB = new Date(b.date || b.createdAt || 0).getTime();
+        const timeA = new Date(a.date || a.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
     } catch {
       return [];
     }
@@ -618,7 +625,12 @@ export class StorageService {
       ...tx,
       updatedAt: tx.updatedAt || new Date().toISOString()
     };
-    const updatedTxs = [txWithUpdated, ...transactions];
+    const updatedTxs = [txWithUpdated, ...transactions].sort((a, b) => {
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
     localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
@@ -774,7 +786,12 @@ export class StorageService {
       updatedAt: new Date().toISOString()
     };
 
-    const updatedTxs = transactions.map(t => t.id === updatedTx.id ? txWithUpdated : t);
+    const updatedTxs = transactions.map(t => t.id === updatedTx.id ? txWithUpdated : t).sort((a, b) => {
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
     localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
@@ -1807,7 +1824,13 @@ export class StorageService {
       localStorage.setItem(key(ACCOUNTS_STORAGE_KEY), JSON.stringify(merged.accounts));
     }
     if (merged.transactions) {
-      localStorage.setItem(key(TRANSACTIONS_STORAGE_KEY), JSON.stringify(merged.transactions));
+      const sortedTxs = [...merged.transactions].sort((a, b) => {
+        const timeB = new Date(b.date || b.createdAt || 0).getTime();
+        const timeA = new Date(a.date || a.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+      localStorage.setItem(key(TRANSACTIONS_STORAGE_KEY), JSON.stringify(sortedTxs));
     }
     if (merged.categories) {
       localStorage.setItem(key(CATEGORIES_STORAGE_KEY), JSON.stringify(merged.categories));
