@@ -25,7 +25,9 @@ import {
   LossRecovery,
   AuditLogEntry,
   UnifiedActivityItem,
-  RegisteredUser
+  RegisteredUser,
+  TodoItem,
+  TodoStatus
 } from '../types';
 import { PRECONFIGURED_ACCOUNTS, PREDEFINED_CATEGORIES } from '../utils/constants';
 import { SyncService } from './syncService';
@@ -39,6 +41,7 @@ const ASSETS_STORAGE_KEY = 'finanzas_vzla_portfolio_assets';
 const GOALS_STORAGE_KEY = 'finanzas_vzla_goals';
 const DEBTS_STORAGE_KEY = 'finanzas_vzla_debts';
 const LOSSES_STORAGE_KEY = 'finanzas_vzla_losses';
+const TODOS_STORAGE_KEY = 'finanzas_vzla_todos';
 const AUDIT_LOGS_STORAGE_KEY = 'finanzas_vzla_audit_logs';
 const SETUP_COMPLETED_KEY = 'finanzas_vzla_setup_completed';
 const REGISTERED_USERS_KEY = 'finanzas_vzla_registered_users';
@@ -145,6 +148,7 @@ export class StorageService {
       localStorage.removeItem(`${DEBTS_STORAGE_KEY}_${uid}`);
       localStorage.removeItem(`${LOSSES_STORAGE_KEY}_${uid}`);
       localStorage.removeItem(`${GOALS_STORAGE_KEY}_${uid}`);
+      localStorage.removeItem(`${TODOS_STORAGE_KEY}_${uid}`);
       localStorage.removeItem(`${CATEGORIES_STORAGE_KEY}_${uid}`);
       localStorage.removeItem(`${AUDIT_LOGS_STORAGE_KEY}_${uid}`);
       localStorage.removeItem(`${ASSETS_STORAGE_KEY}_${uid}`);
@@ -230,6 +234,7 @@ export class StorageService {
     localStorage.setItem(`${DEBTS_STORAGE_KEY}_${uid}`, JSON.stringify([]));
     localStorage.setItem(`${LOSSES_STORAGE_KEY}_${uid}`, JSON.stringify([]));
     localStorage.setItem(`${GOALS_STORAGE_KEY}_${uid}`, JSON.stringify([]));
+    localStorage.setItem(`${TODOS_STORAGE_KEY}_${uid}`, JSON.stringify([]));
     return zeroAccounts;
   }
   /**
@@ -1911,6 +1916,99 @@ export class StorageService {
   }
 
   /**
+   * Compras y Cosas por Hacer (Wishlist & To-Dos con Precios Estimados)
+   */
+  static getTodos(userId?: string | null): TodoItem[] {
+    const key = this.getKey(TODOS_STORAGE_KEY, userId);
+    const cached = localStorage.getItem(key);
+    if (!cached) {
+      if (!userId && SEED_DATABASE.todos && SEED_DATABASE.todos.length > 0) {
+        localStorage.setItem(key, JSON.stringify(SEED_DATABASE.todos));
+        return SEED_DATABASE.todos;
+      }
+      return [];
+    }
+    try {
+      const items: TodoItem[] = JSON.parse(cached);
+      return items.sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'pending' ? -1 : 1;
+        }
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  static saveTodo(todo: TodoItem, userId?: string | null): TodoItem[] {
+    const current = this.getTodos(userId);
+    const now = new Date().toISOString();
+    const itemToSave: TodoItem = {
+      ...todo,
+      createdAt: todo.createdAt || now,
+      updatedAt: now
+    };
+
+    const idx = current.findIndex(t => t.id === itemToSave.id);
+    let updated: TodoItem[];
+    if (idx >= 0) {
+      updated = [...current];
+      updated[idx] = itemToSave;
+    } else {
+      updated = [itemToSave, ...current];
+    }
+
+    localStorage.setItem(this.getKey(TODOS_STORAGE_KEY, userId), JSON.stringify(updated));
+
+    if (userId) {
+      try {
+        setDoc(doc(db, `users/${userId}/todos`, itemToSave.id), itemToSave, { merge: true });
+      } catch (e) {
+        console.warn('Save todo offline queued', e);
+      }
+    }
+
+    return updated;
+  }
+
+  static deleteTodo(id: string, userId?: string | null): TodoItem[] {
+    const current = this.getTodos(userId);
+    const updated = current.filter(t => t.id !== id);
+    localStorage.setItem(this.getKey(TODOS_STORAGE_KEY, userId), JSON.stringify(updated));
+
+    SyncService.recordDeletion(id, 'todo');
+
+    if (userId) {
+      try {
+        deleteDoc(doc(db, `users/${userId}/todos`, id));
+      } catch (e) {
+        console.warn('Delete todo offline queued', e);
+      }
+    }
+
+    return updated;
+  }
+
+  static toggleTodoStatus(id: string, userId?: string | null): TodoItem[] {
+    const current = this.getTodos(userId);
+    const item = current.find(t => t.id === id);
+    if (!item) return current;
+
+    const newStatus: TodoStatus = item.status === 'completed' ? 'pending' : 'completed';
+    const updatedItem: TodoItem = {
+      ...item,
+      status: newStatus,
+      completedAt: newStatus === 'completed' ? new Date().toISOString() : undefined,
+      updatedAt: new Date().toISOString()
+    };
+
+    return this.saveTodo(updatedItem, userId);
+  }
+
+  /**
    * Obtiene todos los datos almacenados localmente para la sincronización
    */
   static getAllData(userId?: string | null) {
@@ -1922,6 +2020,7 @@ export class StorageService {
       goals: this.getGoals(userId),
       debts: this.getDebts(userId),
       losses: this.getLosses(userId),
+      todos: this.getTodos(userId),
       auditLogs: this.getAuditLogs(userId)
     };
   }
@@ -1937,6 +2036,7 @@ export class StorageService {
     goals?: FinancialGoal[];
     debts?: Debt[];
     losses?: Loss[];
+    todos?: TodoItem[];
     auditLogs?: AuditLogEntry[];
   }, userId?: string | null): void {
     const key = (base: string) => this.getKey(base, userId);
@@ -1980,6 +2080,17 @@ export class StorageService {
       });
       localStorage.setItem(key(LOSSES_STORAGE_KEY), JSON.stringify(sortedLosses));
     }
+    if (merged.todos) {
+      const sortedTodos = [...merged.todos].sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'pending' ? -1 : 1;
+        }
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
+      localStorage.setItem(key(TODOS_STORAGE_KEY), JSON.stringify(sortedTodos));
+    }
     if (merged.auditLogs) {
       localStorage.setItem(key(AUDIT_LOGS_STORAGE_KEY), JSON.stringify(merged.auditLogs));
     }
@@ -2009,6 +2120,7 @@ export class StorageService {
         { name: 'goals', storageKey: GOALS_STORAGE_KEY },
         { name: 'debts', storageKey: DEBTS_STORAGE_KEY },
         { name: 'losses', storageKey: LOSSES_STORAGE_KEY },
+        { name: 'todos', storageKey: TODOS_STORAGE_KEY },
         { name: 'audit_logs', storageKey: AUDIT_LOGS_STORAGE_KEY }
       ];
 

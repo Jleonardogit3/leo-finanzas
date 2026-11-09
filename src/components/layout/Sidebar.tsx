@@ -13,7 +13,8 @@ import {
   HandCoins,
   TrendingDown,
   Download,
-  History
+  History,
+  ShoppingBag
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -27,6 +28,7 @@ export const Sidebar: React.FC = () => {
     rates,
     activeDebtorsCount,
     lossesCount,
+    pendingTodosCount,
     isInstallable,
     isInstalled,
     setIsPwaModalOpen,
@@ -39,6 +41,7 @@ export const Sidebar: React.FC = () => {
     { id: 'accounts', label: 'Cuentas & Bancos', icon: Wallet },
     { id: 'debts', label: 'Deudas & Cobros', icon: HandCoins, badge: activeDebtorsCount > 0 ? activeDebtorsCount.toString() : undefined },
     { id: 'losses', label: 'Pérdidas & Mermas', icon: TrendingDown, badge: lossesCount > 0 ? lossesCount.toString() : undefined },
+    { id: 'todos', label: 'Compras & Pendientes', icon: ShoppingBag, badge: pendingTodosCount > 0 ? pendingTodosCount.toString() : undefined },
     { id: 'portfolio', label: 'Portafolio & Activos', icon: PieChart },
     { id: 'projections', label: 'Metas & Proyecciones', icon: TrendingUp },
     { id: 'history', label: 'Historial & Cambios', icon: History },

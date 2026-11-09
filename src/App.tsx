@@ -28,6 +28,8 @@ import { DebtModal } from './components/debts/DebtModal';
 import { DebtPaymentModal } from './components/debts/DebtPaymentModal';
 import { LossModal } from './components/losses/LossModal';
 import { LossRecoveryModal } from './components/losses/LossRecoveryModal';
+import { TodosView } from './components/todos/TodosView';
+import { TodoModal } from './components/todos/TodoModal';
 import { PwaInstallModal } from './components/layout/PwaInstallModal';
 import { SyncModal } from './components/layout/SyncModal';
 import { BiometricLockModal } from './components/auth/BiometricLockModal';
@@ -69,6 +71,8 @@ export const App: React.FC = () => {
         return <AiAdvisorView />;
       case 'history':
         return <HistoryView />;
+      case 'todos':
+        return <TodosView />;
       default:
         return <DashboardView />;
     }
@@ -109,6 +113,7 @@ export const App: React.FC = () => {
       <DebtPaymentModal />
       <LossModal />
       <LossRecoveryModal />
+      <TodoModal />
       <PwaInstallModal 
         isOpen={isPwaModalOpen} 
         onClose={() => setIsPwaModalOpen(false)} 

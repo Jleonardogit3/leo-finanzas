@@ -16,7 +16,8 @@ import {
   AuditLogEntry,
   UnifiedActivityItem,
   AppUser,
-  RegisteredUser
+  RegisteredUser,
+  TodoItem
 } from '../types';
 import { StorageService } from '../services/storageService';
 import { RatesService } from '../services/ratesService';
@@ -25,7 +26,7 @@ import { BiometricService } from '../services/biometricService';
 import { auth, onAuthStateChanged, User } from '../services/firebase';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 
-export type ViewType = 'dashboard' | 'transactions' | 'accounts' | 'debts' | 'losses' | 'portfolio' | 'projections' | 'advisor' | 'history';
+export type ViewType = 'dashboard' | 'transactions' | 'accounts' | 'debts' | 'losses' | 'portfolio' | 'projections' | 'advisor' | 'history' | 'todos';
 
 interface AppContextType {
   // Navigation & View
@@ -63,6 +64,7 @@ interface AppContextType {
   goals: FinancialGoal[];
   debts: Debt[];
   losses: Loss[];
+  todos: TodoItem[];
   auditLogs: AuditLogEntry[];
   unifiedActivities: UnifiedActivityItem[];
   rates: ExchangeRates;
@@ -94,6 +96,10 @@ interface AppContextType {
   setIsLossRecoveryModalOpen: (open: boolean) => void;
   activeLossForRecovery: Loss | null;
   setActiveLossForRecovery: (loss: Loss | null) => void;
+  isTodoModalOpen: boolean;
+  setIsTodoModalOpen: (open: boolean) => void;
+  editingTodo: TodoItem | null;
+  setEditingTodo: (todo: TodoItem | null) => void;
   // Layout scale / width preference
   isWideLayout: boolean;
   setIsWideLayout: (wide: boolean) => void;
@@ -153,6 +159,14 @@ interface AppContextType {
   deleteLossRecovery: (lossId: string, recoveryId: string) => void;
   declareDebtAsLoss: (debtId: string, reason?: string) => void;
   revertItem: (item: UnifiedActivityItem) => Promise<{ success: boolean; message: string }>;
+
+  // Compras & Cosas por Hacer Actions
+  saveTodo: (todo: TodoItem) => void;
+  deleteTodo: (id: string) => void;
+  toggleTodoStatus: (id: string) => void;
+  openTodoModal: (todo?: TodoItem | null) => void;
+  convertTodoToExpense: (todo: TodoItem) => void;
+
   refreshRates: () => Promise<void>;
   setManualRates: (bcv: number, usdt: number) => void;
   clearManualRates: () => void;
@@ -180,6 +194,12 @@ interface AppContextType {
   totalLossesVes: number;
   monthlyLossesUsd: number;
   lossesCount: number;
+  pendingTodosCount: number;
+  completedTodosCount: number;
+  pendingPurchasesCount: number;
+  pendingTasksCount: number;
+  totalEstimatedBudgetUsd: number;
+  totalEstimatedBudgetVes: number;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -321,6 +341,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [goals, setGoals] = useState<FinancialGoal[]>(() => StorageService.getGoals(user?.uid));
   const [debts, setDebts] = useState<Debt[]>(() => StorageService.getDebts(user?.uid));
   const [losses, setLosses] = useState<Loss[]>(() => StorageService.getLosses(user?.uid));
+  const [todos, setTodos] = useState<TodoItem[]>(() => StorageService.getTodos(user?.uid));
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => StorageService.getAuditLogs(user?.uid));
   const [rates, setRates] = useState<ExchangeRates>(() => RatesService.getCachedRates());
 
@@ -347,6 +368,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setGoals(StorageService.getGoals(targetUserId));
     setDebts(StorageService.getDebts(targetUserId));
     setLosses(StorageService.getLosses(targetUserId));
+    setTodos(StorageService.getTodos(targetUserId));
     setAuditLogs(StorageService.getAuditLogs(targetUserId));
   };
 
@@ -377,6 +399,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setGoals(StorageService.getGoals(activeUid));
         setDebts(StorageService.getDebts(activeUid));
         setLosses(StorageService.getLosses(activeUid));
+        setTodos(StorageService.getTodos(activeUid));
         setAuditLogs(StorageService.getAuditLogs(activeUid));
         if (result.serverTimestamp) {
           setLastSyncTime(result.serverTimestamp);
@@ -704,6 +727,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [editingLoss, setEditingLoss] = useState<Loss | null>(null);
   const [isLossRecoveryModalOpen, setIsLossRecoveryModalOpen] = useState(false);
   const [activeLossForRecovery, setActiveLossForRecovery] = useState<Loss | null>(null);
+  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
 
   // Layout scale / width preference (defaults to true: ampliada)
   const [isWideLayout, setIsWideLayoutState] = useState<boolean>(() => {
@@ -909,6 +934,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setGoals(StorageService.getGoals(activeUid));
         setDebts(StorageService.getDebts(activeUid));
         setLosses(StorageService.getLosses(activeUid));
+        setTodos(StorageService.getTodos(activeUid));
         setAuditLogs(StorageService.getAuditLogs(activeUid));
       }
     };
@@ -1154,6 +1180,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Compras y Cosas por Hacer Actions
+  const saveTodo = (todo: TodoItem) => {
+    const updated = StorageService.saveTodo(todo, user?.uid);
+    setTodos(updated);
+    setIsTodoModalOpen(false);
+    setEditingTodo(null);
+    triggerBackgroundSync();
+  };
+
+  const deleteTodo = (id: string) => {
+    const updated = StorageService.deleteTodo(id, user?.uid);
+    setTodos(updated);
+    triggerBackgroundSync();
+  };
+
+  const toggleTodoStatus = (id: string) => {
+    const updated = StorageService.toggleTodoStatus(id, user?.uid);
+    setTodos(updated);
+    triggerBackgroundSync();
+  };
+
+  const openTodoModal = (todo?: TodoItem | null) => {
+    setEditingTodo(todo || null);
+    setIsTodoModalOpen(true);
+  };
+
+  const convertTodoToExpense = (todo: TodoItem) => {
+    if (todo.status !== 'completed') {
+      const updated = StorageService.toggleTodoStatus(todo.id, user?.uid);
+      setTodos(updated);
+    }
+    const dummyTx: Transaction = {
+      id: '',
+      type: 'expense',
+      accountId: accounts[0]?.id || '',
+      amount: todo.estimatedPrice || 0,
+      currency: todo.currency,
+      categoryId: 'cat-general',
+      categoryName: todo.category === 'purchase' ? 'Compras / Mercado' : 'Servicios & Varios',
+      date: new Date().toISOString(),
+      note: `Compra realizada: ${todo.title}${todo.notes ? ' (' + todo.notes + ')' : ''}`,
+      createdAt: new Date().toISOString()
+    };
+    setEditingTransaction(dummyTx);
+    setIsTxModalOpen(true);
+  };
+
   const unifiedActivities = useMemo(() => {
     return StorageService.getUnifiedActivityFeed(
       accounts,
@@ -1336,6 +1409,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [losses, rates]);
 
+  // Compras y Cosas por Hacer Metrics
+  const {
+    pendingTodosCount,
+    completedTodosCount,
+    pendingPurchasesCount,
+    pendingTasksCount,
+    totalEstimatedBudgetUsd,
+    totalEstimatedBudgetVes
+  } = useMemo(() => {
+    let pendingCount = 0;
+    let completedCount = 0;
+    let purchasesCount = 0;
+    let tasksCount = 0;
+    let budgetUsd = 0;
+    let budgetVes = 0;
+
+    const bcvRate = rates.bcv > 0 ? rates.bcv : 1;
+
+    todos.forEach(t => {
+      if (t.status === 'completed') {
+        completedCount += 1;
+      } else {
+        pendingCount += 1;
+        if (t.category === 'purchase') {
+          purchasesCount += 1;
+        } else {
+          tasksCount += 1;
+        }
+
+        const price = t.estimatedPrice || 0;
+        if (price > 0) {
+          if (t.currency === 'USD') {
+            budgetUsd += price;
+            budgetVes += price * bcvRate;
+          } else {
+            budgetVes += price;
+            budgetUsd += price / bcvRate;
+          }
+        }
+      }
+    });
+
+    return {
+      pendingTodosCount: pendingCount,
+      completedTodosCount: completedCount,
+      pendingPurchasesCount: purchasesCount,
+      pendingTasksCount: tasksCount,
+      totalEstimatedBudgetUsd: Number(budgetUsd.toFixed(2)),
+      totalEstimatedBudgetVes: Number(budgetVes.toFixed(2))
+    };
+  }, [todos, rates]);
+
   // Filtered transactions by time period
   const filteredTransactions = useMemo(() => {
     const now = new Date();
@@ -1389,6 +1514,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         goals,
         debts,
         losses,
+        todos,
         auditLogs,
         unifiedActivities,
         rates,
@@ -1418,6 +1544,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsLossRecoveryModalOpen,
         activeLossForRecovery,
         setActiveLossForRecovery,
+        isTodoModalOpen,
+        setIsTodoModalOpen,
+        editingTodo,
+        setEditingTodo,
         addTransaction,
         updateTransaction,
         deleteTransaction,
@@ -1452,6 +1582,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteLossRecovery,
         declareDebtAsLoss,
         revertItem,
+        saveTodo,
+        deleteTodo,
+        toggleTodoStatus,
+        openTodoModal,
+        convertTodoToExpense,
         refreshRates,
         setManualRates,
         clearManualRates,
@@ -1477,6 +1612,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         totalLossesVes,
         monthlyLossesUsd,
         lossesCount,
+        pendingTodosCount,
+        completedTodosCount,
+        pendingPurchasesCount,
+        pendingTasksCount,
+        totalEstimatedBudgetUsd,
+        totalEstimatedBudgetVes,
         isWideLayout,
         setIsWideLayout,
         toggleWideLayout,

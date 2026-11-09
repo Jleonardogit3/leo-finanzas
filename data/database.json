@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-09T19:11:47.298Z",
+  "lastUpdated": "2026-11-09T19:47:42.378Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -1053,6 +1053,40 @@
       "dueDate": "2026-11-08",
       "createdAt": "2026-11-09T18:57:19.819Z",
       "updatedAt": "2026-11-09T18:57:29.820Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1794253431344-e4qjb",
+      "debtType": "payable",
+      "debtorName": "Local",
+      "concept": "Alquiler Local",
+      "originalAmount": 40,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1043.6595,
+      "remainingAmount": 40,
+      "status": "pending",
+      "dueDate": "2026-11-10",
+      "peggedUsdAmount": 40,
+      "lastCalculatedRate": 1043.6595,
+      "createdAt": "2026-11-09T19:43:51.344Z",
+      "updatedAt": "2026-11-09T19:45:52.583Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1794253474226-mzyek",
+      "debtType": "payable",
+      "debtorName": "Gym",
+      "concept": "Gym Noviembre",
+      "originalAmount": 30,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1043.6595,
+      "remainingAmount": 30,
+      "status": "pending",
+      "dueDate": "2026-11-20",
+      "peggedUsdAmount": 30,
+      "lastCalculatedRate": 1043.6595,
+      "createdAt": "2026-11-09T19:44:34.226Z",
+      "updatedAt": "2026-11-09T19:44:34.227Z",
       "payments": []
     }
   ],

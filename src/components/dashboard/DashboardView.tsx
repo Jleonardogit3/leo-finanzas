@@ -21,7 +21,10 @@ import {
   Palette,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShoppingBag,
+  Plus,
+  Circle
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -98,7 +101,15 @@ export const DashboardView: React.FC = () => {
     activePayableCount,
     totalLossesUsd,
     activeDebtorsCount,
-    lossesCount
+    lossesCount,
+    todos,
+    openTodoModal,
+    toggleTodoStatus,
+    convertTodoToExpense,
+    pendingTodosCount,
+    pendingPurchasesCount,
+    totalEstimatedBudgetUsd,
+    totalEstimatedBudgetVes
   } = useApp();
 
   // State to toggle quick inline color editor for expenses or income
@@ -641,8 +652,8 @@ export const DashboardView: React.FC = () => {
 
       </div>
 
-      {/* Quick Summary Strip: Deudas & Pérdidas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+      {/* Quick Summary Strip: Deudas, Pérdidas & Compras Pendientes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
         
         {/* Deudas & Cuentas por Cobrar */}
         <div 
@@ -681,7 +692,7 @@ export const DashboardView: React.FC = () => {
         {/* Pérdidas & Mermas */}
         <div 
           onClick={() => setCurrentView('losses')}
-          className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-rose-400 dark:hover:border-rose-500/50 cursor-pointer transition-all flex items-center justify-between group"
+          className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-rose-400 dark:hover:border-rose-500/50 cursor-pointer transition-all flex items-center justify-between group"
         >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500 group-hover:scale-110 transition-transform">
@@ -691,7 +702,7 @@ export const DashboardView: React.FC = () => {
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block">
                 Pérdidas & Mermas
               </span>
-              <div className="text-lg font-black text-rose-600 dark:text-rose-400">
+              <div className="text-base font-black text-rose-600 dark:text-rose-400">
                 ${totalLossesUsd.toFixed(2)} USD
               </div>
               <span className="text-[10px] text-slate-600 dark:text-slate-400">
@@ -701,6 +712,32 @@ export const DashboardView: React.FC = () => {
           </div>
           <span className="text-xs font-bold text-rose-600 dark:text-rose-400 group-hover:translate-x-1 transition-transform">
             Auditar &rarr;
+          </span>
+        </div>
+
+        {/* Compras & Cosas por Hacer */}
+        <div 
+          onClick={() => setCurrentView('todos')}
+          className="p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-400 dark:hover:border-emerald-500/50 cursor-pointer transition-all flex items-center justify-between group sm:col-span-2 lg:col-span-1"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block">
+                Compras & Pendientes
+              </span>
+              <div className="text-base font-black text-slate-900 dark:text-white">
+                ${totalEstimatedBudgetUsd.toFixed(2)} <span className="text-xs text-slate-400 font-bold">USD</span>
+              </div>
+              <span className="text-[10px] text-slate-600 dark:text-slate-400">
+                {pendingTodosCount} pendientes ({pendingPurchasesCount} compras)
+              </span>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+            Ver &rarr;
           </span>
         </div>
 
@@ -1179,6 +1216,131 @@ export const DashboardView: React.FC = () => {
 
         </div>
 
+      </div>
+
+      {/* Compras & Cosas por Hacer Interactive Widget */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Compras & Cosas por Hacer
+                </h3>
+                {pendingTodosCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    {pendingTodosCount} pendientes
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                Presupuesto estimado: <strong className="text-slate-900 dark:text-white">${totalEstimatedBudgetUsd.toFixed(2)} USD</strong> • ~Bs. {totalEstimatedBudgetVes.toLocaleString('es-VE', { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openTodoModal()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-bold transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>Nueva Compra</span>
+            </button>
+            <button
+              onClick={() => setCurrentView('todos')}
+              className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1"
+            >
+              <span>Ver todas</span>
+              <span>&rarr;</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Pending items preview (up to 4 items) */}
+        {todos.filter(t => t.status === 'pending').length === 0 ? (
+          <div className="p-5 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-500 font-medium">
+              ¡No tienes compras ni tareas pendientes! Todo al día.
+            </p>
+            <button
+              onClick={() => openTodoModal()}
+              className="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
+            >
+              + Registrar compra o tarea pendiente
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+            {todos.filter(t => t.status === 'pending').slice(0, 4).map(todo => {
+              const bcvRate = rates.bcv > 0 ? rates.bcv : 1;
+              const hasPrice = todo.estimatedPrice !== undefined && todo.estimatedPrice > 0;
+              const price = todo.estimatedPrice || 0;
+              const priceInUsd = todo.currency === 'USD' ? price : (price / bcvRate);
+              const priceInVes = todo.currency === 'VES' ? price : (price * bcvRate);
+
+              return (
+                <div key={todo.id} className="py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleTodoStatus(todo.id)}
+                      className="w-5 h-5 rounded-md border border-slate-300 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10 flex items-center justify-center transition-all shrink-0"
+                      title="Marcar como realizada"
+                    >
+                      <Circle className="w-3 h-3 text-transparent hover:text-emerald-500" />
+                    </button>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[200px] sm:max-w-sm">
+                          {todo.title}
+                        </span>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-bold ${
+                          todo.priority === 'high'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                            : todo.priority === 'medium'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {todo.priority === 'high' ? 'Alta' : todo.priority === 'medium' ? 'Media' : 'Baja'}
+                        </span>
+                      </div>
+                      {todo.targetDate && (
+                        <span className="text-[10px] text-slate-400 block">
+                          Objetivo: {todo.targetDate}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    {hasPrice && (
+                      <div className="text-right">
+                        <span className="text-xs font-black text-slate-900 dark:text-white block">
+                          ${priceInUsd.toFixed(2)} USD
+                        </span>
+                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 block">
+                          ~Bs. {priceInVes.toLocaleString('es-VE', { maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => convertTodoToExpense(todo)}
+                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+                      title="Registrar gasto de esta compra"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recent Movements List */}

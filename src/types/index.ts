@@ -194,9 +194,28 @@ export interface AIAdvisorReport {
   goalsActionPlan: string[];
 }
 
+export type TodoPriority = 'high' | 'medium' | 'low';
+export type TodoCategory = 'purchase' | 'task' | 'service' | 'home' | 'work' | 'other';
+export type TodoStatus = 'pending' | 'completed';
+
+export interface TodoItem {
+  id: string;
+  title: string;
+  estimatedPrice?: number;
+  currency: Currency; // 'USD' | 'VES'
+  category: TodoCategory;
+  priority: TodoPriority;
+  status: TodoStatus;
+  targetDate?: string; // YYYY-MM-DD
+  notes?: string;
+  completedAt?: string; // ISO
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+
 export interface DeletedItem {
   id: string;
-  type: 'account' | 'transaction' | 'category' | 'asset' | 'goal' | 'debt' | 'loss' | 'audit_log';
+  type: 'account' | 'transaction' | 'category' | 'asset' | 'goal' | 'debt' | 'loss' | 'audit_log' | 'todo';
   deletedAt: string;
 }
 

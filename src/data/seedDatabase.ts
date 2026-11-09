@@ -1,4 +1,4 @@
-import { Account, Category, Debt, Loss, FinancialGoal, PortfolioAsset, Transaction, DeletedItem } from '../types';
+import { Account, Category, Debt, Loss, FinancialGoal, PortfolioAsset, Transaction, DeletedItem, TodoItem } from '../types';
 
 export interface DatabaseSchema {
   version: number;
@@ -11,6 +11,7 @@ export interface DatabaseSchema {
   categories: Category[];
   portfolioAssets: PortfolioAsset[];
   goals: FinancialGoal[];
+  todos?: TodoItem[];
   deletedItems: DeletedItem[];
   auditLogs: any[];
 }
@@ -19,6 +20,7 @@ export const SEED_DATABASE: DatabaseSchema = {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
   "lastUpdated": "2026-11-09T15:31:19.450Z",
+  "todos": [],
   "accounts": [
     {
       "name": "Banco de Venezuela",

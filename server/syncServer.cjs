@@ -34,6 +34,7 @@ const DEFAULT_DATABASE = {
   categories: [],
   portfolioAssets: [],
   goals: [],
+  todos: [],
   auditLogs: [],
   deletedItems: [] // { id: string, type: string, deletedAt: string }
 };
@@ -186,6 +187,7 @@ function performFullSync(clientPayload) {
     'categories',
     'portfolioAssets',
     'goals',
+    'todos',
     'auditLogs'
   ];
 
@@ -226,6 +228,15 @@ function performFullSync(clientPayload) {
         const timeA = new Date(a.date || a.createdAt || 0).getTime();
         if (timeB !== timeA) return timeB - timeA;
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+    } else if (col === 'todos') {
+      mergedDb[col] = result.merged.sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'pending' ? -1 : 1;
+        }
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        return timeB - timeA;
       });
     } else {
       mergedDb[col] = result.merged;

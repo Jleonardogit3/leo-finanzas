@@ -162,6 +162,7 @@ export default async function handler(req, res) {
       const categoriesResult = mergeCollections(seedData?.categories || [], clientData.categories || [], deletedItemsMap);
       const assetsResult = mergeCollections(seedData?.portfolioAssets || [], clientData.portfolioAssets || [], deletedItemsMap);
       const goalsResult = mergeCollections(seedData?.goals || [], clientData.goals || [], deletedItemsMap);
+      const todosResult = mergeCollections(seedData?.todos || [], clientData.todos || [], deletedItemsMap);
 
       const mergedData = {
         accounts: accountsResult.merged,
@@ -186,12 +187,20 @@ export default async function handler(req, res) {
         categories: categoriesResult.merged,
         portfolioAssets: assetsResult.merged,
         goals: goalsResult.merged,
+        todos: todosResult.merged.sort((a, b) => {
+          if (a.status !== b.status) {
+            return a.status === 'pending' ? -1 : 1;
+          }
+          const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+          const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+          return timeB - timeA;
+        }),
         auditLogs: clientData.auditLogs || (seedData?.auditLogs || [])
       };
 
-      const totalUploaded = accountsResult.uploaded + transactionsResult.uploaded + debtsResult.uploaded + lossesResult.uploaded;
-      const totalDownloaded = accountsResult.downloaded + transactionsResult.downloaded + debtsResult.downloaded + lossesResult.downloaded;
-      const totalResolved = accountsResult.resolved + transactionsResult.resolved + debtsResult.resolved + lossesResult.resolved;
+      const totalUploaded = accountsResult.uploaded + transactionsResult.uploaded + debtsResult.uploaded + lossesResult.uploaded + todosResult.uploaded;
+      const totalDownloaded = accountsResult.downloaded + transactionsResult.downloaded + debtsResult.downloaded + lossesResult.downloaded + todosResult.downloaded;
+      const totalResolved = accountsResult.resolved + transactionsResult.resolved + debtsResult.resolved + lossesResult.resolved + todosResult.resolved;
 
       res.status(200).json({
         success: true,
