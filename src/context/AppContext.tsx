@@ -197,7 +197,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed?.uid && parsed?.username) {
-          return parsed;
+          // Si el usuario ya inició sesión y fue verificado hoy en este dispositivo, mantener sesión activa
+          if (BiometricService.isDeviceUnlockedToday(parsed.username)) {
+            return parsed;
+          }
+          // Si es un nuevo día, solicitar inicio de sesión una sola vez por día
+          return null;
         }
       }
       // Si no hay sesión explícita, comprobar si hay un último usuario activo que fue desbloqueado hoy
@@ -226,11 +231,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Biometric & Security Lock States
   const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
     try {
-      const sessionUnlocked = sessionStorage.getItem('finanzas_vzla_unlocked_session');
-      if (sessionUnlocked === 'true') return false;
-
-      const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
-
       const cached = localStorage.getItem('finanzas_vzla_auth_session');
       const lastUsername = BiometricService.getLastActiveUser();
       let targetUser = '';
@@ -239,11 +239,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (!targetUser) targetUser = lastUsername || '';
 
-      // Si el dispositivo ya fue desbloqueado el día de hoy para el usuario activo, NO bloquear al abrir/recargar
+      // Si el dispositivo ya fue desbloqueado el día de hoy para el usuario activo, NUNCA bloquear
       if (targetUser && BiometricService.isDeviceUnlockedToday(targetUser)) {
+        sessionStorage.removeItem('finanzas_vzla_session_locked');
+        sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
         return false;
       }
 
+      const sessionUnlocked = sessionStorage.getItem('finanzas_vzla_unlocked_session');
+      if (sessionUnlocked === 'true') return false;
+
+      const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
       if (wasLocked === 'true') return true;
 
       if (targetUser && BiometricService.isEnrolled(targetUser) && BiometricService.isAutoLockEnabled()) {
@@ -267,14 +273,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!user) return;
 
     const handleVisibilityChange = () => {
+      // Si el usuario ya inició sesión y está verificado hoy en este dispositivo, NUNCA bloquear automáticamente
+      if (BiometricService.isDeviceUnlockedToday(user.username)) {
+        sessionStorage.removeItem('finanzas_vzla_session_locked');
+        sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+        return;
+      }
+
       if (document.visibilityState === 'hidden') {
-        // El usuario minimizó la app, cambió de app o bloqueó la pantalla del teléfono
         if (BiometricService.isAutoLockEnabled()) {
           sessionStorage.setItem('finanzas_vzla_session_locked', 'true');
           setIsAppLocked(true);
         }
       } else if (document.visibilityState === 'visible') {
-        // Al volver, si estaba marcado como bloqueado, asegurar pantalla de bloqueo
         if (sessionStorage.getItem('finanzas_vzla_session_locked') === 'true') {
           setIsAppLocked(true);
         }
@@ -282,6 +293,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const handlePageHide = () => {
+      // Si el usuario ya inició sesión y está verificado hoy en este dispositivo, NO bloquear
+      if (BiometricService.isDeviceUnlockedToday(user.username)) {
+        sessionStorage.removeItem('finanzas_vzla_session_locked');
+        return;
+      }
+
       if (BiometricService.isAutoLockEnabled()) {
         sessionStorage.setItem('finanzas_vzla_session_locked', 'true');
       }

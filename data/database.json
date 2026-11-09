@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-09T15:54:21.512Z",
+  "lastUpdated": "2026-11-09T18:05:03.409Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -16,9 +16,9 @@
       "icon": "Building2",
       "bankCode": "0102",
       "id": "acc-1",
-      "currentBalance": 1218.51,
+      "currentBalance": 764.66,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-09T05:36:02.100Z"
+      "updatedAt": "2026-11-09T18:03:11.993Z"
     },
     {
       "name": "Banco Provincial (BBVA)",
@@ -27,15 +27,15 @@
       "initialBalance": 29489.04,
       "digitalUsdBalance": 968.31,
       "initialDigitalUsdBalance": 931.32,
-      "physicalUsdBalance": 50.3,
+      "physicalUsdBalance": 34.31,
       "initialPhysicalUsdBalance": 0.3,
       "color": "#1D4ED8",
       "icon": "Landmark",
       "bankCode": "0108",
       "id": "acc-2",
-      "currentBalance": 1252.92,
+      "currentBalance": -4247.08,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-06T17:28:01.315Z"
+      "updatedAt": "2026-11-09T18:04:38.467Z"
     },
     {
       "name": "Banco Mercantil",
@@ -50,9 +50,9 @@
       "icon": "Building",
       "bankCode": "0105",
       "id": "acc-3",
-      "currentBalance": 3782.49,
+      "currentBalance": 68.49,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-06T15:40:15.114Z"
+      "updatedAt": "2026-11-09T18:00:57.061Z"
     },
     {
       "name": "Banco Nacional de Crédito (BNC)",
@@ -176,16 +176,16 @@
       "type": "expense",
       "accountId": "acc-2",
       "subFund": "ves",
-      "amount": 46000,
+      "amount": 51500,
       "currency": "VES",
       "categoryId": "cat-comida",
       "categoryName": "Comida",
       "categoryIcon": "Utensils",
       "categoryColor": "#F97316",
       "date": "2026-11-06T16:18:00.000Z",
-      "note": "Compra casa",
+      "note": "Compra mercado casa",
       "createdAt": "2026-11-06T16:18:41.473Z",
-      "updatedAt": "2026-11-06T16:18:54.458Z"
+      "updatedAt": "2026-11-09T17:49:28.775Z"
     },
     {
       "id": "tx-1793981864588-zedta",
@@ -538,6 +538,106 @@
       "note": "Interes mes de Octubre Willy 300$",
       "createdAt": "2026-11-04T15:42:34.118Z",
       "updatedAt": "2026-11-04T15:42:34.119Z"
+    },
+    {
+      "id": "tx-1794247119646-dldv2",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 900,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-07T17:58:00.000Z",
+      "note": "Recarga Movistar",
+      "createdAt": "2026-11-09T17:58:39.646Z",
+      "updatedAt": "2026-11-09T17:58:39.646Z"
+    },
+    {
+      "id": "tx-1794247257070-3zx3k",
+      "type": "expense",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 14,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-08T18:00:00.000Z",
+      "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Pago ridery",
+      "createdAt": "2026-11-09T18:00:57.070Z",
+      "updatedAt": "2026-11-09T18:00:57.061Z"
+    },
+    {
+      "id": "tx-1794247257057-eykhf",
+      "type": "transfer",
+      "accountId": "acc-3",
+      "toAccountId": "acc-1",
+      "subFund": "ves",
+      "toSubFund": "ves",
+      "amount": 3700,
+      "currency": "VES",
+      "appliedRate": 1038.6451,
+      "destinationAmount": 3700,
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-08T18:00:00.000Z",
+      "note": "Pago ridery",
+      "createdAt": "2026-11-09T18:00:57.057Z",
+      "updatedAt": "2026-11-09T18:00:57.058Z"
+    },
+    {
+      "id": "tx-1794247307132-dwsnz",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 900,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-08T18:01:00.000Z",
+      "note": "Recarga Movistar",
+      "createdAt": "2026-11-09T18:01:47.132Z",
+      "updatedAt": "2026-11-09T18:01:47.133Z"
+    },
+    {
+      "id": "tx-1794247372263-bm00b",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 2243.85,
+      "currency": "VES",
+      "categoryId": "cat-custom-1794247335853",
+      "categoryName": "Pasajes",
+      "categoryIcon": "Tag",
+      "categoryColor": "#64748B",
+      "date": "2026-11-08T18:01:00.000Z",
+      "note": "Recarga ridery",
+      "createdAt": "2026-11-09T18:02:52.263Z",
+      "updatedAt": "2026-11-09T18:03:11.993Z"
+    },
+    {
+      "id": "tx-1794247457208-ottzb",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "physical_usd",
+      "amount": 15.99,
+      "currency": "USD",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-08T18:03:00.000Z",
+      "note": "Hamburguesas Cumbre",
+      "createdAt": "2026-11-09T18:04:17.208Z",
+      "updatedAt": "2026-11-09T18:04:38.467Z"
     }
   ],
   "debts": [
@@ -975,6 +1075,15 @@
       "type": "expense",
       "isPredefined": false,
       "updatedAt": "2026-11-06T03:07:54.059Z"
+    },
+    {
+      "id": "cat-custom-1794247335853",
+      "name": "Pasajes",
+      "icon": "Tag",
+      "color": "#64748B",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-09T18:02:15.853Z"
     }
   ],
   "portfolioAssets": [],

@@ -35,12 +35,19 @@ export const BiometricLockModal: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
-  if (!isAppLocked) return null;
-
   const lastActiveUser = BiometricService.getLastActiveUser();
   const currentUsername = user?.username || lastActiveUser || 'Jleonardo';
   const isUnlockedToday = BiometricService.isDeviceUnlockedToday(currentUsername);
   const isEnrolledOnThisOrigin = BiometricService.isEnrolledOnCurrentOrigin(currentUsername);
+
+  // Si el dispositivo ya fue verificado hoy, desbloquear silenciosamente y nunca mostrar el modal
+  React.useEffect(() => {
+    if (isAppLocked && isUnlockedToday) {
+      unlockDirectly();
+    }
+  }, [isAppLocked, isUnlockedToday, unlockDirectly]);
+
+  if (!isAppLocked || isUnlockedToday) return null;
 
   // Escanear huella únicamente cuando el usuario presiona el botón manualmente
   const handleTriggerBiometric = async () => {

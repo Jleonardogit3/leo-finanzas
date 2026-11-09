@@ -89,6 +89,13 @@ export const LoginView: React.FC = () => {
     }
   };
 
+  // Si el usuario ya fue verificado hoy en este dispositivo, entrar directamente sin requerir clics
+  React.useEffect(() => {
+    if (activeTab === 'login' && isUnlockedToday) {
+      handleQuickUnlockToday();
+    }
+  }, [activeTab, isUnlockedToday]);
+
   const handleBiometricLogin = async () => {
     setErrorMessage(null);
     setSuccessMessage(null);
