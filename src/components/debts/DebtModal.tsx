@@ -83,6 +83,9 @@ export const DebtModal: React.FC = () => {
     if (!debtorName.trim() || currentAmount <= 0) return;
 
     const appliedRate = currencyType === 'VES_BCV' ? rates.bcv : rates.usdt;
+    const peggedUsd = currencyType === 'USD_USDT'
+      ? currentAmount
+      : (appliedRate > 0 ? Number((currentAmount / appliedRate).toFixed(4)) : currentAmount);
 
     if (editingDebt) {
       const totalPaid = editingDebt.payments 
@@ -111,6 +114,8 @@ export const DebtModal: React.FC = () => {
         status: newStatus,
         dueDate: dueDate || undefined,
         notes: notes.trim() || undefined,
+        peggedUsdAmount: editingDebt.peggedUsdAmount || peggedUsd,
+        lastCalculatedRate: appliedRate,
         updatedAt: new Date().toISOString()
       };
 
@@ -129,6 +134,8 @@ export const DebtModal: React.FC = () => {
         status: 'pending',
         dueDate: dueDate || undefined,
         notes: notes.trim() || undefined,
+        peggedUsdAmount: peggedUsd,
+        lastCalculatedRate: appliedRate,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         payments: []

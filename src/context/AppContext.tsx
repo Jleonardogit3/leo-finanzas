@@ -811,6 +811,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshRates = async () => {
     const latest = await RatesService.fetchLatestRates();
     setRates(latest);
+    // Sincronizar montos actualizados en Bs de deudas indexadas a tasa BCV
+    setDebts(StorageService.getDebts(user?.uid));
   };
 
   useEffect(() => {
@@ -1254,8 +1256,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           itemUsd = d.remainingAmount;
           itemVes = rates.bcv > 0 ? (d.remainingAmount * rates.bcv) : 0;
         } else {
-          itemVes = d.remainingAmount;
-          itemUsd = rates.bcv > 0 ? (d.remainingAmount / rates.bcv) : 0;
+          // VES_BCV: Deuda en Bs indexada al dólar oficial BCV para proteger de devaluación
+          const usdOriginal = d.peggedUsdAmount || (d.appliedRateAtCreation > 0 ? d.originalAmount / d.appliedRateAtCreation : (rates.bcv > 0 ? d.originalAmount / rates.bcv : 0));
+          const prevPaidUsd = (d.payments || []).reduce((sum, p) => {
+            if (p.currency === 'USD') return sum + p.amount;
+            const pRate = p.appliedRate || rates.bcv || 1;
+            return sum + (p.amount / pRate);
+          }, 0);
+          itemUsd = Math.max(0, usdOriginal - prevPaidUsd);
+          itemVes = rates.bcv > 0 ? (itemUsd * rates.bcv) : d.remainingAmount;
         }
 
         if (isPayable) {

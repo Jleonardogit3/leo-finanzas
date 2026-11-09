@@ -92,6 +92,8 @@ export interface Debt {
   updatedAt: string;
   notes?: string;
   payments: DebtPayment[];
+  peggedUsdAmount?: number; // Equivalente en USD fijado al registrar la deuda para protegerla de la devaluación
+  lastCalculatedRate?: number; // Última tasa BCV aplicada al calcular el monto actualizado en Bs
 }
 
 export type LossCategory = 

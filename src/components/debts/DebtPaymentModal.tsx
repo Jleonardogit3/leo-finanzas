@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, HandCoins, ArrowRight, Wallet, Check, CreditCard } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, CheckCircle, HandCoins, ArrowRight, Wallet, Check, CreditCard, Calculator, DollarSign, Coins } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Currency, SubFundType } from '../../types';
 import { RatesService } from '../../services/ratesService';
@@ -15,43 +15,120 @@ export const DebtPaymentModal: React.FC = () => {
     rates 
   } = useApp();
 
+  const [paymentCurrency, setPaymentCurrency] = useState<Currency>('VES');
   const [amountStr, setAmountStr] = useState('');
-  const [currency, setCurrency] = useState<Currency>('USD');
   const [targetAccountId, setTargetAccountId] = useState('');
   const [targetSubFund, setTargetSubFund] = useState<SubFundType>('ves');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
   const [note, setNote] = useState('');
 
+  // Live calculation of debt status protected against devaluation
+  const { liveUsdRemaining, liveVesRemaining, isVESIndexed } = useMemo(() => {
+    if (!activeDebtForPayment) {
+      return { liveUsdRemaining: 0, liveVesRemaining: 0, isVESIndexed: false };
+    }
+
+    const bcv = rates.bcv > 0 ? rates.bcv : 1;
+    const isVES = activeDebtForPayment.currencyType === 'VES_BCV';
+
+    let usdOriginal = activeDebtForPayment.peggedUsdAmount || 0;
+    if (!usdOriginal) {
+      if (activeDebtForPayment.currencyType === 'USD_USDT') {
+        usdOriginal = activeDebtForPayment.originalAmount;
+      } else {
+        usdOriginal = activeDebtForPayment.appliedRateAtCreation > 0
+          ? activeDebtForPayment.originalAmount / activeDebtForPayment.appliedRateAtCreation
+          : activeDebtForPayment.originalAmount / bcv;
+      }
+    }
+
+    const totalPaidUsd = (activeDebtForPayment.payments || []).reduce((sum, p) => {
+      if (p.currency === 'USD') return sum + p.amount;
+      const rate = p.appliedRate || bcv;
+      return sum + (p.amount / rate);
+    }, 0);
+
+    const remUsd = Math.max(0, usdOriginal - totalPaidUsd);
+    const remVes = Number((remUsd * bcv).toFixed(2));
+
+    return {
+      liveUsdRemaining: remUsd,
+      liveVesRemaining: remVes,
+      isVESIndexed: isVES
+    };
+  }, [activeDebtForPayment, rates.bcv]);
+
   useEffect(() => {
     if (activeDebtForPayment) {
-      const baseCurr = activeDebtForPayment.currencyType === 'USD_USDT' ? 'USD' : 'VES';
-      setCurrency(baseCurr);
-      setAmountStr(activeDebtForPayment.remainingAmount.toString());
+      const initialCurr = activeDebtForPayment.currencyType === 'USD_USDT' ? 'USD' : 'VES';
+      setPaymentCurrency(initialCurr);
+      const initialAmount = initialCurr === 'USD' ? liveUsdRemaining.toFixed(2) : liveVesRemaining.toFixed(2);
+      setAmountStr(initialAmount);
+
       if (accounts.length > 0) {
         setTargetAccountId(accounts[0].id);
         setTargetSubFund('ves');
       }
     }
-  }, [activeDebtForPayment, accounts]);
+  }, [activeDebtForPayment, liveUsdRemaining, liveVesRemaining, accounts]);
 
   if (!isDebtPaymentModalOpen || !activeDebtForPayment) return null;
 
   const isPayable = activeDebtForPayment.debtType === 'payable';
   const currentPaymentAmount = parseFloat(amountStr) || 0;
-  const isUSD = activeDebtForPayment.currencyType === 'USD_USDT';
+  const bcvRate = rates.bcv > 0 ? rates.bcv : 1;
 
-  // Live conversion reference for the payment
-  const equivBcvBs = (isUSD && rates.bcv > 0) 
-    ? (currentPaymentAmount * rates.bcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '0,00';
-
-  const equivBcvUsd = (!isUSD && rates.bcv > 0)
-    ? (currentPaymentAmount / rates.bcv).toFixed(2)
-    : '0.00';
+  const handleCurrencyChange = (newCurr: Currency) => {
+    if (newCurr === paymentCurrency) return;
+    setPaymentCurrency(newCurr);
+    if (newCurr === 'VES') {
+      const valInBs = currentPaymentAmount > 0 
+        ? Number((currentPaymentAmount * bcvRate).toFixed(2)) 
+        : liveVesRemaining;
+      setAmountStr(valInBs.toString());
+    } else {
+      const valInUsd = currentPaymentAmount > 0 
+        ? Number((currentPaymentAmount / bcvRate).toFixed(2)) 
+        : liveUsdRemaining;
+      setAmountStr(valInUsd.toString());
+    }
+  };
 
   const handleFullPay = () => {
-    setAmountStr(activeDebtForPayment.remainingAmount.toString());
+    if (paymentCurrency === 'VES') {
+      setAmountStr(liveVesRemaining.toString());
+    } else {
+      setAmountStr(liveUsdRemaining.toFixed(2));
+    }
   };
+
+  const selectedTargetAccount = accounts.find(a => a.id === targetAccountId);
+  const isTargetUsd = selectedTargetAccount?.currency === 'USD' || 
+    targetSubFund === 'digital_usd' || 
+    targetSubFund === 'physical_usd';
+
+  // Live account impact amount
+  const { accountImpactAmount, accountImpactCurrency } = useMemo(() => {
+    if (currentPaymentAmount <= 0) {
+      return { accountImpactAmount: 0, accountImpactCurrency: isTargetUsd ? 'USD' : 'VES' };
+    }
+    if (isTargetUsd && paymentCurrency === 'VES') {
+      return {
+        accountImpactAmount: Number((currentPaymentAmount / bcvRate).toFixed(2)),
+        accountImpactCurrency: 'USD'
+      };
+    }
+    if (!isTargetUsd && paymentCurrency === 'USD') {
+      return {
+        accountImpactAmount: Number((currentPaymentAmount * bcvRate).toFixed(2)),
+        accountImpactCurrency: 'VES'
+      };
+    }
+    return {
+      accountImpactAmount: currentPaymentAmount,
+      accountImpactCurrency: paymentCurrency
+    };
+  }, [currentPaymentAmount, isTargetUsd, paymentCurrency, bcvRate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,10 +136,10 @@ export const DebtPaymentModal: React.FC = () => {
 
     addDebtPayment(activeDebtForPayment.id, {
       amount: currentPaymentAmount,
-      currency,
+      currency: paymentCurrency,
       date: new Date(date).toISOString(),
       note: note.trim() || undefined,
-      appliedRate: isUSD ? rates.usdt : rates.bcv,
+      appliedRate: bcvRate,
       receivedInAccountId: targetAccountId || undefined,
       receivedInSubFund: targetSubFund
     });
@@ -72,12 +149,10 @@ export const DebtPaymentModal: React.FC = () => {
     setNote('');
   };
 
-  const selectedTargetAccount = accounts.find(a => a.id === targetAccountId);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -99,6 +174,7 @@ export const DebtPaymentModal: React.FC = () => {
             <p className="text-xs text-slate-600 dark:text-slate-400">
               {isPayable ? 'Acreedor: ' : 'Deudor: '}
               <span className="font-bold text-slate-800 dark:text-slate-200">{activeDebtForPayment.debtorName}</span>
+              {' • '}{activeDebtForPayment.concept}
             </p>
           </div>
           <button 
@@ -109,49 +185,99 @@ export const DebtPaymentModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Debt Current Status Box */}
-        <div className={`mt-4 p-3.5 rounded-2xl border ${
+        {/* Debt Current Status Box with Live BCV Protection */}
+        <div className={`mt-4 p-4 rounded-2xl border space-y-2 ${
           isPayable 
-            ? 'bg-rose-500/10 border-rose-500/20' 
-            : 'bg-amber-500/10 border-amber-500/20'
+            ? 'bg-rose-500/10 border-rose-500/25' 
+            : 'bg-emerald-500/10 border-emerald-500/25'
         }`}>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className={`font-bold ${isPayable ? 'text-rose-800 dark:text-rose-300' : 'text-amber-800 dark:text-amber-300'}`}>
-              {isPayable ? 'Saldo Pendiente por Pagar:' : 'Saldo Pendiente Actual:'}
+          <div className="flex items-center justify-between text-xs">
+            <span className={`font-bold uppercase tracking-wider ${isPayable ? 'text-rose-800 dark:text-rose-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+              {isPayable ? 'Saldo Pendiente por Pagar:' : 'Saldo Pendiente por Cobrar:'}
             </span>
             <button
               type="button"
               onClick={handleFullPay}
-              className={`text-[11px] font-bold hover:underline ${
-                isPayable ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+              className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${
+                isPayable 
+                  ? 'bg-rose-600 text-white hover:bg-rose-500' 
+                  : 'bg-emerald-600 text-white hover:bg-emerald-500'
               }`}
             >
               {isPayable ? 'Pagar Totalidad' : 'Cobrar Totalidad'}
             </button>
           </div>
-          <div className={`text-xl font-black ${isPayable ? 'text-rose-900 dark:text-rose-200' : 'text-amber-900 dark:text-amber-200'}`}>
-            {isUSD ? `$${activeDebtForPayment.remainingAmount.toFixed(2)} USD` : `${RatesService.formatMoney(activeDebtForPayment.remainingAmount, 'VES')}`}
+
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <div className={`text-2xl font-black ${isPayable ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-600 dark:text-emerald-300'}`}>
+              ${liveUsdRemaining.toFixed(2)} USD
+            </div>
+            <div className="text-base font-extrabold text-slate-800 dark:text-slate-200">
+              ≈ {liveVesRemaining.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </div>
           </div>
-          <p className={`text-[11px] mt-0.5 ${isPayable ? 'text-rose-700 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400'}`}>
-            {isUSD 
-              ? `≈ ${(activeDebtForPayment.remainingAmount * rates.bcv).toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs a tasa BCV del día`
-              : `≈ $${(rates.bcv > 0 ? (activeDebtForPayment.remainingAmount / rates.bcv).toFixed(2) : '0.00')} USD a tasa BCV`}
-          </p>
+
+          <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+            <span>🏛️ Tasa oficial BCV hoy: <strong>{rates.bcv} Bs/$</strong></span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">✓ Valor al día protegido</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           
-          {/* Payment Amount */}
+          {/* Payment Currency Toggle */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-              {isPayable ? 'Monto a Pagar' : 'Monto a Abonar'} ({isUSD ? 'USD' : 'Bs'}) *
+              Moneda del Pago / Abono
             </label>
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80">
+              <button
+                type="button"
+                onClick={() => handleCurrencyChange('VES')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  paymentCurrency === 'VES'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Coins className="w-3.5 h-3.5" />
+                <span>Bolívares (Pago Móvil / VES)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCurrencyChange('USD')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  paymentCurrency === 'USD'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Dólares ($ / USD / USDT)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Payment Amount */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                {isPayable ? 'Monto a Pagar' : 'Monto a Abonar'} en {paymentCurrency === 'VES' ? 'Bolívares (Bs)' : 'Dólares ($)'} *
+              </label>
+              <button
+                type="button"
+                onClick={handleFullPay}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Monto Total: {paymentCurrency === 'VES' ? `${liveVesRemaining.toLocaleString('es-VE')} Bs` : `$${liveUsdRemaining.toFixed(2)} USD`}
+              </button>
+            </div>
             <div className="relative">
               <input
                 type="number"
                 step="any"
                 min="0.01"
-                max={activeDebtForPayment.remainingAmount}
                 placeholder="0.00"
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value)}
@@ -162,16 +288,19 @@ export const DebtPaymentModal: React.FC = () => {
                 autoFocus
               />
               <span className="absolute right-4 top-3 text-sm font-black text-slate-600 dark:text-slate-400">
-                {isUSD ? '$' : 'Bs'}
+                {paymentCurrency === 'VES' ? 'Bs VES' : '$ USD'}
               </span>
             </div>
 
             {/* Dual live reference */}
             {currentPaymentAmount > 0 && (
-              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1.5 font-medium px-1">
-                {isUSD 
-                  ? `Equivalente en Pago Móvil (Tasa BCV ${rates.bcv} Bs/$): ${equivBcvBs} Bs`
-                  : `Equivalente en Dólares (Tasa BCV ${rates.bcv} Bs/$): $${equivBcvUsd} USD`}
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1.5 font-semibold px-1 flex items-center justify-between">
+                <span>
+                  {paymentCurrency === 'VES'
+                    ? `Equivalente en Dólares ($): $${(currentPaymentAmount / bcvRate).toFixed(2)} USD`
+                    : `Equivalente en Pago Móvil (Bs): ${(currentPaymentAmount * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs`}
+                </span>
+                <span className="text-[10px] text-slate-400">Tasa: {bcvRate} Bs/$</span>
               </p>
             )}
           </div>
@@ -214,6 +343,21 @@ export const DebtPaymentModal: React.FC = () => {
                   <option value="digital_usd">💻 Cuenta en $ Digitales (USD)</option>
                   <option value="physical_usd">💵 $ Físicos (USD)</option>
                 </select>
+              </div>
+            )}
+
+            {/* Account Impact Callout Banner */}
+            {selectedTargetAccount && currentPaymentAmount > 0 && (
+              <div className="mt-2.5 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-900 dark:text-blue-200 font-medium">
+                <div className="flex items-center gap-1.5 font-bold mb-0.5">
+                  <Calculator className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Impacto real en cuenta ({selectedTargetAccount.name}):</span>
+                </div>
+                <p>
+                  Se {isPayable ? 'debitarán' : 'acreditarán'} <strong className="font-black text-blue-600 dark:text-blue-300">
+                    {accountImpactCurrency === 'USD' ? `$${accountImpactAmount.toFixed(2)} USD` : `${accountImpactAmount.toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`}
+                  </strong> al valor del dólar BCV del día ({bcvRate} Bs/$).
+                </p>
               </div>
             )}
           </div>

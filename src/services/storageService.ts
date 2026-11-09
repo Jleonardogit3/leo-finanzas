@@ -18,6 +18,8 @@ import {
   FinancialGoal,
   Debt,
   DebtPayment,
+  DebtStatus,
+  Currency,
   SubFundType,
   Loss,
   LossRecovery,
@@ -27,6 +29,7 @@ import {
 } from '../types';
 import { PRECONFIGURED_ACCOUNTS, PREDEFINED_CATEGORIES } from '../utils/constants';
 import { SyncService } from './syncService';
+import { RatesService } from './ratesService';
 import { SEED_DATABASE } from '../data/seedDatabase';
 
 const ACCOUNTS_STORAGE_KEY = 'finanzas_vzla_accounts';
@@ -959,8 +962,39 @@ export class StorageService {
     const key = this.getKey(DEBTS_STORAGE_KEY, userId);
     const cached = localStorage.getItem(key);
 
+    const syncBcvDebts = (list: Debt[]): Debt[] => {
+      let bcvRate = 0;
+      try {
+        const currentRates = RatesService.getCachedRates();
+        bcvRate = currentRates?.bcv || 0;
+      } catch {}
+
+      return list.map(d => {
+        if (d.currencyType === 'VES_BCV') {
+          const usdOriginal = d.peggedUsdAmount || (d.appliedRateAtCreation > 0 ? d.originalAmount / d.appliedRateAtCreation : (bcvRate > 0 ? d.originalAmount / bcvRate : 0));
+          if (usdOriginal > 0 && bcvRate > 0 && d.status !== 'paid') {
+            const paidUsd = (d.payments || []).reduce((sum, p) => {
+              if (p.currency === 'USD') return sum + p.amount;
+              const pRate = p.appliedRate || bcvRate || 1;
+              return sum + (p.amount / pRate);
+            }, 0);
+            const remUsd = Math.max(0, usdOriginal - paidUsd);
+            return {
+              ...d,
+              peggedUsdAmount: usdOriginal,
+              remainingAmount: Number((remUsd * bcvRate).toFixed(2)),
+              originalAmount: Number((usdOriginal * bcvRate).toFixed(2)),
+              lastCalculatedRate: bcvRate
+            };
+          }
+        }
+        return d;
+      });
+    };
+
     const sortDebts = (list: Debt[]): Debt[] => {
-      return [...list].sort((a, b) => {
+      const synced = syncBcvDebts(list);
+      return [...synced].sort((a, b) => {
         const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
         const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
         if (timeB !== timeA) return timeB - timeA;
@@ -1058,18 +1092,50 @@ export class StorageService {
     }
 
     const currentDebt = debts[debtIdx];
+    const cachedRates = RatesService.getCachedRates();
+    const bcvRate = paymentData.appliedRate || cachedRates?.bcv || 1;
+
+    // Calculate USD value of this payment
+    const paymentUsdValue = paymentData.currency === 'USD'
+      ? paymentData.amount
+      : (bcvRate > 0 ? paymentData.amount / bcvRate : 0);
+
+    // Calculate updated debt remaining amounts
+    let newRemainingAmount: number;
+    let newPeggedUsd: number;
+    let newStatus: DebtStatus;
+
+    if (currentDebt.currencyType === 'USD_USDT') {
+      const remainingUsd = Math.max(0, Number((currentDebt.remainingAmount - paymentUsdValue).toFixed(2)));
+      newRemainingAmount = remainingUsd;
+      newPeggedUsd = currentDebt.originalAmount;
+      newStatus = remainingUsd <= 0.005 ? 'paid' : 'partially_paid';
+    } else {
+      // VES_BCV (actualizado a la tasa del día para no devaluar)
+      const usdOriginal = currentDebt.peggedUsdAmount || (currentDebt.appliedRateAtCreation > 0 ? currentDebt.originalAmount / currentDebt.appliedRateAtCreation : (bcvRate > 0 ? currentDebt.originalAmount / bcvRate : 0));
+      const prevPaidUsd = (currentDebt.payments || []).reduce((sum, p) => {
+        if (p.currency === 'USD') return sum + p.amount;
+        const pRate = p.appliedRate || bcvRate || 1;
+        return sum + (p.amount / pRate);
+      }, 0);
+      const remainingUsd = Math.max(0, Number((usdOriginal - prevPaidUsd - paymentUsdValue).toFixed(2)));
+      newRemainingAmount = Number((remainingUsd * bcvRate).toFixed(2));
+      newPeggedUsd = usdOriginal;
+      newStatus = remainingUsd <= 0.005 ? 'paid' : 'partially_paid';
+    }
+
     const newPayment: DebtPayment = {
       ...paymentData,
       id: `debt-pay-${Date.now()}`
     };
 
     const newPayments = [...(currentDebt.payments || []), newPayment];
-    const newRemaining = Math.max(0, Number((currentDebt.remainingAmount - newPayment.amount).toFixed(2)));
-    const newStatus = newRemaining <= 0.001 ? 'paid' : 'partially_paid';
 
     const updatedDebt: Debt = {
       ...currentDebt,
-      remainingAmount: newRemaining,
+      remainingAmount: newRemainingAmount,
+      peggedUsdAmount: newPeggedUsd,
+      lastCalculatedRate: bcvRate,
       status: newStatus,
       payments: newPayments,
       updatedAt: new Date().toISOString()
@@ -1081,27 +1147,48 @@ export class StorageService {
 
     let updatedAccounts = this.getAccounts(userId);
 
-    // If user specified an account, register the financial transaction
+    // If user specified an account, register the financial transaction with the true value of the dollar of the day
     if (paymentData.receivedInAccountId) {
       const targetAcc = updatedAccounts.find(a => a.id === paymentData.receivedInAccountId);
       if (targetAcc) {
         const isPayable = currentDebt.debtType === 'payable';
+        const isTargetUsd = targetAcc.currency === 'USD' || 
+          paymentData.receivedInSubFund === 'digital_usd' || 
+          paymentData.receivedInSubFund === 'physical_usd';
+
+        let txAmount = paymentData.amount;
+        let txCurrency: Currency = paymentData.currency;
+
+        if (isTargetUsd && paymentData.currency === 'VES') {
+          // El pago se indicó en Bs, pero la cuenta destino es en USD -> convertir a USD a tasa del día
+          txAmount = Number((paymentData.amount / bcvRate).toFixed(2));
+          txCurrency = 'USD';
+        } else if (!isTargetUsd && paymentData.currency === 'USD') {
+          // El pago se indicó en USD, pero la cuenta destino es en Bolívares -> convertir a Bs a tasa del día
+          txAmount = Number((paymentData.amount * bcvRate).toFixed(2));
+          txCurrency = 'VES';
+        }
+
+        const noteDetail = paymentData.currency === 'USD'
+          ? `$${paymentData.amount.toFixed(2)} USD (Tasa BCV ${bcvRate} Bs/$)`
+          : `${paymentData.amount.toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs (Tasa BCV ${bcvRate} Bs/$)`;
+
         const tx: Transaction = {
           id: `tx-debt-${Date.now()}`,
           type: isPayable ? 'expense' : 'income',
           accountId: targetAcc.id,
           subFund: paymentData.receivedInSubFund || (targetAcc.currency === 'USD' ? 'digital_usd' : 'ves'),
-          amount: paymentData.amount,
-          currency: paymentData.currency,
-          appliedRate: paymentData.appliedRate,
+          amount: txAmount,
+          currency: txCurrency,
+          appliedRate: bcvRate,
           categoryId: isPayable ? 'cat-pago-deuda' : 'cat-cobro-deuda',
           categoryName: isPayable ? `Pago de Deuda: ${currentDebt.debtorName}` : `Cobro: ${currentDebt.debtorName}`,
           categoryIcon: isPayable ? 'CreditCard' : 'HandCoins',
           categoryColor: isPayable ? '#EF4444' : '#10B981',
           date: paymentData.date,
           note: isPayable
-            ? `Pago realizado por deuda propia: ${currentDebt.concept || 'Pendiente'}${paymentData.note ? ` - ${paymentData.note}` : ''}`
-            : `Abono de deuda por cobrar: ${currentDebt.concept || 'Pendiente'}${paymentData.note ? ` - ${paymentData.note}` : ''}`,
+            ? `Pago realizado por deuda propia: ${currentDebt.concept || 'Pendiente'} (${noteDetail})${paymentData.note ? ` - ${paymentData.note}` : ''}`
+            : `Abono de deuda por cobrar: ${currentDebt.concept || 'Pendiente'} (${noteDetail})${paymentData.note ? ` - ${paymentData.note}` : ''}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-09T19:02:12.314Z",
+  "lastUpdated": "2026-11-09T19:11:47.298Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -1097,6 +1097,45 @@
       "notes": "Reparación laptop",
       "createdAt": "2026-11-04T00:55:34.725Z",
       "updatedAt": "2026-11-04T00:55:34.725Z"
+    },
+    {
+      "id": "loss-1794251437251-p2be",
+      "concept": "Pago pendiente no cancelado Negro Soto Rosa",
+      "category": "theft_scam",
+      "amount": 16,
+      "currency": "USD",
+      "appliedRate": 1043.6595,
+      "date": "2026-11-09T00:00:00.000Z",
+      "status": "total_loss",
+      "recoveredAmount": 0,
+      "createdAt": "2026-11-09T19:10:37.251Z",
+      "updatedAt": "2026-11-09T19:11:46.387Z"
+    },
+    {
+      "id": "loss-1794251472673-lnv7",
+      "concept": "Fallo de reparacion Laptop Jouberth",
+      "category": "operational",
+      "amount": 60,
+      "currency": "USD",
+      "appliedRate": 1043.6595,
+      "date": "2026-11-09T00:00:00.000Z",
+      "status": "total_loss",
+      "recoveredAmount": 0,
+      "createdAt": "2026-11-09T19:11:12.673Z",
+      "updatedAt": "2026-11-09T19:11:12.673Z"
+    },
+    {
+      "id": "loss-1794251490468-tt60",
+      "concept": "Falla reparacion laptop Dafne",
+      "category": "operational",
+      "amount": 40,
+      "currency": "USD",
+      "appliedRate": 1043.6595,
+      "date": "2026-11-09T00:00:00.000Z",
+      "status": "total_loss",
+      "recoveredAmount": 0,
+      "createdAt": "2026-11-09T19:11:30.468Z",
+      "updatedAt": "2026-11-09T19:11:38.226Z"
     }
   ],
   "categories": [

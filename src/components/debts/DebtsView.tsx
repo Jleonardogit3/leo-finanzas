@@ -91,21 +91,37 @@ export const DebtsView: React.FC = () => {
   const generateWhatsAppMessage = (debt: Debt) => {
     const isUSD = debt.currencyType === 'USD_USDT';
     const isPayable = debt.debtType === 'payable';
-    const amountInBs = isUSD ? (debt.remainingAmount * rates.bcv).toFixed(2) : debt.remainingAmount.toFixed(2);
-    const amountInUsd = isUSD ? debt.remainingAmount.toFixed(2) : (rates.bcv > 0 ? (debt.remainingAmount / rates.bcv).toFixed(2) : '0.00');
+    const bcv = rates.bcv > 0 ? rates.bcv : 1;
+
+    let usdOriginal = debt.peggedUsdAmount || 0;
+    if (!usdOriginal) {
+      usdOriginal = isUSD 
+        ? debt.originalAmount 
+        : (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv);
+    }
+
+    const paidUsd = (debt.payments || []).reduce((sum, p) => {
+      if (p.currency === 'USD') return sum + p.amount;
+      const pRate = p.appliedRate || bcv;
+      return sum + (p.amount / pRate);
+    }, 0);
+
+    const remUsd = Math.max(0, usdOriginal - paidUsd);
+    const amountInBs = (remUsd * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const amountInUsd = remUsd.toFixed(2);
 
     if (isPayable) {
       return `Hola ${debt.debtorName}, te saludo cordialmente. Te comparto el estado de mi saldo pendiente por "${debt.concept}":\n\n` +
         `📌 Saldo pendiente por pagarte: ${isUSD ? `$${amountInUsd} USD` : `${amountInBs} Bs`}\n` +
         `🏛️ Tasa oficial BCV hoy: ${rates.bcv} Bs/$\n` +
-        `📲 Equivalente en Bs: ${amountInBs} Bs\n\n` +
+        `📲 Equivalente en Bs (Tasa del día): ${amountInBs} Bs ($${amountInUsd} USD)\n\n` +
         `Te estaré informando al momento de realizar el próximo abono. ¡Muchas gracias!`;
     }
 
     return `Hola ${debt.debtorName}, te saludo cordialmente. Te comparto el detalle de tu saldo pendiente por "${debt.concept}":\n\n` +
       `📌 Saldo pendiente: ${isUSD ? `$${amountInUsd} USD` : `${amountInBs} Bs`}\n` +
       `🏛️ Tasa oficial BCV hoy: ${rates.bcv} Bs/$\n` +
-      `📲 Equivalente para Pago Móvil / Transferencia: ${amountInBs} Bs\n\n` +
+      `📲 Equivalente para Pago Móvil / Transferencia hoy: ${amountInBs} Bs ($${amountInUsd} USD)\n\n` +
       `¡Muchas gracias!`;
   };
 
@@ -395,20 +411,35 @@ export const DebtsView: React.FC = () => {
             const isPaid = debt.status === 'paid';
             const isPartial = debt.status === 'partially_paid';
 
+            const bcv = rates.bcv > 0 ? rates.bcv : 1;
+
+            let usdOriginal = debt.peggedUsdAmount || 0;
+            if (!usdOriginal) {
+              usdOriginal = isUSD
+                ? debt.originalAmount
+                : (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv);
+            }
+
+            const paidUsd = (debt.payments || []).reduce((sum, p) => {
+              if (p.currency === 'USD') return sum + p.amount;
+              const pRate = p.appliedRate || bcv;
+              return sum + (p.amount / pRate);
+            }, 0);
+
+            const liveRemainingUsd = isPaid ? 0 : Math.max(0, usdOriginal - paidUsd);
+            const liveRemainingBs = Number((liveRemainingUsd * bcv).toFixed(2));
+            const liveOriginalBs = Number((usdOriginal * bcv).toFixed(2));
+
             // Percent paid
-            const paidAmount = debt.originalAmount - debt.remainingAmount;
-            const progressPercent = debt.originalAmount > 0 
-              ? Math.min(100, Math.round((paidAmount / debt.originalAmount) * 100))
+            const progressPercent = usdOriginal > 0 
+              ? Math.min(100, Math.round((paidUsd / usdOriginal) * 100))
               : 0;
 
             // Live conversions
-            const remainingInBs = isUSD 
-              ? (debt.remainingAmount * rates.bcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-              : debt.remainingAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-            const remainingInUsd = isUSD
-              ? debt.remainingAmount.toFixed(2)
-              : (rates.bcv > 0 ? (debt.remainingAmount / rates.bcv).toFixed(2) : '0.00');
+            const remainingInBs = liveRemainingBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const remainingInUsd = liveRemainingUsd.toFixed(2);
+            const originalInBs = liveOriginalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const originalInUsd = usdOriginal.toFixed(2);
 
             return (
               <div
@@ -496,7 +527,7 @@ export const DebtsView: React.FC = () => {
                         {isPayable ? 'Monto que Debo Pagar:' : 'Por Cobrar:'}
                       </span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                        {isUSD ? 'Base en $ / USDT' : 'Base en Bs (BCV)'}
+                        {isUSD ? 'Base en $ / USDT' : 'Indexada a Tasa $ BCV'}
                       </span>
                     </div>
 
@@ -506,7 +537,7 @@ export const DebtsView: React.FC = () => {
                       </div>
                       {isPartial && (
                         <span className="text-xs text-slate-600 dark:text-slate-400 line-through">
-                          de {isUSD ? `$${debt.originalAmount.toFixed(2)}` : `${debt.originalAmount.toLocaleString()} Bs`}
+                          de {isUSD ? `$${originalInUsd}` : `${originalInBs} Bs`}
                         </span>
                       )}
                     </div>
@@ -514,19 +545,26 @@ export const DebtsView: React.FC = () => {
                     {/* Venezuelan Conversion Highlight */}
                     <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs">
                       <span className={`text-[11px] font-semibold ${isPayable ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                        {isUSD ? '📱 Pago Móvil a Tasa BCV hoy:' : '💵 Equivalente en USD a Tasa BCV:'}
+                        {isUSD ? '📱 Pago Móvil a Tasa BCV hoy:' : '💵 Base en USD (Protegida de Devaluación):'}
                       </span>
                       <span className={`font-black ${isPayable ? 'text-rose-800 dark:text-rose-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
                         {isUSD ? `${remainingInBs} Bs` : `$${remainingInUsd} USD`}
                       </span>
                     </div>
+
+                    {!isUSD && (
+                      <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                        <span>🏛️ Tasa BCV hoy: <strong>{rates.bcv} Bs/$</strong></span>
+                        <span>Inicial: {debt.appliedRateAtCreation} Bs/$</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Progress Bar (if partial or payments) */}
                   {isPartial && (
                     <div className="mt-3 space-y-1">
                       <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                        <span>Abonado: {isUSD ? `$${paidAmount.toFixed(2)}` : `${paidAmount.toLocaleString()} Bs`}</span>
+                        <span>Abonado: {isUSD ? `$${(usdOriginal - liveRemainingUsd).toFixed(2)}` : `${((usdOriginal - liveRemainingUsd) * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`}</span>
                         <span className="font-bold">{progressPercent}%</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
