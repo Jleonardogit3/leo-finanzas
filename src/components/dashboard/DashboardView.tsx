@@ -127,38 +127,145 @@ export const DashboardView: React.FC = () => {
     };
   }, [filteredTransactions, rates]);
 
-  // Income vs Expense Chart Data (Monthly historical trend)
-  const incomeExpenseChartData = useMemo(() => {
-    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  // Dynamic subtitle for Income vs Expense Chart according to active timeFilter
+  const chartSubtitle = useMemo(() => {
     const now = new Date();
-    const dataMap: Record<string, { name: string; Ingresos: number; Egresos: number }> = {};
+    if (timeFilter === 'daily') {
+      return 'Valores en USD (Hoy - por franjas horarias)';
+    }
+    if (timeFilter === 'weekly') {
+      return 'Valores en USD (Últimos 7 días - día por día)';
+    }
+    if (timeFilter === 'monthly') {
+      const monthNamesLong = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      return `Valores en USD (${monthNamesLong[now.getMonth()]} - por semanas)`;
+    }
+    if (timeFilter === 'yearly') {
+      return `Valores en USD (Año ${now.getFullYear()} - por meses)`;
+    }
+    return 'Valores en USD';
+  }, [timeFilter]);
 
-    // Generate last 6 months buckets
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      dataMap[key] = {
-        name: monthNames[d.getMonth()],
-        Ingresos: 0,
-        Egresos: 0
-      };
+  // Income vs Expense Chart Data (Dynamically adapted to active timeFilter)
+  const incomeExpenseChartData = useMemo(() => {
+    const now = new Date();
+
+    if (timeFilter === 'daily') {
+      // 6 intervals of 4 hours for today
+      const slots = [
+        { name: '00h-04h', start: 0, end: 4, Ingresos: 0, Egresos: 0 },
+        { name: '04h-08h', start: 4, end: 8, Ingresos: 0, Egresos: 0 },
+        { name: '08h-12h', start: 8, end: 12, Ingresos: 0, Egresos: 0 },
+        { name: '12h-16h', start: 12, end: 16, Ingresos: 0, Egresos: 0 },
+        { name: '16h-20h', start: 16, end: 20, Ingresos: 0, Egresos: 0 },
+        { name: '20h-24h', start: 20, end: 24, Ingresos: 0, Egresos: 0 }
+      ];
+
+      filteredTransactions.forEach(t => {
+        const d = new Date(t.date);
+        const hour = d.getHours();
+        const slot = slots.find(s => hour >= s.start && hour < s.end);
+        if (slot) {
+          const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
+          if (t.type === 'income') {
+            slot.Ingresos = Number((slot.Ingresos + valUsd).toFixed(2));
+          } else if (t.type === 'expense') {
+            slot.Egresos = Number((slot.Egresos + valUsd).toFixed(2));
+          }
+        }
+      });
+
+      return slots.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
     }
 
-    transactions.forEach(t => {
+    if (timeFilter === 'weekly') {
+      // 7 days ending today
+      const days: { key: string; name: string; Ingresos: number; Egresos: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const key = d.toDateString();
+        const rawName = d.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric' });
+        // Capitalize first letter and remove dot e.g. "Lun 3"
+        const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1).replace('.', '');
+        days.push({
+          key,
+          name: cleanName,
+          Ingresos: 0,
+          Egresos: 0
+        });
+      }
+
+      filteredTransactions.forEach(t => {
+        const d = new Date(t.date);
+        const bucket = days.find(b => b.key === d.toDateString());
+        if (bucket) {
+          const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
+          if (t.type === 'income') {
+            bucket.Ingresos = Number((bucket.Ingresos + valUsd).toFixed(2));
+          } else if (t.type === 'expense') {
+            bucket.Egresos = Number((bucket.Egresos + valUsd).toFixed(2));
+          }
+        }
+      });
+
+      return days.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
+    }
+
+    if (timeFilter === 'monthly') {
+      // Weeks of current month
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const weeks = [
+        { name: 'Sem 1 (1-7)', start: 1, end: 7, Ingresos: 0, Egresos: 0 },
+        { name: 'Sem 2 (8-14)', start: 8, end: 14, Ingresos: 0, Egresos: 0 },
+        { name: 'Sem 3 (15-21)', start: 15, end: 21, Ingresos: 0, Egresos: 0 },
+        { name: 'Sem 4 (22-28)', start: 22, end: 28, Ingresos: 0, Egresos: 0 }
+      ];
+      if (daysInMonth > 28) {
+        weeks.push({
+          name: `Sem 5 (29-${daysInMonth})`,
+          start: 29,
+          end: daysInMonth,
+          Ingresos: 0,
+          Egresos: 0
+        });
+      }
+
+      filteredTransactions.forEach(t => {
+        const d = new Date(t.date);
+        const day = d.getDate();
+        const w = weeks.find(wk => day >= wk.start && day <= wk.end);
+        if (w) {
+          const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
+          if (t.type === 'income') {
+            w.Ingresos = Number((w.Ingresos + valUsd).toFixed(2));
+          } else if (t.type === 'expense') {
+            w.Egresos = Number((w.Egresos + valUsd).toFixed(2));
+          }
+        }
+      });
+
+      return weeks.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
+    }
+
+    // Default: 'yearly' (12 calendar months)
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = monthNames.map(m => ({ name: m, Ingresos: 0, Egresos: 0 }));
+
+    filteredTransactions.forEach(t => {
       const d = new Date(t.date);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      if (dataMap[key]) {
+      const m = d.getMonth();
+      if (months[m]) {
         const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
         if (t.type === 'income') {
-          dataMap[key].Ingresos = Number((dataMap[key].Ingresos + valUsd).toFixed(2));
+          months[m].Ingresos = Number((months[m].Ingresos + valUsd).toFixed(2));
         } else if (t.type === 'expense') {
-          dataMap[key].Egresos = Number((dataMap[key].Egresos + valUsd).toFixed(2));
+          months[m].Egresos = Number((months[m].Egresos + valUsd).toFixed(2));
         }
       }
     });
 
-    return Object.values(dataMap);
-  }, [transactions, rates]);
+    return months;
+  }, [timeFilter, filteredTransactions, rates]);
 
   // Expense Categories Distribution Data
   const expenseCategoryChartData = useMemo(() => {
@@ -511,7 +618,7 @@ export const DashboardView: React.FC = () => {
                 Comparativo Ingresos vs Egresos
               </h3>
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-400">Valores en USD (Últimos 6 meses)</span>
+            <span className="text-[11px] text-slate-600 dark:text-slate-400">{chartSubtitle}</span>
           </div>
 
           <div className="h-64 w-full">
