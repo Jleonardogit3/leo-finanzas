@@ -19,7 +19,9 @@ import {
   HandCoins,
   History,
   Palette,
-  Check
+  Check,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -102,12 +104,79 @@ export const DashboardView: React.FC = () => {
   // State to toggle quick inline color editor for expenses or income
   const [editingColorsType, setEditingColorsType] = useState<'expense' | 'income' | null>(null);
 
-  // Period Metrics (Income, Expense, Net)
+  // Period Navigation Offset (0: current period, -1: 1 period back, +1: 1 period forward)
+  const [periodOffset, setPeriodOffset] = useState<number>(0);
+
+  const handleTimeFilterChange = (filter: TimeFilter) => {
+    setTimeFilter(filter);
+    setPeriodOffset(0);
+  };
+
+  // Active transactions for the navigated period (powers chart, donut charts, and summary cards)
+  const activePeriodTransactions = useMemo(() => {
+    const now = new Date();
+
+    if (timeFilter === 'daily') {
+      // Week from Monday to Sunday based on periodOffset
+      const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (periodOffset * 7));
+      const day = targetDate.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + diffToMonday);
+      monday.setHours(0, 0, 0, 0);
+
+      const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      return transactions.filter(t => {
+        const d = new Date(t.date);
+        return d >= monday && d <= sunday;
+      });
+    }
+
+    if (timeFilter === 'weekly') {
+      // Target month based on periodOffset
+      const targetMonth = new Date(now.getFullYear(), now.getMonth() + periodOffset, 1);
+      const targetYear = targetMonth.getFullYear();
+      const targetMonthIdx = targetMonth.getMonth();
+
+      return transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === targetYear && d.getMonth() === targetMonthIdx;
+      });
+    }
+
+    if (timeFilter === 'monthly') {
+      // 4-month window ending at (current month + periodOffset)
+      const targetDate = new Date(now.getFullYear(), now.getMonth() + periodOffset, 1);
+      const startMonthDate = new Date(targetDate.getFullYear(), targetDate.getMonth() - 3, 1);
+      startMonthDate.setHours(0, 0, 0, 0);
+
+      const endMonthDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+      endMonthDate.setHours(23, 59, 59, 999);
+
+      return transactions.filter(t => {
+        const d = new Date(t.date);
+        return d >= startMonthDate && d <= endMonthDate;
+      });
+    }
+
+    // Default: 'yearly' (4-year window ending at currentYear + periodOffset * 4)
+    const endYear = now.getFullYear() + (periodOffset * 4);
+    const startYear = endYear - 3;
+
+    return transactions.filter(t => {
+      const d = new Date(t.date);
+      const y = d.getFullYear();
+      return y >= startYear && y <= endYear;
+    });
+  }, [timeFilter, periodOffset, transactions]);
+
+  // Period Metrics (Income, Expense, Net) based on active navigated period
   const { periodIncomeUsd, periodExpenseUsd, netSavingsUsd, savingsRate } = useMemo(() => {
     let inc = 0;
     let exp = 0;
 
-    filteredTransactions.forEach(t => {
+    activePeriodTransactions.forEach(t => {
       const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
       if (t.type === 'income') {
         inc += valUsd;
@@ -125,77 +194,101 @@ export const DashboardView: React.FC = () => {
       netSavingsUsd: net,
       savingsRate: Number(rate.toFixed(1))
     };
-  }, [filteredTransactions, rates]);
+  }, [activePeriodTransactions, rates]);
 
-  // Dynamic subtitle for Income vs Expense Chart according to active timeFilter
-  const chartSubtitle = useMemo(() => {
+  // Dynamic label and subtitle according to active timeFilter and navigation offset
+  const { periodLabel, chartSubtitle } = useMemo(() => {
+    const monthNamesShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const monthNamesLong = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const now = new Date();
+
     if (timeFilter === 'daily') {
-      return 'Valores en USD (Hoy - por franjas horarias)';
+      const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (periodOffset * 7));
+      const day = targetDate.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + diffToMonday);
+      const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+
+      const mMonth = monthNamesShort[monday.getMonth()];
+      const sMonth = monthNamesShort[sunday.getMonth()];
+      const year = sunday.getFullYear();
+
+      const label = monday.getMonth() === sunday.getMonth()
+        ? `Semana ${monday.getDate()} - ${sunday.getDate()} ${sMonth}, ${year}`
+        : `Semana ${monday.getDate()} ${mMonth} - ${sunday.getDate()} ${sMonth}, ${year}`;
+
+      return {
+        periodLabel: label,
+        chartSubtitle: 'Valores en USD (Lunes a Domingo)'
+      };
     }
+
     if (timeFilter === 'weekly') {
-      return 'Valores en USD (Últimos 7 días - día por día)';
+      const targetMonth = new Date(now.getFullYear(), now.getMonth() + periodOffset, 1);
+      const year = targetMonth.getFullYear();
+      const monthIdx = targetMonth.getMonth();
+
+      return {
+        periodLabel: `${monthNamesLong[monthIdx]} ${year}`,
+        chartSubtitle: 'Valores en USD (Semanas del mes)'
+      };
     }
+
     if (timeFilter === 'monthly') {
-      const monthNamesLong = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-      return `Valores en USD (${monthNamesLong[now.getMonth()]} - por semanas)`;
-    }
-    if (timeFilter === 'yearly') {
-      return `Valores en USD (Año ${now.getFullYear()} - por meses)`;
-    }
-    return 'Valores en USD';
-  }, [timeFilter]);
+      const targetDate = new Date(now.getFullYear(), now.getMonth() + periodOffset, 1);
+      const firstDate = new Date(targetDate.getFullYear(), targetDate.getMonth() - 3, 1);
 
-  // Income vs Expense Chart Data (Dynamically adapted to active timeFilter)
+      const firstMonth = monthNamesShort[firstDate.getMonth()];
+      const lastMonth = monthNamesShort[targetDate.getMonth()];
+      const firstYear = firstDate.getFullYear();
+      const lastYear = targetDate.getFullYear();
+
+      const label = firstYear === lastYear
+        ? `${firstMonth} - ${lastMonth} ${lastYear}`
+        : `${firstMonth} ${firstYear} - ${lastMonth} ${lastYear}`;
+
+      return {
+        periodLabel: label,
+        chartSubtitle: 'Valores en USD (4 meses)'
+      };
+    }
+
+    // Default: 'yearly' (4 years)
+    const endYear = now.getFullYear() + (periodOffset * 4);
+    const startYear = endYear - 3;
+
+    return {
+      periodLabel: `Años ${startYear} - ${endYear}`,
+      chartSubtitle: 'Valores en USD (4 años)'
+    };
+  }, [timeFilter, periodOffset]);
+
+  // Income vs Expense Chart Data (Dynamically adapted to active timeFilter and offset)
   const incomeExpenseChartData = useMemo(() => {
+    const monthNamesShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const now = new Date();
 
     if (timeFilter === 'daily') {
-      // 6 intervals of 4 hours for today
-      const slots = [
-        { name: '00h-04h', start: 0, end: 4, Ingresos: 0, Egresos: 0 },
-        { name: '04h-08h', start: 4, end: 8, Ingresos: 0, Egresos: 0 },
-        { name: '08h-12h', start: 8, end: 12, Ingresos: 0, Egresos: 0 },
-        { name: '12h-16h', start: 12, end: 16, Ingresos: 0, Egresos: 0 },
-        { name: '16h-20h', start: 16, end: 20, Ingresos: 0, Egresos: 0 },
-        { name: '20h-24h', start: 20, end: 24, Ingresos: 0, Egresos: 0 }
-      ];
+      // 7 days from Monday to Sunday
+      const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (periodOffset * 7));
+      const day = targetDate.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + diffToMonday);
+      monday.setHours(0, 0, 0, 0);
 
-      filteredTransactions.forEach(t => {
-        const d = new Date(t.date);
-        const hour = d.getHours();
-        const slot = slots.find(s => hour >= s.start && hour < s.end);
-        if (slot) {
-          const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
-          if (t.type === 'income') {
-            slot.Ingresos = Number((slot.Ingresos + valUsd).toFixed(2));
-          } else if (t.type === 'expense') {
-            slot.Egresos = Number((slot.Egresos + valUsd).toFixed(2));
-          }
-        }
-      });
-
-      return slots.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
-    }
-
-    if (timeFilter === 'weekly') {
-      // 7 days ending today
+      const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
       const days: { key: string; name: string; Ingresos: number; Egresos: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const key = d.toDateString();
-        const rawName = d.toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric' });
-        // Capitalize first letter and remove dot e.g. "Lun 3"
-        const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1).replace('.', '');
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
         days.push({
-          key,
-          name: cleanName,
+          key: d.toDateString(),
+          name: `${dayNames[i]} ${d.getDate()}`,
           Ingresos: 0,
           Egresos: 0
         });
       }
 
-      filteredTransactions.forEach(t => {
+      activePeriodTransactions.forEach(t => {
         const d = new Date(t.date);
         const bucket = days.find(b => b.key === d.toDateString());
         if (bucket) {
@@ -211,9 +304,11 @@ export const DashboardView: React.FC = () => {
       return days.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
     }
 
-    if (timeFilter === 'monthly') {
-      // Weeks of current month
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (timeFilter === 'weekly') {
+      // Weeks 1, 2, 3, 4, [5] for target month
+      const targetMonth = new Date(now.getFullYear(), now.getMonth() + periodOffset, 1);
+      const daysInMonth = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+
       const weeks = [
         { name: 'Sem 1 (1-7)', start: 1, end: 7, Ingresos: 0, Egresos: 0 },
         { name: 'Sem 2 (8-14)', start: 8, end: 14, Ingresos: 0, Egresos: 0 },
@@ -230,10 +325,10 @@ export const DashboardView: React.FC = () => {
         });
       }
 
-      filteredTransactions.forEach(t => {
+      activePeriodTransactions.forEach(t => {
         const d = new Date(t.date);
-        const day = d.getDate();
-        const w = weeks.find(wk => day >= wk.start && day <= wk.end);
+        const dayNum = d.getDate();
+        const w = weeks.find(wk => dayNum >= wk.start && dayNum <= wk.end);
         if (w) {
           const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
           if (t.type === 'income') {
@@ -247,31 +342,71 @@ export const DashboardView: React.FC = () => {
       return weeks.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
     }
 
-    // Default: 'yearly' (12 calendar months)
-    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const months = monthNames.map(m => ({ name: m, Ingresos: 0, Egresos: 0 }));
+    if (timeFilter === 'monthly') {
+      // 4 months window
+      const targetDate = new Date(now.getFullYear(), now.getMonth() + periodOffset, 1);
+      const months: { year: number; month: number; name: string; Ingresos: number; Egresos: number }[] = [];
+      for (let i = 3; i >= 0; i--) {
+        const d = new Date(targetDate.getFullYear(), targetDate.getMonth() - i, 1);
+        months.push({
+          year: d.getFullYear(),
+          month: d.getMonth(),
+          name: monthNamesShort[d.getMonth()],
+          Ingresos: 0,
+          Egresos: 0
+        });
+      }
 
-    filteredTransactions.forEach(t => {
+      activePeriodTransactions.forEach(t => {
+        const d = new Date(t.date);
+        const bucket = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
+        if (bucket) {
+          const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
+          if (t.type === 'income') {
+            bucket.Ingresos = Number((bucket.Ingresos + valUsd).toFixed(2));
+          } else if (t.type === 'expense') {
+            bucket.Egresos = Number((bucket.Egresos + valUsd).toFixed(2));
+          }
+        }
+      });
+
+      return months.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
+    }
+
+    // Default: 'yearly' (4 years)
+    const endYear = now.getFullYear() + (periodOffset * 4);
+    const years: { year: number; name: string; Ingresos: number; Egresos: number }[] = [];
+    for (let i = 3; i >= 0; i--) {
+      years.push({
+        year: endYear - i,
+        name: String(endYear - i),
+        Ingresos: 0,
+        Egresos: 0
+      });
+    }
+
+    activePeriodTransactions.forEach(t => {
       const d = new Date(t.date);
-      const m = d.getMonth();
-      if (months[m]) {
+      const y = d.getFullYear();
+      const bucket = years.find(yr => yr.year === y);
+      if (bucket) {
         const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
         if (t.type === 'income') {
-          months[m].Ingresos = Number((months[m].Ingresos + valUsd).toFixed(2));
+          bucket.Ingresos = Number((bucket.Ingresos + valUsd).toFixed(2));
         } else if (t.type === 'expense') {
-          months[m].Egresos = Number((months[m].Egresos + valUsd).toFixed(2));
+          bucket.Egresos = Number((bucket.Egresos + valUsd).toFixed(2));
         }
       }
     });
 
-    return months;
-  }, [timeFilter, filteredTransactions, rates]);
+    return years.map(({ name, Ingresos, Egresos }) => ({ name, Ingresos, Egresos }));
+  }, [timeFilter, periodOffset, activePeriodTransactions, rates]);
 
   // Expense Categories Distribution Data
   const expenseCategoryChartData = useMemo(() => {
     const map: Record<string, { categoryId?: string; name: string; value: number; color: string; count: number }> = {};
 
-    filteredTransactions.forEach(t => {
+    activePeriodTransactions.forEach(t => {
       if (t.type === 'expense') {
         const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
         const cat = categories.find(c => (t.categoryId && c.id === t.categoryId) || c.name.toLowerCase() === (t.categoryName || '').toLowerCase());
@@ -294,13 +429,13 @@ export const DashboardView: React.FC = () => {
     });
 
     return Object.values(map).sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, categories, rates]);
+  }, [activePeriodTransactions, categories, rates]);
 
   // Income Categories Distribution Data
   const incomeCategoryChartData = useMemo(() => {
     const map: Record<string, { categoryId?: string; name: string; value: number; color: string; count: number }> = {};
 
-    filteredTransactions.forEach(t => {
+    activePeriodTransactions.forEach(t => {
       if (t.type === 'income') {
         const valUsd = RatesService.convert(t.amount, t.currency, 'USD', 'USDT', rates);
         const cat = categories.find(c => (t.categoryId && c.id === t.categoryId) || c.name.toLowerCase() === (t.categoryName || '').toLowerCase());
@@ -323,7 +458,7 @@ export const DashboardView: React.FC = () => {
     });
 
     return Object.values(map).sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, categories, rates]);
+  }, [activePeriodTransactions, categories, rates]);
 
   const totalExpenseVal = useMemo(() => {
     return expenseCategoryChartData.reduce((sum, item) => sum + item.value, 0);
@@ -592,7 +727,7 @@ export const DashboardView: React.FC = () => {
             return (
               <button
                 key={filter}
-                onClick={() => setTimeFilter(filter)}
+                onClick={() => handleTimeFilterChange(filter)}
                 className={`px-3 py-1.5 rounded-xl transition-all ${
                   isActive
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-sm'
@@ -609,16 +744,56 @@ export const DashboardView: React.FC = () => {
       {/* Charts Section: Income vs Expense & Categories */}
       <div className="space-y-6">
         
-        {/* Chart 1: Income vs Expenses Bars (Comparativo mensual) */}
+        {/* Chart 1: Income vs Expenses Bars */}
         <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-emerald-500" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Comparativo Ingresos vs Egresos
-              </h3>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Comparativo Ingresos vs Egresos
+                </h3>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                  {chartSubtitle}
+                </span>
+              </div>
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-400">{chartSubtitle}</span>
+
+            {/* Navigation Arrows & Period Badge */}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setPeriodOffset(prev => prev - 1)}
+                  className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all"
+                  title="Retroceder período"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 min-w-[130px] text-center select-none">
+                  {periodLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPeriodOffset(prev => prev + 1)}
+                  className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all"
+                  title="Avanzar período"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {periodOffset !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPeriodOffset(0)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all"
+                  title="Volver al período actual"
+                >
+                  Hoy
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="h-64 w-full">
@@ -637,7 +812,7 @@ export const DashboardView: React.FC = () => {
                   }}
                   itemStyle={{ color: '#FFFFFF', fontWeight: 'bold' }}
                   labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
-                  formatter={(val: number) => [`$${val.toFixed(2)} USD`, '']}
+                  formatter={(val: number, name: string) => [`$${val.toFixed(2)} USD`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                 <Bar dataKey="Ingresos" fill="#10B981" radius={[6, 6, 0, 0]} />
