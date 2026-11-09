@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-04T20:57:47.542Z",
+  "lastUpdated": "2026-11-09T14:46:49.325Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -16,26 +16,26 @@
       "icon": "Building2",
       "bankCode": "0102",
       "id": "acc-1",
-      "currentBalance": 5252.87,
+      "currentBalance": 1218.51,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-04T19:59:41.445Z"
+      "updatedAt": "2026-11-09T05:36:02.100Z"
     },
     {
       "name": "Banco Provincial (BBVA)",
       "type": "bank_ves",
       "currency": "VES",
       "initialBalance": 29489.04,
-      "digitalUsdBalance": 931.32,
+      "digitalUsdBalance": 968.31,
       "initialDigitalUsdBalance": 931.32,
-      "physicalUsdBalance": 0.3,
+      "physicalUsdBalance": 50.3,
       "initialPhysicalUsdBalance": 0.3,
       "color": "#1D4ED8",
       "icon": "Landmark",
       "bankCode": "0108",
       "id": "acc-2",
-      "currentBalance": 30835.62,
+      "currentBalance": 1252.92,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-04T20:56:00.080Z"
+      "updatedAt": "2026-11-06T17:28:01.315Z"
     },
     {
       "name": "Banco Mercantil",
@@ -50,9 +50,9 @@
       "icon": "Building",
       "bankCode": "0105",
       "id": "acc-3",
-      "currentBalance": 7.15,
+      "currentBalance": 3782.49,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.532Z"
+      "updatedAt": "2026-11-06T15:40:15.114Z"
     },
     {
       "name": "Banco Nacional de Crédito (BNC)",
@@ -76,7 +76,7 @@
       "type": "bank_ves",
       "currency": "VES",
       "initialBalance": 106.83,
-      "digitalUsdBalance": 0,
+      "digitalUsdBalance": 110,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
@@ -86,7 +86,7 @@
       "id": "acc-5",
       "currentBalance": 1361.66,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-04T20:56:00.080Z"
+      "updatedAt": "2026-11-06T16:19:56.740Z"
     },
     {
       "name": "Binance ($)",
@@ -96,13 +96,13 @@
       "color": "#F59E0B",
       "icon": "Coins",
       "id": "acc-6",
-      "currentBalance": 1440.63,
+      "currentBalance": 1356.1,
       "digitalUsdBalance": 0,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-04T15:45:22.804Z"
+      "updatedAt": "2026-11-06T15:31:19.806Z"
     },
     {
       "name": "Efectivo ($)",
@@ -119,72 +119,6 @@
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
       "updatedAt": "2026-11-03T21:43:14.532Z"
-    },
-    {
-      "id": "acc-user-1793822555088-bdv",
-      "name": "Banco de Venezuela",
-      "type": "bank_ves",
-      "currency": "VES",
-      "initialBalance": 0,
-      "currentBalance": 0,
-      "digitalUsdBalance": 0,
-      "initialDigitalUsdBalance": 0,
-      "physicalUsdBalance": 0,
-      "initialPhysicalUsdBalance": 0,
-      "color": "#B91C1C",
-      "icon": "Building2",
-      "bankCode": "0102",
-      "createdAt": "2026-11-04T20:02:35.089Z",
-      "updatedAt": "2026-11-04T20:02:35.089Z"
-    },
-    {
-      "id": "acc-user-1793822555088-provincial",
-      "name": "Banco Provincial (BBVA)",
-      "type": "bank_ves",
-      "currency": "VES",
-      "initialBalance": 0,
-      "currentBalance": 0,
-      "digitalUsdBalance": 0,
-      "initialDigitalUsdBalance": 0,
-      "physicalUsdBalance": 0,
-      "initialPhysicalUsdBalance": 0,
-      "color": "#1D4ED8",
-      "icon": "Landmark",
-      "bankCode": "0108",
-      "createdAt": "2026-11-04T20:02:35.089Z",
-      "updatedAt": "2026-11-04T20:02:35.089Z"
-    },
-    {
-      "id": "acc-user-1793822555088-binance",
-      "name": "Binance ($)",
-      "type": "wallet_crypto",
-      "currency": "USD",
-      "initialBalance": 0,
-      "currentBalance": 0,
-      "digitalUsdBalance": 0,
-      "initialDigitalUsdBalance": 0,
-      "physicalUsdBalance": 0,
-      "initialPhysicalUsdBalance": 0,
-      "color": "#F59E0B",
-      "icon": "Coins",
-      "createdAt": "2026-11-04T20:02:35.089Z",
-      "updatedAt": "2026-11-04T20:02:35.089Z"
-    },
-    {
-      "id": "acc-user-1793822555088-cash",
-      "name": "Efectivo ($)",
-      "type": "cash_usd",
-      "currency": "USD",
-      "initialBalance": 0,
-      "currentBalance": 0,
-      "digitalUsdBalance": 0,
-      "initialDigitalUsdBalance": 0,
-      "physicalUsdBalance": 0,
-      "initialPhysicalUsdBalance": 0,
-      "color": "#10B981",
-      "icon": "Banknote",
-      "createdAt": "2026-11-04T20:02:35.089Z",
-      "updatedAt": "2026-11-04T20:02:35.089Z"
     }
   ],
   "transactions": [
@@ -197,11 +131,11 @@
       "categoryId": "cat-custom-1793807086076",
       "categoryName": "Local",
       "categoryIcon": "Tag",
-      "categoryColor": "#3B82F6",
+      "categoryColor": "#06B6D4",
       "date": "2026-11-04T17:00:00.000Z",
       "note": "Venta Router Mercusys Mx60",
       "createdAt": "2026-11-04T15:45:22.804Z",
-      "updatedAt": "2026-11-04T20:05:06.130Z"
+      "updatedAt": "2026-11-06T15:28:15.851Z"
     },
     {
       "id": "tx-1793807065002-3iwif",
@@ -315,6 +249,295 @@
       "note": "Cambio para compra de banco",
       "createdAt": "2026-11-04T15:26:44.304Z",
       "updatedAt": "2026-11-04T19:44:02.555Z"
+    },
+    {
+      "id": "tx-1793979604909-7r95w",
+      "type": "expense",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 63691,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793807051474",
+      "categoryName": "Prestamos",
+      "categoryIcon": "Tag",
+      "categoryColor": "#EF4444",
+      "date": "2026-11-06T15:39:00.000Z",
+      "note": "Pago préstamo para compra 50$ provincial",
+      "createdAt": "2026-11-06T15:40:04.909Z",
+      "updatedAt": "2026-11-06T15:40:15.114Z"
+    },
+    {
+      "id": "tx-1793979549553-r8sto",
+      "type": "income",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 65516.34,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-06T15:38:00.000Z",
+      "note": "Cambio binance para compra 50$",
+      "createdAt": "2026-11-06T15:39:09.553Z",
+      "updatedAt": "2026-11-06T15:39:09.554Z"
+    },
+    {
+      "id": "tx-1793979456550-p27ca",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 14,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-06T15:36:00.000Z",
+      "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Transferencia provincial",
+      "createdAt": "2026-11-06T15:37:36.550Z",
+      "updatedAt": "2026-11-06T15:37:36.540Z"
+    },
+    {
+      "id": "tx-1793979456536-pueyy",
+      "type": "transfer",
+      "accountId": "acc-1",
+      "toAccountId": "acc-2",
+      "subFund": "ves",
+      "toSubFund": "ves",
+      "amount": 528,
+      "currency": "VES",
+      "appliedRate": 1011.5632,
+      "destinationAmount": 528,
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T15:36:00.000Z",
+      "note": "Transferencia provincial",
+      "createdAt": "2026-11-06T15:37:36.536Z",
+      "updatedAt": "2026-11-06T15:37:36.536Z"
+    },
+    {
+      "id": "tx-1793979286562-narns",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 2702.36,
+      "currency": "VES",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-06T15:34:00.000Z",
+      "note": "Compra mantequilla de maní chocolate Joan",
+      "createdAt": "2026-11-06T15:34:46.562Z",
+      "updatedAt": "2026-11-06T15:34:46.563Z"
+    },
+    {
+      "id": "tx-1793979049644-y2ag4",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 65,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-06T15:30:00.000Z",
+      "note": "Cambio compra 50$ provincial",
+      "createdAt": "2026-11-06T15:30:49.644Z",
+      "updatedAt": "2026-11-06T15:31:19.806Z"
+    },
+    {
+      "id": "tx-1793978969946-swhj7",
+      "type": "income",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 1950,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793978895849",
+      "categoryName": "Local",
+      "categoryIcon": "Tag",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-05T15:29:00.000Z",
+      "note": "Complemento software Samsung A50",
+      "createdAt": "2026-11-06T15:29:29.946Z",
+      "updatedAt": "2026-11-06T15:29:29.946Z"
+    },
+    {
+      "id": "tx-1793978942685-ek940",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 7000,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793978895849",
+      "categoryName": "Local",
+      "categoryIcon": "Tag",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-05T15:27:00.000Z",
+      "note": "Software Samsung A50",
+      "createdAt": "2026-11-06T15:29:02.685Z",
+      "updatedAt": "2026-11-06T15:29:02.686Z"
+    },
+    {
+      "id": "tx-1793934737423-392cr",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 2.5,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T03:11:00.000Z",
+      "note": "Compra forro s23 ultra leo",
+      "createdAt": "2026-11-06T03:12:17.423Z",
+      "updatedAt": "2026-11-06T03:12:17.424Z"
+    },
+    {
+      "id": "tx-1793934709614-sus5x",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 6.55,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T03:11:00.000Z",
+      "note": "Compra forro Roberto Vultur",
+      "createdAt": "2026-11-06T03:11:49.614Z",
+      "updatedAt": "2026-11-06T03:11:49.615Z"
+    },
+    {
+      "id": "tx-1793934639025-l948j",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 11,
+      "currency": "USD",
+      "categoryId": "cat-local",
+      "categoryName": "Local",
+      "categoryIcon": "Store",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-06T03:09:00.000Z",
+      "note": "Compra mouse Anmary Cinex",
+      "createdAt": "2026-11-06T03:10:39.026Z",
+      "updatedAt": "2026-11-06T15:28:15.851Z"
+    },
+    {
+      "id": "tx-1793934553120-vsbjl",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 2238,
+      "currency": "VES",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-06T03:08:00.000Z",
+      "note": "Perro feria de ciencias",
+      "createdAt": "2026-11-06T03:09:13.121Z",
+      "updatedAt": "2026-11-06T03:09:13.121Z"
+    },
+    {
+      "id": "tx-1793934488237-dq60r",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 900,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T03:07:00.000Z",
+      "note": "Recarga Movistar",
+      "createdAt": "2026-11-06T03:08:08.237Z",
+      "updatedAt": "2026-11-09T05:36:02.100Z"
+    },
+    {
+      "id": "tx-1793981864588-zedta",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 11127.3,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-06T16:16:00.000Z",
+      "note": "Cambio compra 50$ binance",
+      "createdAt": "2026-11-06T16:17:44.589Z",
+      "updatedAt": "2026-11-06T16:17:44.589Z"
+    },
+    {
+      "id": "tx-1793981921473-9qv01",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 46000,
+      "currency": "VES",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-06T16:18:00.000Z",
+      "note": "Compra casa",
+      "createdAt": "2026-11-06T16:18:41.473Z",
+      "updatedAt": "2026-11-06T16:18:54.458Z"
+    },
+    {
+      "id": "tx-1793981971750-r97j4",
+      "type": "income",
+      "accountId": "acc-5",
+      "subFund": "digital_usd",
+      "amount": 110,
+      "currency": "USD",
+      "categoryId": "cat-trabajo",
+      "categoryName": "Trabajo",
+      "categoryIcon": "Briefcase",
+      "categoryColor": "#64748B",
+      "date": "2026-11-06T16:19:00.000Z",
+      "note": "Compra $ tesoro",
+      "createdAt": "2026-11-06T16:19:31.751Z",
+      "updatedAt": "2026-11-06T16:19:56.740Z"
+    },
+    {
+      "id": "tx-debt-1793982029017",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "digital_usd",
+      "amount": 37,
+      "currency": "USD",
+      "appliedRate": 1010.4101,
+      "categoryId": "cat-cobro-deuda",
+      "categoryName": "Cobro: Devolución provincial",
+      "categoryIcon": "HandCoins",
+      "categoryColor": "#10B981",
+      "date": "2026-11-06T17:50:00.000Z",
+      "note": "Abono de deuda por cobrar: Compra bolso - Reembolso provincial",
+      "createdAt": "2026-11-06T16:20:29.017Z",
+      "updatedAt": "2026-11-06T16:20:29.017Z"
+    },
+    {
+      "id": "tx-1793986030299-fw5jp",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "physical_usd",
+      "amount": 50,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-06T17:26:00.000Z",
+      "note": "Compra 50$ efectivo",
+      "createdAt": "2026-11-06T17:27:10.299Z",
+      "updatedAt": "2026-11-06T17:28:01.315Z"
     }
   ],
   "debts": [
@@ -326,11 +549,22 @@
       "originalAmount": 37,
       "currencyType": "USD_USDT",
       "appliedRateAtCreation": 1004.3248,
-      "remainingAmount": 37,
-      "status": "pending",
+      "remainingAmount": 0,
+      "status": "paid",
       "createdAt": "2026-11-04T00:44:45.020Z",
-      "updatedAt": "2026-11-04T00:44:45.022Z",
-      "payments": []
+      "updatedAt": "2026-11-06T16:20:29.017Z",
+      "payments": [
+        {
+          "amount": 37,
+          "currency": "USD",
+          "date": "2026-11-06T17:50:00.000Z",
+          "note": "Reembolso provincial",
+          "appliedRate": 1010.4101,
+          "receivedInAccountId": "acc-2",
+          "receivedInSubFund": "digital_usd",
+          "id": "debt-pay-1793982029017"
+        }
+      ]
     },
     {
       "id": "debt-1793752830461-wcfsz",
@@ -723,6 +957,24 @@
       "type": "expense",
       "isPredefined": false,
       "updatedAt": "2026-11-04T19:46:11.567Z"
+    },
+    {
+      "id": "cat-custom-1793978895849",
+      "name": "Local",
+      "icon": "Tag",
+      "color": "#06B6D4",
+      "type": "income",
+      "isPredefined": false,
+      "updatedAt": "2026-11-06T15:28:15.849Z"
+    },
+    {
+      "id": "cat-custom-1793934474059",
+      "name": "Recarga teléfono",
+      "icon": "Tag",
+      "color": "#8B5CF6",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-06T03:07:54.059Z"
     }
   ],
   "portfolioAssets": [],
@@ -774,6 +1026,41 @@
       "id": "tx-1793825702726-h26xx",
       "type": "transaction",
       "deletedAt": "2026-11-04T20:56:00.080Z"
+    },
+    {
+      "id": "acc-user-1793822555088-binance",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:12:44.261Z"
+    },
+    {
+      "id": "acc-user-1793822555088-cash",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:12:46.217Z"
+    },
+    {
+      "id": "acc-user-1793822555088-bdv",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:18:11.465Z"
+    },
+    {
+      "id": "acc-user-1793822555088-provincial",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:18:14.435Z"
+    },
+    {
+      "id": "tx-1793972983420-61zft",
+      "type": "transaction",
+      "deletedAt": "2026-11-06T13:50:15.316Z"
+    },
+    {
+      "id": "tx-1793972983436-gi182",
+      "type": "transaction",
+      "deletedAt": "2026-11-06T13:50:19.754Z"
+    },
+    {
+      "id": "tx-1793972942354-vd2rq",
+      "type": "transaction",
+      "deletedAt": "2026-11-06T13:50:22.642Z"
     }
   ],
   "auditLogs": []

@@ -55,7 +55,7 @@ export const SyncModal: React.FC = () => {
   const LOCAL_WIFI_IP = serverInfo?.localWifiIp || '192.168.1.121';
   const LOCAL_ETH_IP = serverInfo?.localEthIp || '172.16.10.23';
   const PORT = serverInfo?.appPort || '8085';
-  const defaultTunnel = 'https://engine-collectible-rarely-delivers.trycloudflare.com';
+  const defaultTunnel = 'https://guitar-archived-gotta-possession.trycloudflare.com';
   const activeTunnelUrl = serverInfo?.tunnelUrl || defaultTunnel;
 
   const wifiUrl = `http://${LOCAL_WIFI_IP}:${PORT}`;

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const ACTIVE_TUNNEL_FALLBACK = 'https://engine-collectible-rarely-delivers.trycloudflare.com';
+const ACTIVE_TUNNEL_FALLBACK = 'https://guitar-archived-gotta-possession.trycloudflare.com';
 
 function getTunnelUrl() {
   if (process.env.TUNNEL_URL && process.env.TUNNEL_URL.trim()) {

@@ -13,6 +13,7 @@ import {
 const SYNC_SERVER_URL_KEY = 'finanzas_vzla_sync_server_url';
 const LAST_SYNC_TIME_KEY = 'finanzas_vzla_last_sync_time';
 const DELETED_ITEMS_KEY = 'finanzas_vzla_deleted_items';
+export const ACTIVE_CLOUD_TUNNEL = 'https://guitar-archived-gotta-possession.trycloudflare.com';
 
 export class SyncService {
   /**
@@ -97,10 +98,28 @@ export class SyncService {
         const info = await res.json();
         return { online: true, serverInfo: info };
       }
-      return { online: false };
     } catch {
-      return { online: false };
+      // Intento con túnel en la nube si el endpoint inicial falló
     }
+
+    if (!customUrl && baseUrl !== ACTIVE_CLOUD_TUNNEL) {
+      try {
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 4000);
+        const res2 = await fetch(`${ACTIVE_CLOUD_TUNNEL}/api/status`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: controller2.signal
+        });
+        clearTimeout(timeoutId2);
+        if (res2.ok) {
+          const info2 = await res2.json();
+          return { online: true, serverInfo: info2 };
+        }
+      } catch {}
+    }
+
+    return { online: false };
   }
 
   /**
@@ -153,55 +172,72 @@ export class SyncService {
       clientTimestamp: new Date().toISOString()
     };
 
-    try {
+    const trySyncEndpoint = async (targetEndpoint: string) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos timeout para respuesta rápida
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
+      try {
+        const res = await fetch(targetEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        throw new Error(`Error en servidor (${res.status}): ${res.statusText}`);
+        if (!res.ok) {
+          throw new Error(`Error en servidor (${res.status}): ${res.statusText}`);
+        }
+
+        const responseData = await res.json();
+        if (!responseData.success) {
+          throw new Error(responseData.error || 'Respuesta fallida de sincronización');
+        }
+
+        // Marcar fecha de última sincronización
+        const serverTimestamp = responseData.serverTimestamp || new Date().toISOString();
+        this.setLastSyncTime(serverTimestamp);
+
+        // Limpiar tumbas de eliminación antiguas
+        this.clearDeletedItems();
+
+        return {
+          success: true,
+          isOffline: false,
+          message: '¡Sincronización completada con éxito! Se mantuvo la versión más reciente por fecha de cada registro.',
+          serverTimestamp,
+          stats: responseData.stats,
+          mergedData: responseData.mergedData
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
+    try {
+      return await trySyncEndpoint(endpoint);
+    } catch (primaryErr: any) {
+      // Si el endpoint primario falló y no estábamos ya apuntando explícitamente al túnel en la nube
+      if (!customServerUrl && baseUrl !== ACTIVE_CLOUD_TUNNEL) {
+        try {
+          return await trySyncEndpoint(`${ACTIVE_CLOUD_TUNNEL}/api/sync`);
+        } catch (secondaryErr: any) {
+          console.warn('SyncService warning (túnel en la nube tampoco respondió):', secondaryErr.message);
+        }
       }
 
-      const responseData = await res.json();
-      if (!responseData.success) {
-        throw new Error(responseData.error || 'Respuesta fallida de sincronización');
-      }
-
-      // Marcar fecha de última sincronización
-      const serverTimestamp = responseData.serverTimestamp || new Date().toISOString();
-      this.setLastSyncTime(serverTimestamp);
-
-      // Limpiar tumbas de eliminación antiguas
-      this.clearDeletedItems();
-
-      return {
-        success: true,
-        isOffline: false,
-        message: '¡Sincronización completada con éxito! Se mantuvo la versión más reciente por fecha de cada registro.',
-        serverTimestamp,
-        stats: responseData.stats,
-        mergedData: responseData.mergedData
-      };
-    } catch (err: any) {
-      console.warn('SyncService warning (servidor local fuera de alcance o dispositivo sin red):', err.message);
-      const isNetError = !navigator.onLine || err.name === 'AbortError' || String(err).includes('fetch') || String(err).includes('Network');
+      console.warn('SyncService warning (servidor local fuera de alcance o dispositivo sin red):', primaryErr.message);
+      const isNetError = !navigator.onLine || primaryErr.name === 'AbortError' || String(primaryErr).includes('fetch') || String(primaryErr).includes('Network');
       return {
         success: false,
         isOffline: isNetError,
         message: isNetError 
-          ? 'No se pudo conectar con el servidor local. Comprueba que el servidor esté activo y en la misma red.' 
-          : (err.message || 'Error de comunicación durante la sincronización')
+          ? 'No se pudo conectar con el servidor local ni la nube. Comprueba la conexión.' 
+          : (primaryErr.message || 'Error de comunicación durante la sincronización')
       };
     }
   }

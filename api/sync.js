@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const ACTIVE_TUNNEL_FALLBACK = 'https://engine-collectible-rarely-delivers.trycloudflare.com';
+const ACTIVE_TUNNEL_FALLBACK = 'https://guitar-archived-gotta-possession.trycloudflare.com';
 
 function getTunnelUrl() {
   if (process.env.TUNNEL_URL && process.env.TUNNEL_URL.trim()) {
@@ -18,6 +18,64 @@ function getTunnelUrl() {
     }
   } catch {}
   return ACTIVE_TUNNEL_FALLBACK;
+}
+
+function mergeCollections(serverList = [], clientList = [], deletedItemsMap = new Map()) {
+  const itemMap = new Map();
+  let uploaded = 0;
+  let downloaded = 0;
+  let resolved = 0;
+
+  for (const sItem of serverList) {
+    if (!sItem || !sItem.id) continue;
+    const deletionTime = deletedItemsMap.get(sItem.id);
+    const itemUpdateTime = new Date(sItem.updatedAt || sItem.createdAt || 0).getTime();
+    if (deletionTime && deletionTime >= itemUpdateTime) {
+      continue;
+    }
+    itemMap.set(sItem.id, sItem);
+  }
+
+  for (const cItem of clientList) {
+    if (!cItem || !cItem.id) continue;
+    const deletionTime = deletedItemsMap.get(cItem.id);
+    const clientUpdateTime = new Date(cItem.updatedAt || cItem.createdAt || 0).getTime();
+    if (deletionTime && deletionTime >= clientUpdateTime) {
+      continue;
+    }
+
+    if (!itemMap.has(cItem.id)) {
+      itemMap.set(cItem.id, cItem);
+      uploaded++;
+    } else {
+      const sItem = itemMap.get(cItem.id);
+      const serverUpdateTime = new Date(sItem.updatedAt || sItem.createdAt || 0).getTime();
+
+      if (clientUpdateTime > serverUpdateTime) {
+        itemMap.set(cItem.id, cItem);
+        uploaded++;
+        resolved++;
+      } else if (clientUpdateTime < serverUpdateTime) {
+        downloaded++;
+        resolved++;
+      } else {
+        const clientHasData = (cItem.currentBalance > 0 || (cItem.digitalUsdBalance || 0) > 0 || (cItem.physicalUsdBalance || 0) > 0 || (cItem.initialBalance > 0));
+        const serverHasData = (sItem.currentBalance > 0 || (sItem.digitalUsdBalance || 0) > 0 || (sItem.physicalUsdBalance || 0) > 0 || (sItem.initialBalance > 0));
+        if (clientHasData && !serverHasData) {
+          itemMap.set(cItem.id, cItem);
+          uploaded++;
+          resolved++;
+        }
+      }
+    }
+  }
+
+  return {
+    merged: Array.from(itemMap.values()),
+    uploaded,
+    downloaded,
+    resolved
+  };
 }
 
 export default async function handler(req, res) {
@@ -93,35 +151,41 @@ export default async function handler(req, res) {
         console.warn('Error al leer datos base:', e);
       }
 
+      const deletedItemsMap = new Map(
+        (clientData.deletedItems || []).map(d => [d.id, new Date(d.deletedAt).getTime()])
+      );
+
+      const accountsResult = mergeCollections(seedData?.accounts || [], clientData.accounts || [], deletedItemsMap);
+      const transactionsResult = mergeCollections(seedData?.transactions || [], clientData.transactions || [], deletedItemsMap);
+      const debtsResult = mergeCollections(seedData?.debts || [], clientData.debts || [], deletedItemsMap);
+      const lossesResult = mergeCollections(seedData?.losses || [], clientData.losses || [], deletedItemsMap);
+      const categoriesResult = mergeCollections(seedData?.categories || [], clientData.categories || [], deletedItemsMap);
+      const assetsResult = mergeCollections(seedData?.portfolioAssets || [], clientData.portfolioAssets || [], deletedItemsMap);
+      const goalsResult = mergeCollections(seedData?.goals || [], clientData.goals || [], deletedItemsMap);
+
       const mergedData = {
-        accounts: (clientData.accounts && clientData.accounts.length > 0)
-          ? clientData.accounts
-          : (seedData?.accounts || []),
-        transactions: clientData.transactions || (seedData?.transactions || []),
-        debts: (clientData.debts && clientData.debts.length > 0)
-          ? clientData.debts
-          : (seedData?.debts || []),
-        losses: (clientData.losses && clientData.losses.length > 0)
-          ? clientData.losses
-          : (seedData?.losses || []),
-        categories: (clientData.categories && clientData.categories.length > 0)
-          ? clientData.categories
-          : (seedData?.categories || []),
-        portfolioAssets: clientData.portfolioAssets || (seedData?.portfolioAssets || []),
-        goals: (clientData.goals && clientData.goals.length > 0)
-          ? clientData.goals
-          : (seedData?.goals || []),
+        accounts: accountsResult.merged,
+        transactions: transactionsResult.merged,
+        debts: debtsResult.merged,
+        losses: lossesResult.merged,
+        categories: categoriesResult.merged,
+        portfolioAssets: assetsResult.merged,
+        goals: goalsResult.merged,
         auditLogs: clientData.auditLogs || (seedData?.auditLogs || [])
       };
+
+      const totalUploaded = accountsResult.uploaded + transactionsResult.uploaded + debtsResult.uploaded + lossesResult.uploaded;
+      const totalDownloaded = accountsResult.downloaded + transactionsResult.downloaded + debtsResult.downloaded + lossesResult.downloaded;
+      const totalResolved = accountsResult.resolved + transactionsResult.resolved + debtsResult.resolved + lossesResult.resolved;
 
       res.status(200).json({
         success: true,
         serverTimestamp: new Date().toISOString(),
         message: '¡Sincronización completada con éxito!',
         stats: {
-          uploaded: clientData.accounts?.length || 0,
-          downloaded: 0,
-          resolved: 0
+          uploaded: totalUploaded,
+          downloaded: totalDownloaded,
+          resolved: totalResolved
         },
         mergedData
       });

@@ -1805,15 +1805,9 @@ export class StorageService {
 
     if (merged.accounts) {
       localStorage.setItem(key(ACCOUNTS_STORAGE_KEY), JSON.stringify(merged.accounts));
-      if (userId && userId !== 'jleonardo-admin') {
-        localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(merged.accounts));
-      }
     }
     if (merged.transactions) {
       localStorage.setItem(key(TRANSACTIONS_STORAGE_KEY), JSON.stringify(merged.transactions));
-      if (userId && userId !== 'jleonardo-admin') {
-        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(merged.transactions));
-      }
     }
     if (merged.categories) {
       localStorage.setItem(key(CATEGORIES_STORAGE_KEY), JSON.stringify(merged.categories));

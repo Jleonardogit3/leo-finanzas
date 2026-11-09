@@ -18,7 +18,7 @@ export interface DatabaseSchema {
 export const SEED_DATABASE: DatabaseSchema = {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-04T13:38:16.697Z",
+  "lastUpdated": "2026-11-09T14:46:49.325Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -33,26 +33,26 @@ export const SEED_DATABASE: DatabaseSchema = {
       "icon": "Building2",
       "bankCode": "0102",
       "id": "acc-1",
-      "currentBalance": 5252.87,
+      "currentBalance": 1218.51,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.531Z"
+      "updatedAt": "2026-11-09T05:36:02.100Z"
     },
     {
       "name": "Banco Provincial (BBVA)",
       "type": "bank_ves",
       "currency": "VES",
       "initialBalance": 29489.04,
-      "digitalUsdBalance": 931.32,
+      "digitalUsdBalance": 968.31,
       "initialDigitalUsdBalance": 931.32,
-      "physicalUsdBalance": 0,
-      "initialPhysicalUsdBalance": 0,
+      "physicalUsdBalance": 50.3,
+      "initialPhysicalUsdBalance": 0.3,
       "color": "#1D4ED8",
       "icon": "Landmark",
       "bankCode": "0108",
       "id": "acc-2",
-      "currentBalance": 29489.04,
+      "currentBalance": 1252.92,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.532Z"
+      "updatedAt": "2026-11-06T17:28:01.315Z"
     },
     {
       "name": "Banco Mercantil",
@@ -67,9 +67,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "icon": "Building",
       "bankCode": "0105",
       "id": "acc-3",
-      "currentBalance": 7.15,
+      "currentBalance": 3782.49,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.532Z"
+      "updatedAt": "2026-11-06T15:40:15.114Z"
     },
     {
       "name": "Banco Nacional de Crédito (BNC)",
@@ -93,7 +93,7 @@ export const SEED_DATABASE: DatabaseSchema = {
       "type": "bank_ves",
       "currency": "VES",
       "initialBalance": 106.83,
-      "digitalUsdBalance": 0,
+      "digitalUsdBalance": 110,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
@@ -101,9 +101,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "icon": "ShieldCheck",
       "bankCode": "0163",
       "id": "acc-5",
-      "currentBalance": 106.83,
+      "currentBalance": 1361.66,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.532Z"
+      "updatedAt": "2026-11-06T16:19:56.740Z"
     },
     {
       "name": "Binance ($)",
@@ -113,13 +113,13 @@ export const SEED_DATABASE: DatabaseSchema = {
       "color": "#F59E0B",
       "icon": "Coins",
       "id": "acc-6",
-      "currentBalance": 1493.63,
+      "currentBalance": 1356.1,
       "digitalUsdBalance": 0,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-03T21:43:14.532Z"
+      "updatedAt": "2026-11-06T15:31:19.806Z"
     },
     {
       "name": "Efectivo ($)",
@@ -138,38 +138,426 @@ export const SEED_DATABASE: DatabaseSchema = {
       "updatedAt": "2026-11-03T21:43:14.532Z"
     }
   ],
-  "transactions": [],
+  "transactions": [
+    {
+      "id": "tx-1793807122804-6swqa",
+      "type": "income",
+      "accountId": "acc-6",
+      "amount": 38,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793807086076",
+      "categoryName": "Local",
+      "categoryIcon": "Tag",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-04T17:00:00.000Z",
+      "note": "Venta Router Mercusys Mx60",
+      "createdAt": "2026-11-04T15:45:22.804Z",
+      "updatedAt": "2026-11-06T15:28:15.851Z"
+    },
+    {
+      "id": "tx-1793807065002-3iwif",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 20,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793807051474",
+      "categoryName": "Prestamos",
+      "categoryIcon": "Tag",
+      "categoryColor": "#EF4444",
+      "date": "2026-11-04T00:00:00.000Z",
+      "note": "Prestamo chuy 20usdt",
+      "createdAt": "2026-11-04T15:44:25.002Z",
+      "updatedAt": "2026-11-04T15:44:25.002Z"
+    },
+    {
+      "id": "tx-1793806954118-04b2y",
+      "type": "income",
+      "accountId": "acc-6",
+      "amount": 30,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793806912103",
+      "categoryName": "Intereses prestamos",
+      "categoryIcon": "Tag",
+      "categoryColor": "#10B981",
+      "date": "2026-11-04T00:00:00.000Z",
+      "note": "Interes mes de Octubre Willy 300$",
+      "createdAt": "2026-11-04T15:42:34.118Z",
+      "updatedAt": "2026-11-04T15:42:34.119Z"
+    },
+    {
+      "id": "tx-1793806408107-3z0im",
+      "type": "expense",
+      "accountId": "acc-5",
+      "subFund": "ves",
+      "amount": 98745.17,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793821571567",
+      "categoryName": "Compra $ Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#F97316",
+      "date": "2026-11-04T19:24:00.000Z",
+      "note": "Compra 110$ digitales intervención 98253.90 bs+ 491.27bs",
+      "createdAt": "2026-11-04T15:33:28.107Z",
+      "updatedAt": "2026-11-04T19:46:17.460Z"
+    },
+    {
+      "id": "tx-1793806208268-lfg3a",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 300,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-04T19:24:00.000Z",
+      "note": "Transferencia 100.000bs Tesoro",
+      "createdAt": "2026-11-04T15:30:08.268Z",
+      "updatedAt": "2026-11-04T19:44:07.161Z"
+    },
+    {
+      "id": "tx-1793806162788-rr1gz",
+      "type": "transfer",
+      "accountId": "acc-2",
+      "toAccountId": "acc-5",
+      "subFund": "ves",
+      "toSubFund": "ves",
+      "amount": 100000,
+      "currency": "VES",
+      "appliedRate": 1008.4556,
+      "destinationAmount": 100000,
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-04T19:24:00.000Z",
+      "note": "Transferencia para compra de banco",
+      "createdAt": "2026-11-04T15:29:22.788Z",
+      "updatedAt": "2026-11-04T19:44:02.555Z"
+    },
+    {
+      "id": "tx-1793806099179-5piay",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 101646.58,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-04T19:24:00.000Z",
+      "note": "Cambio venta 101usdt para compra banco",
+      "createdAt": "2026-11-04T15:28:19.179Z",
+      "updatedAt": "2026-11-04T19:44:02.555Z"
+    },
+    {
+      "id": "tx-1793806004304-k4yu6",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 101,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793805914084",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-04T19:24:00.000Z",
+      "note": "Cambio para compra de banco",
+      "createdAt": "2026-11-04T15:26:44.304Z",
+      "updatedAt": "2026-11-04T19:44:02.555Z"
+    },
+    {
+      "id": "tx-1793979604909-7r95w",
+      "type": "expense",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 63691,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793807051474",
+      "categoryName": "Prestamos",
+      "categoryIcon": "Tag",
+      "categoryColor": "#EF4444",
+      "date": "2026-11-06T15:39:00.000Z",
+      "note": "Pago préstamo para compra 50$ provincial",
+      "createdAt": "2026-11-06T15:40:04.909Z",
+      "updatedAt": "2026-11-06T15:40:15.114Z"
+    },
+    {
+      "id": "tx-1793979549553-r8sto",
+      "type": "income",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 65516.34,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-06T15:38:00.000Z",
+      "note": "Cambio binance para compra 50$",
+      "createdAt": "2026-11-06T15:39:09.553Z",
+      "updatedAt": "2026-11-06T15:39:09.554Z"
+    },
+    {
+      "id": "tx-1793979456550-p27ca",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 14,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-06T15:36:00.000Z",
+      "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Transferencia provincial",
+      "createdAt": "2026-11-06T15:37:36.550Z",
+      "updatedAt": "2026-11-06T15:37:36.540Z"
+    },
+    {
+      "id": "tx-1793979456536-pueyy",
+      "type": "transfer",
+      "accountId": "acc-1",
+      "toAccountId": "acc-2",
+      "subFund": "ves",
+      "toSubFund": "ves",
+      "amount": 528,
+      "currency": "VES",
+      "appliedRate": 1011.5632,
+      "destinationAmount": 528,
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T15:36:00.000Z",
+      "note": "Transferencia provincial",
+      "createdAt": "2026-11-06T15:37:36.536Z",
+      "updatedAt": "2026-11-06T15:37:36.536Z"
+    },
+    {
+      "id": "tx-1793979286562-narns",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 2702.36,
+      "currency": "VES",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-06T15:34:00.000Z",
+      "note": "Compra mantequilla de maní chocolate Joan",
+      "createdAt": "2026-11-06T15:34:46.562Z",
+      "updatedAt": "2026-11-06T15:34:46.563Z"
+    },
+    {
+      "id": "tx-1793979049644-y2ag4",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 65,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-06T15:30:00.000Z",
+      "note": "Cambio compra 50$ provincial",
+      "createdAt": "2026-11-06T15:30:49.644Z",
+      "updatedAt": "2026-11-06T15:31:19.806Z"
+    },
+    {
+      "id": "tx-1793978969946-swhj7",
+      "type": "income",
+      "accountId": "acc-3",
+      "subFund": "ves",
+      "amount": 1950,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793978895849",
+      "categoryName": "Local",
+      "categoryIcon": "Tag",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-05T15:29:00.000Z",
+      "note": "Complemento software Samsung A50",
+      "createdAt": "2026-11-06T15:29:29.946Z",
+      "updatedAt": "2026-11-06T15:29:29.946Z"
+    },
+    {
+      "id": "tx-1793978942685-ek940",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 7000,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793978895849",
+      "categoryName": "Local",
+      "categoryIcon": "Tag",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-05T15:27:00.000Z",
+      "note": "Software Samsung A50",
+      "createdAt": "2026-11-06T15:29:02.685Z",
+      "updatedAt": "2026-11-06T15:29:02.686Z"
+    },
+    {
+      "id": "tx-1793934737423-392cr",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 2.5,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T03:11:00.000Z",
+      "note": "Compra forro s23 ultra leo",
+      "createdAt": "2026-11-06T03:12:17.423Z",
+      "updatedAt": "2026-11-06T03:12:17.424Z"
+    },
+    {
+      "id": "tx-1793934709614-sus5x",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 6.55,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T03:11:00.000Z",
+      "note": "Compra forro Roberto Vultur",
+      "createdAt": "2026-11-06T03:11:49.614Z",
+      "updatedAt": "2026-11-06T03:11:49.615Z"
+    },
+    {
+      "id": "tx-1793934639025-l948j",
+      "type": "expense",
+      "accountId": "acc-6",
+      "amount": 11,
+      "currency": "USD",
+      "categoryId": "cat-local",
+      "categoryName": "Local",
+      "categoryIcon": "Store",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-06T03:09:00.000Z",
+      "note": "Compra mouse Anmary Cinex",
+      "createdAt": "2026-11-06T03:10:39.026Z",
+      "updatedAt": "2026-11-06T15:28:15.851Z"
+    },
+    {
+      "id": "tx-1793934553120-vsbjl",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 2238,
+      "currency": "VES",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-06T03:08:00.000Z",
+      "note": "Perro feria de ciencias",
+      "createdAt": "2026-11-06T03:09:13.121Z",
+      "updatedAt": "2026-11-06T03:09:13.121Z"
+    },
+    {
+      "id": "tx-1793934488237-dq60r",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 900,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793934474059",
+      "categoryName": "Recarga teléfono",
+      "categoryIcon": "Tag",
+      "categoryColor": "#8B5CF6",
+      "date": "2026-11-06T03:07:00.000Z",
+      "note": "Recarga Movistar",
+      "createdAt": "2026-11-06T03:08:08.237Z",
+      "updatedAt": "2026-11-09T05:36:02.100Z"
+    },
+    {
+      "id": "tx-1793981864588-zedta",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 11127.3,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-06T16:16:00.000Z",
+      "note": "Cambio compra 50$ binance",
+      "createdAt": "2026-11-06T16:17:44.589Z",
+      "updatedAt": "2026-11-06T16:17:44.589Z"
+    },
+    {
+      "id": "tx-1793981921473-9qv01",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 46000,
+      "currency": "VES",
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-06T16:18:00.000Z",
+      "note": "Compra casa",
+      "createdAt": "2026-11-06T16:18:41.473Z",
+      "updatedAt": "2026-11-06T16:18:54.458Z"
+    },
+    {
+      "id": "tx-1793981971750-r97j4",
+      "type": "income",
+      "accountId": "acc-5",
+      "subFund": "digital_usd",
+      "amount": 110,
+      "currency": "USD",
+      "categoryId": "cat-trabajo",
+      "categoryName": "Trabajo",
+      "categoryIcon": "Briefcase",
+      "categoryColor": "#64748B",
+      "date": "2026-11-06T16:19:00.000Z",
+      "note": "Compra $ tesoro",
+      "createdAt": "2026-11-06T16:19:31.751Z",
+      "updatedAt": "2026-11-06T16:19:56.740Z"
+    },
+    {
+      "id": "tx-debt-1793982029017",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "digital_usd",
+      "amount": 37,
+      "currency": "USD",
+      "appliedRate": 1010.4101,
+      "categoryId": "cat-cobro-deuda",
+      "categoryName": "Cobro: Devolución provincial",
+      "categoryIcon": "HandCoins",
+      "categoryColor": "#10B981",
+      "date": "2026-11-06T17:50:00.000Z",
+      "note": "Abono de deuda por cobrar: Compra bolso - Reembolso provincial",
+      "createdAt": "2026-11-06T16:20:29.017Z",
+      "updatedAt": "2026-11-06T16:20:29.017Z"
+    },
+    {
+      "id": "tx-1793986030299-fw5jp",
+      "type": "income",
+      "accountId": "acc-2",
+      "subFund": "physical_usd",
+      "amount": 50,
+      "currency": "USD",
+      "categoryId": "cat-custom-1793806073274",
+      "categoryName": "Cambio Binance",
+      "categoryIcon": "Tag",
+      "categoryColor": "#dbb700",
+      "date": "2026-11-06T17:26:00.000Z",
+      "note": "Compra 50$ efectivo",
+      "createdAt": "2026-11-06T17:27:10.299Z",
+      "updatedAt": "2026-11-06T17:28:01.315Z"
+    }
+  ],
   "debts": [
-    {
-      "id": "debt-1793653134206-rhenl",
-      "debtType": "payable",
-      "debtorName": "Abuela Marcela",
-      "concept": "Compra dolares",
-      "originalAmount": 60,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1000.3438,
-      "remainingAmount": 60,
-      "status": "pending",
-      "dueDate": "2026-10-30",
-      "createdAt": "2026-11-02T20:58:54.206Z",
-      "updatedAt": "2026-11-02T20:58:54.207Z",
-      "payments": []
-    },
-    {
-      "id": "debt-1793651628751-d6396",
-      "debtType": "receivable",
-      "debtorName": "Rancer",
-      "concept": "Prestamo emergencia",
-      "originalAmount": 40,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1000.3438,
-      "remainingAmount": 40,
-      "status": "pending",
-      "dueDate": "2026-10-30",
-      "createdAt": "2026-11-02T20:33:48.751Z",
-      "updatedAt": "2026-11-02T20:33:48.752Z",
-      "payments": []
-    },
     {
       "id": "debt-1793753085019-79so3",
       "debtType": "receivable",
@@ -178,11 +566,22 @@ export const SEED_DATABASE: DatabaseSchema = {
       "originalAmount": 37,
       "currencyType": "USD_USDT",
       "appliedRateAtCreation": 1004.3248,
-      "remainingAmount": 37,
-      "status": "pending",
+      "remainingAmount": 0,
+      "status": "paid",
       "createdAt": "2026-11-04T00:44:45.020Z",
-      "updatedAt": "2026-11-04T00:44:45.022Z",
-      "payments": []
+      "updatedAt": "2026-11-06T16:20:29.017Z",
+      "payments": [
+        {
+          "amount": 37,
+          "currency": "USD",
+          "date": "2026-11-06T17:50:00.000Z",
+          "note": "Reembolso provincial",
+          "appliedRate": 1010.4101,
+          "receivedInAccountId": "acc-2",
+          "receivedInSubFund": "digital_usd",
+          "id": "debt-pay-1793982029017"
+        }
+      ]
     },
     {
       "id": "debt-1793752830461-wcfsz",
@@ -203,13 +602,13 @@ export const SEED_DATABASE: DatabaseSchema = {
       "debtType": "receivable",
       "debtorName": "Juan Carlos",
       "concept": "Prestamo biblioteca BCV",
-      "originalAmount": 26734,
-      "currencyType": "VES_BCV",
+      "originalAmount": 32,
+      "currencyType": "USD_USDT",
       "appliedRateAtCreation": 891.1054,
-      "remainingAmount": 26734,
+      "remainingAmount": 32,
       "status": "pending",
       "createdAt": "2026-11-03T22:12:51.139Z",
-      "updatedAt": "2026-11-03T22:12:51.139Z",
+      "updatedAt": "2026-11-04T19:29:13.287Z",
       "payments": []
     },
     {
@@ -287,13 +686,13 @@ export const SEED_DATABASE: DatabaseSchema = {
       "debtType": "receivable",
       "debtorName": "Joan",
       "concept": "Préstamo bs",
-      "originalAmount": 54357.42,
-      "currencyType": "VES_BCV",
+      "originalAmount": 61,
+      "currencyType": "USD_USDT",
       "appliedRateAtCreation": 891.1054,
-      "remainingAmount": 54357.42,
+      "remainingAmount": 61,
       "status": "pending",
       "createdAt": "2026-11-03T22:02:09.114Z",
-      "updatedAt": "2026-11-03T22:02:09.116Z",
+      "updatedAt": "2026-11-04T19:30:16.225Z",
       "payments": []
     },
     {
@@ -356,15 +755,15 @@ export const SEED_DATABASE: DatabaseSchema = {
       "id": "debt-1793742366661-xi0r8",
       "debtType": "receivable",
       "debtorName": "Andrews",
-      "concept": "Préstamo BCV",
-      "originalAmount": 55249,
-      "currencyType": "VES_BCV",
+      "concept": "Préstamo 62$ BCV",
+      "originalAmount": 62,
+      "currencyType": "USD_USDT",
       "appliedRateAtCreation": 891.1054,
-      "remainingAmount": 55249,
+      "remainingAmount": 62,
       "status": "pending",
       "dueDate": "2026-11-30",
       "createdAt": "2026-11-03T21:46:06.661Z",
-      "updatedAt": "2026-11-03T21:46:06.662Z",
+      "updatedAt": "2026-11-04T19:29:30.619Z",
       "payments": []
     },
     {
@@ -380,6 +779,20 @@ export const SEED_DATABASE: DatabaseSchema = {
       "dueDate": "2026-11-30",
       "createdAt": "2026-11-03T21:44:58.754Z",
       "updatedAt": "2026-11-03T21:44:58.755Z",
+      "payments": []
+    },
+    {
+      "id": "debt-1793806996496-kzstz",
+      "debtType": "receivable",
+      "debtorName": "Chuy Vultur",
+      "concept": "Prestamo Binance",
+      "originalAmount": 20,
+      "currencyType": "USD_USDT",
+      "appliedRateAtCreation": 1008.4556,
+      "remainingAmount": 20,
+      "status": "pending",
+      "createdAt": "2026-11-04T15:43:16.496Z",
+      "updatedAt": "2026-11-04T15:43:16.496Z",
       "payments": []
     }
   ],
@@ -494,10 +907,91 @@ export const SEED_DATABASE: DatabaseSchema = {
       "id": "cat-local",
       "name": "Local",
       "icon": "Store",
-      "color": "#EAB308",
+      "color": "#3B82F6",
       "type": "expense",
       "isPredefined": true,
-      "updatedAt": "2026-11-02T16:21:05.759Z"
+      "updatedAt": "2026-11-04T20:05:06.129Z"
+    },
+    {
+      "id": "cat-custom-1793807086076",
+      "name": "Local",
+      "icon": "Tag",
+      "color": "#10B981",
+      "type": "income",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T15:44:46.076Z"
+    },
+    {
+      "id": "cat-custom-1793807051474",
+      "name": "Prestamos",
+      "icon": "Tag",
+      "color": "#EF4444",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T15:44:11.474Z"
+    },
+    {
+      "id": "cat-custom-1793806912103",
+      "name": "Intereses prestamos",
+      "icon": "Tag",
+      "color": "#10B981",
+      "type": "income",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T15:41:52.103Z"
+    },
+    {
+      "id": "cat-custom-1793806188173",
+      "name": "Comision Banco",
+      "icon": "Tag",
+      "color": "#ffffff",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T19:44:07.161Z"
+    },
+    {
+      "id": "cat-custom-1793806073274",
+      "name": "Cambio Binance",
+      "icon": "Tag",
+      "color": "#dbb700",
+      "type": "income",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T19:44:02.555Z"
+    },
+    {
+      "id": "cat-custom-1793805914084",
+      "name": "Cambio Binance",
+      "icon": "Tag",
+      "color": "#EF4444",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T15:25:14.085Z"
+    },
+    {
+      "id": "cat-custom-1793821571567",
+      "name": "Compra $ Banco",
+      "icon": "Tag",
+      "color": "#F97316",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-04T19:46:11.567Z"
+    },
+    {
+      "id": "cat-custom-1793978895849",
+      "name": "Local",
+      "icon": "Tag",
+      "color": "#06B6D4",
+      "type": "income",
+      "isPredefined": false,
+      "updatedAt": "2026-11-06T15:28:15.849Z"
+    },
+    {
+      "id": "cat-custom-1793934474059",
+      "name": "Recarga teléfono",
+      "icon": "Tag",
+      "color": "#8B5CF6",
+      "type": "expense",
+      "isPredefined": false,
+      "updatedAt": "2026-11-06T03:07:54.059Z"
     }
   ],
   "portfolioAssets": [],
@@ -507,11 +1001,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "name": "Fondo de Emergencia en USDT",
       "targetAmountUsd": 1000,
       "currentSavedUsd": 250,
-      "deadline": "2027-05-02",
+      "deadline": "2027-05-03",
       "category": "Seguridad",
       "color": "#10B981",
-      "createdAt": "2026-11-03T17:21:03.658Z",
-      "updatedAt": "2026-11-03T17:21:03.658Z"
+      "createdAt": "2026-11-04T13:50:31.419Z",
+      "updatedAt": "2026-11-04T13:50:31.419Z"
     }
   ],
   "deletedItems": [
@@ -524,8 +1018,67 @@ export const SEED_DATABASE: DatabaseSchema = {
       "id": "debt-1793743275428-jniif",
       "type": "debt",
       "deletedAt": "2026-11-03T22:01:30.197Z"
+    },
+    {
+      "id": "debt-1793653134206-rhenl",
+      "type": "debt",
+      "deletedAt": "2026-11-04T18:30:43.872Z"
+    },
+    {
+      "id": "debt-1793651628751-d6396",
+      "type": "debt",
+      "deletedAt": "2026-11-04T18:31:17.785Z"
+    },
+    {
+      "id": "tx-1793822368796-8ag2u",
+      "type": "transaction",
+      "deletedAt": "2026-11-04T19:59:41.444Z"
+    },
+    {
+      "id": "tx-1793825702738-owfba",
+      "type": "transaction",
+      "deletedAt": "2026-11-04T20:55:46.232Z"
+    },
+    {
+      "id": "tx-1793825702726-h26xx",
+      "type": "transaction",
+      "deletedAt": "2026-11-04T20:56:00.080Z"
+    },
+    {
+      "id": "acc-user-1793822555088-binance",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:12:44.261Z"
+    },
+    {
+      "id": "acc-user-1793822555088-cash",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:12:46.217Z"
+    },
+    {
+      "id": "acc-user-1793822555088-bdv",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:18:11.465Z"
+    },
+    {
+      "id": "acc-user-1793822555088-provincial",
+      "type": "account",
+      "deletedAt": "2026-11-06T03:18:14.435Z"
+    },
+    {
+      "id": "tx-1793972983420-61zft",
+      "type": "transaction",
+      "deletedAt": "2026-11-06T13:50:15.316Z"
+    },
+    {
+      "id": "tx-1793972983436-gi182",
+      "type": "transaction",
+      "deletedAt": "2026-11-06T13:50:19.754Z"
+    },
+    {
+      "id": "tx-1793972942354-vd2rq",
+      "type": "transaction",
+      "deletedAt": "2026-11-06T13:50:22.642Z"
     }
   ],
   "auditLogs": []
 };
-
