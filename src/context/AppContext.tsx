@@ -111,7 +111,7 @@ interface AppContextType {
   lastSyncTime: string | null;
   isSyncModalOpen: boolean;
   setIsSyncModalOpen: (open: boolean) => void;
-  syncWithServer: (customUrl?: string, options?: { silent?: boolean }) => Promise<SyncResult>;
+  syncWithServer: (customUrl?: string, options?: { silent?: boolean; overrideUserId?: string | null }) => Promise<SyncResult>;
 
   // Actions
   addTransaction: (tx: Transaction) => void;
@@ -307,6 +307,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => StorageService.getAuditLogs(user?.uid));
   const [rates, setRates] = useState<ExchangeRates>(() => RatesService.getCachedRates());
 
+  // Sincronización Local / Offline
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => SyncService.getLastSyncTime());
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isInitialSetupModalOpen, setIsInitialSetupModalOpen] = useState(() => !StorageService.isInitialSetupDone());
+
+  const userRef = useRef<AppUser | null>(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const isSyncingRef = useRef(false);
+  const pendingSyncRef = useRef(false);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const reloadDataForUser = (targetUserId?: string | null) => {
     setAccounts(StorageService.getAccounts(targetUserId));
     setTransactions(StorageService.getTransactions(targetUserId));
@@ -317,6 +332,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLosses(StorageService.getLosses(targetUserId));
     setAuditLogs(StorageService.getAuditLogs(targetUserId));
   };
+
+  // Sincronización con el servidor local / nube multi-dispositivo
+  const syncWithServer = useCallback(async (
+    customUrl?: string, 
+    options?: { silent?: boolean; overrideUserId?: string | null }
+  ): Promise<SyncResult> => {
+    if (isSyncingRef.current) {
+      pendingSyncRef.current = true;
+      return { success: false, message: 'Sincronización en curso' };
+    }
+
+    isSyncingRef.current = true;
+    setIsSyncing(true);
+    try {
+      const activeUid = options?.overrideUserId !== undefined 
+        ? options.overrideUserId 
+        : (userRef.current?.uid ?? user?.uid);
+      const localData = StorageService.getAllData(activeUid);
+      const result = await SyncService.syncWithLocalServer(localData, customUrl);
+      if (result.success && result.mergedData) {
+        StorageService.applyMergedData(result.mergedData, activeUid);
+        setAccounts(StorageService.getAccounts(activeUid));
+        setTransactions(StorageService.getTransactions(activeUid));
+        setCategories(StorageService.getCategories(activeUid));
+        setPortfolioAssets(StorageService.getPortfolioAssets(activeUid));
+        setGoals(StorageService.getGoals(activeUid));
+        setDebts(StorageService.getDebts(activeUid));
+        setLosses(StorageService.getLosses(activeUid));
+        setAuditLogs(StorageService.getAuditLogs(activeUid));
+        if (result.serverTimestamp) {
+          setLastSyncTime(result.serverTimestamp);
+        }
+
+        const hasConfigured = 
+          result.mergedData.accounts?.some((a: Account) => a.currentBalance > 0 || (a.digitalUsdBalance || 0) > 0 || (a.physicalUsdBalance || 0) > 0) ||
+          (result.mergedData.transactions?.length || 0) > 0;
+        if (hasConfigured) {
+          StorageService.markInitialSetupDone();
+          setIsInitialSetupModalOpen(false);
+        }
+      }
+      return result;
+    } catch (e: any) {
+      if (!options?.silent) {
+        console.warn('Sync failed:', e);
+      }
+      return {
+        success: false,
+        message: e.message || 'Error durante la sincronización'
+      };
+    } finally {
+      isSyncingRef.current = false;
+      setIsSyncing(false);
+      if (pendingSyncRef.current) {
+        pendingSyncRef.current = false;
+        setTimeout(() => {
+          syncWithServer(undefined, { silent: true }).catch(() => {});
+        }, 300);
+      }
+    }
+  }, [user?.uid]);
+
+  // Gatillo de sincronización en segundo plano con debounce para no saturar la red
+  const triggerBackgroundSync = useCallback((delayMs: number = 600, overrideUserId?: string | null) => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    syncTimeoutRef.current = setTimeout(() => {
+      syncWithServer(undefined, { silent: true, overrideUserId }).catch(() => {});
+    }, delayMs);
+  }, [syncWithServer]);
 
   const login = (usernameInput: string, passwordInput: string): { success: boolean; message?: string } => {
     const cleanUser = usernameInput.trim();
@@ -352,6 +438,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(appUser);
       setIsAppLocked(false);
       reloadDataForUser(appUser.uid);
+      triggerBackgroundSync(100, appUser.uid);
       return { success: true };
     }
 
@@ -389,6 +476,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(appUser);
     setIsAppLocked(false);
     reloadDataForUser(appUser.uid);
+    triggerBackgroundSync(100, appUser.uid);
     return { success: true };
   };
 
@@ -464,6 +552,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(appUser);
       setIsAppLocked(false);
       reloadDataForUser(appUser.uid);
+      triggerBackgroundSync(100, appUser.uid);
       return { success: true };
     }
 
@@ -504,6 +593,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       BiometricService.setLastActiveUser(targetUsername);
       BiometricService.markDeviceUnlockedToday(targetUsername);
       setIsAppLocked(false);
+      triggerBackgroundSync(100);
       return { success: true };
     }
     return { success: false, message: verifyRes.message || 'Verificación de huella fallida.' };
@@ -533,6 +623,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(appUser);
       setIsAppLocked(false);
       reloadDataForUser(appUser.uid);
+      triggerBackgroundSync(100, appUser.uid);
       return { success: true };
     }
 
@@ -570,6 +661,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       BiometricService.markDeviceUnlockedToday(activeUser.username);
     }
     setIsAppLocked(false);
+    triggerBackgroundSync(100, activeUser?.uid);
   };
 
   const deleteAccount = (accountId: string) => {
@@ -583,7 +675,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
-  const [isInitialSetupModalOpen, setIsInitialSetupModalOpen] = useState(() => !StorageService.isInitialSetupDone());
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -596,11 +687,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [editingLoss, setEditingLoss] = useState<Loss | null>(null);
   const [isLossRecoveryModalOpen, setIsLossRecoveryModalOpen] = useState(false);
   const [activeLossForRecovery, setActiveLossForRecovery] = useState<Loss | null>(null);
-
-  // Sincronización Local / Offline
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => SyncService.getLastSyncTime());
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   // Layout scale / width preference (defaults to true: ampliada)
   const [isWideLayout, setIsWideLayoutState] = useState<boolean>(() => {
@@ -716,67 +802,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(interval);
   }, []);
 
-  const isSyncingRef = useRef(false);
-
-  // Sincronización con el servidor local de la red
-  const syncWithServer = useCallback(async (customUrl?: string, options?: { silent?: boolean }): Promise<SyncResult> => {
-    if (isSyncingRef.current) {
-      return { success: false, message: 'Sincronización en curso' };
-    }
-
-    isSyncingRef.current = true;
-    setIsSyncing(true);
-    try {
-      const localData = StorageService.getAllData(user?.uid);
-      const result = await SyncService.syncWithLocalServer(localData, customUrl);
-      if (result.success && result.mergedData) {
-        StorageService.applyMergedData(result.mergedData, user?.uid);
-        setAccounts(StorageService.getAccounts(user?.uid));
-        setTransactions(StorageService.getTransactions(user?.uid));
-        setCategories(StorageService.getCategories(user?.uid));
-        setPortfolioAssets(StorageService.getPortfolioAssets(user?.uid));
-        setGoals(StorageService.getGoals(user?.uid));
-        setDebts(StorageService.getDebts(user?.uid));
-        setLosses(StorageService.getLosses(user?.uid));
-        if (result.serverTimestamp) {
-          setLastSyncTime(result.serverTimestamp);
-        }
-
-        const hasConfigured = 
-          result.mergedData.accounts?.some((a: Account) => a.currentBalance > 0 || (a.digitalUsdBalance || 0) > 0 || (a.physicalUsdBalance || 0) > 0) ||
-          (result.mergedData.transactions?.length || 0) > 0;
-        if (hasConfigured) {
-          StorageService.markInitialSetupDone();
-          setIsInitialSetupModalOpen(false);
-        }
-      }
-      return result;
-    } catch (e: any) {
-      if (!options?.silent) {
-        console.warn('Sync failed:', e);
-      }
-      return {
-        success: false,
-        message: e.message || 'Error durante la sincronización'
-      };
-    } finally {
-      isSyncingRef.current = false;
-      setIsSyncing(false);
-    }
-  }, []);
-
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Gatillo de sincronización en segundo plano con debounce para no saturar la red
-  const triggerBackgroundSync = useCallback(() => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-    syncTimeoutRef.current = setTimeout(() => {
-      syncWithServer(undefined, { silent: true }).catch(() => {});
-    }, 1200);
-  }, [syncWithServer]);
-
   // Sincronización automática periódica en segundo plano cada 1 hora como máximo
   useEffect(() => {
     const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hora máxima
@@ -795,43 +820,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(interval);
   }, [syncWithServer]);
 
-  // Sincronización automática silenciosa al montar la app, volver de segundo plano o recuperar red
+  // Sincronización automática exhaustiva:
+  // Se ejecuta SIEMPRE que la página o app se abra tras un cierre en cualquier dispositivo
   useEffect(() => {
-    // Sincronizar inmediatamente al iniciar para traer últimos movimientos de otros dispositivos
+    // 1. Sincronizar inmediatamente al montar/abrir la página (Cold start o recarga)
     syncWithServer(undefined, { silent: true }).catch(() => {});
 
+    // 2. Al volver de segundo plano, reactivar pantalla o cambiar de pestaña
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
         syncWithServer(undefined, { silent: true }).catch(() => {});
+      } else if (document.visibilityState === 'hidden') {
+        try {
+          localStorage.setItem('finanzas_vzla_last_closed_at', new Date().toISOString());
+        } catch {}
       }
     };
 
+    // 3. Al dispararse el evento estándar HTML5 'pageshow' (apertura, BFCache o PWA resume)
+    const handlePageShow = () => {
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+    };
+
+    // 4. Al recuperar conexión de red
     const handleOnline = () => {
       syncWithServer(undefined, { silent: true }).catch(() => {});
     };
 
+    // 5. Al cerrar o pausar la página
+    const handlePageClose = () => {
+      try {
+        localStorage.setItem('finanzas_vzla_last_closed_at', new Date().toISOString());
+      } catch {}
+    };
+
     window.addEventListener('focus', handleVisibilityOrFocus);
+    window.addEventListener('pageshow', handlePageShow);
     window.addEventListener('online', handleOnline);
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('pagehide', handlePageClose);
+    window.addEventListener('beforeunload', handlePageClose);
 
     return () => {
       window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('pagehide', handlePageClose);
+      window.removeEventListener('beforeunload', handlePageClose);
     };
   }, [syncWithServer]);
+
+  // Cuando el usuario inicia sesión o desbloquea la app, sincronizar de inmediato
+  useEffect(() => {
+    if (!isAppLocked && user?.uid) {
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+    }
+  }, [isAppLocked, user?.uid, syncWithServer]);
 
   // Sincronización instantánea entre pestañas del mismo navegador en la computadora
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key && e.key.startsWith('finanzas_vzla_')) {
-        setAccounts(StorageService.getAccounts());
-        setTransactions(StorageService.getTransactions());
-        setCategories(StorageService.getCategories());
-        setPortfolioAssets(StorageService.getPortfolioAssets());
-        setGoals(StorageService.getGoals());
-        setDebts(StorageService.getDebts());
-        setLosses(StorageService.getLosses());
+        const activeUid = userRef.current?.uid;
+        setAccounts(StorageService.getAccounts(activeUid));
+        setTransactions(StorageService.getTransactions(activeUid));
+        setCategories(StorageService.getCategories(activeUid));
+        setPortfolioAssets(StorageService.getPortfolioAssets(activeUid));
+        setGoals(StorageService.getGoals(activeUid));
+        setDebts(StorageService.getDebts(activeUid));
+        setLosses(StorageService.getLosses(activeUid));
+        setAuditLogs(StorageService.getAuditLogs(activeUid));
       }
     };
     window.addEventListener('storage', handleStorageChange);
