@@ -89,6 +89,14 @@ export const TransactionModal: React.FC = () => {
   const [isManualBankPercent, setIsManualBankPercent] = useState<boolean>(false);
   const [applyBinanceTransferCommissions, setApplyBinanceTransferCommissions] = useState<boolean>(true);
 
+  // Bank FX Purchase (Bs -> USD / Dólares Electrónicos): 0.5% standard commission
+  const [fxCommissionPercentStr, setFxCommissionPercentStr] = useState<string>('0.5');
+  const [isManualFxPercent, setIsManualFxPercent] = useState<boolean>(false);
+  const [fxCommissionCustomBs, setFxCommissionCustomBs] = useState<string>('');
+  const [isManualFxBs, setIsManualFxBs] = useState<boolean>(false);
+  const [applyFxCommission, setApplyFxCommission] = useState<boolean>(true);
+  const [isManualFxRate, setIsManualFxRate] = useState<boolean>(false);
+
   // Filter categories by movement type (memoized to avoid new array reference on every render):
   const filteredCategories = useMemo(() => {
     return categories.filter(c => {
@@ -227,6 +235,35 @@ export const TransactionModal: React.FC = () => {
   const isDestBankInBs = Boolean(destAccount && ((destAccount.type === 'bank_ves' && toSubFund === 'ves') || destAccount.currency === 'VES'));
   const isBinanceToBankP2P = type === 'transfer' && isSourceBinance && isDestBankInBs;
 
+  // Trigger for Bank Currency Exchange: Bolívares (VES) -> Dollars / Electronic Dollars (USD)
+  const isVesToUsdBankExchange = type === 'transfer' &&
+    sourceEffectiveCurrency === 'VES' &&
+    destEffectiveCurrency === 'USD' &&
+    !isBankToBinanceTransfer &&
+    !isBinanceToBankP2P;
+
+  // Auto-set BCV rate for Bank Currency Purchases
+  useEffect(() => {
+    if (isVesToUsdBankExchange && !isManualFxRate) {
+      if (rates.bcv) {
+        setCustomRate(rates.bcv.toString());
+      }
+    }
+  }, [isVesToUsdBankExchange, isManualFxRate, rates.bcv]);
+
+  // Auto-switch toSubFund when source and dest are the same bank account
+  useEffect(() => {
+    if (type === 'transfer' && toAccountId === accountId && destAccount?.type === 'bank_ves') {
+      if (subFund === toSubFund) {
+        if (subFund === 'ves') {
+          setToSubFund('digital_usd');
+        } else {
+          setToSubFund('ves');
+        }
+      }
+    }
+  }, [type, toAccountId, accountId, subFund, toSubFund, destAccount]);
+
   // Auto-set currency to USD and default P2P rate when transferring Binance -> Bank (Bs)
   useEffect(() => {
     if (isBinanceToBankP2P) {
@@ -265,12 +302,35 @@ export const TransactionModal: React.FC = () => {
   const netDestAmountToBinance = Math.max(0, Number((currentAmount - binanceCommissionUsd).toFixed(2)));
 
   // Cross-currency transfer destination amount calculation
-  const effectiveRate = parseFloat(customRate) || (rates.usdt || rates.bcv);
+  const effectiveRate = parseFloat(customRate) || (isVesToUsdBankExchange ? (rates.bcv || rates.usdt || 1) : (rates.usdt || rates.bcv || 1));
+
+  // Base calculations for VES -> USD FX Exchange
+  let fxBaseVesAmount = 0;
+  let fxBaseUsdAmount = 0;
+  if (isVesToUsdBankExchange) {
+    if (currency === 'USD') {
+      fxBaseUsdAmount = currentAmount;
+      fxBaseVesAmount = Number((currentAmount * effectiveRate).toFixed(2));
+    } else {
+      fxBaseVesAmount = currentAmount;
+      fxBaseUsdAmount = effectiveRate > 0 ? Number((currentAmount / effectiveRate).toFixed(2)) : 0;
+    }
+  }
+
+  const fxCommPercent = parseFloat(fxCommissionPercentStr) || 0;
+  const autoFxCommissionBs = Number(((fxBaseVesAmount * fxCommPercent) / 100).toFixed(2));
+  const fxCommissionBs = isManualFxBs ? (parseFloat(fxCommissionCustomBs) || 0) : autoFxCommissionBs;
+  const totalVesDebited = applyFxCommission ? Number((fxBaseVesAmount + fxCommissionBs).toFixed(2)) : fxBaseVesAmount;
+
   let calculatedDestAmount = currentAmount;
 
   if (type === 'transfer' && sourceAccount && destAccount) {
     if (isBankToBinanceTransfer && applyBinanceTransferCommissions) {
       calculatedDestAmount = netDestAmountToBinance;
+    } else if (isBinanceToBankP2P) {
+      calculatedDestAmount = Number((currentAmount * effectiveRate).toFixed(2));
+    } else if (isVesToUsdBankExchange) {
+      calculatedDestAmount = fxBaseUsdAmount;
     } else if (sourceEffectiveCurrency === 'USD' && destEffectiveCurrency === 'VES') {
       calculatedDestAmount = Number((currentAmount * effectiveRate).toFixed(2));
     } else if (sourceEffectiveCurrency === 'VES' && destEffectiveCurrency === 'USD') {
@@ -281,7 +341,7 @@ export const TransactionModal: React.FC = () => {
   }
 
   // Calculate if the transfer is eligible for VES bank / Pago Móvil commission
-  const isVesTransfer = type === 'transfer' && !isBankToBinanceTransfer && !isBinanceToBankP2P && (
+  const isVesTransfer = type === 'transfer' && !isBankToBinanceTransfer && !isBinanceToBankP2P && !isVesToUsdBankExchange && (
     currency === 'VES' || 
     sourceAccount?.currency === 'VES' || 
     (sourceAccount?.type === 'bank_ves' && subFund === 'ves')
@@ -307,12 +367,35 @@ export const TransactionModal: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentAmount <= 0 || !accountId) return;
-    if (type === 'transfer' && (!toAccountId || toAccountId === accountId)) {
-      alert('Selecciona una cuenta de destino diferente a la de origen.');
+
+    const isSameAccountSubFundTransfer = type === 'transfer' && accountId === toAccountId && subFund !== toSubFund;
+    if (type === 'transfer' && (!toAccountId || (toAccountId === accountId && !isSameAccountSubFundTransfer))) {
+      alert('Selecciona una cuenta o fondo de destino diferente al de origen.');
       return;
     }
 
     const selectedCategory = categories.find(c => c.id === categoryId);
+
+    const finalTxAmount = isVesToUsdBankExchange ? fxBaseVesAmount : currentAmount;
+    const finalTxCurrency = isVesToUsdBankExchange ? 'VES' : (isBinanceToBankP2P ? 'USD' : currency);
+    const finalDestAmount = isVesToUsdBankExchange ? fxBaseUsdAmount : calculatedDestAmount;
+    const finalCategoryId = selectedCategory?.id || (
+      isBinanceToBankP2P ? 'cat-p2p' : isVesToUsdBankExchange ? 'cat-cambio-divisas' : 'cat-general'
+    );
+    const finalCategoryName = isBinanceToBankP2P 
+      ? 'Cambio P2P (Binance)' 
+      : isVesToUsdBankExchange
+      ? 'Compra de Divisas (BCV)'
+      : (selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'));
+    const finalCategoryIcon = selectedCategory?.icon || (isBinanceToBankP2P || isVesToUsdBankExchange ? 'ArrowLeftRight' : undefined);
+    const finalCategoryColor = selectedCategory?.color || (isBinanceToBankP2P ? '#F59E0B' : isVesToUsdBankExchange ? '#3B82F6' : undefined);
+    const finalNote = note.trim() || (
+      isBinanceToBankP2P 
+        ? `Venta P2P Binance: $${currentAmount} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}` 
+        : isVesToUsdBankExchange
+        ? `Compra de divisas BCV: $${fxBaseUsdAmount.toFixed(2)} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}${toSubFund === 'digital_usd' ? ' ($ Digitales)' : toSubFund === 'physical_usd' ? ' ($ Físicos)' : ''}`
+        : undefined
+    );
 
     if (editingTransaction) {
       const updatedTx: Transaction = {
@@ -322,18 +405,16 @@ export const TransactionModal: React.FC = () => {
         toAccountId: type === 'transfer' ? toAccountId : undefined,
         subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
         toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
-        amount: currentAmount,
-        currency: isBinanceToBankP2P ? 'USD' : currency,
+        amount: finalTxAmount,
+        currency: finalTxCurrency,
         appliedRate: type === 'transfer' ? effectiveRate : undefined,
-        destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
-        categoryId: selectedCategory?.id || (isBinanceToBankP2P ? 'cat-p2p' : 'cat-general'),
-        categoryName: isBinanceToBankP2P 
-          ? 'Cambio P2P (Binance)' 
-          : (selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General')),
-        categoryIcon: selectedCategory?.icon || (isBinanceToBankP2P ? 'ArrowLeftRight' : undefined),
-        categoryColor: selectedCategory?.color || (isBinanceToBankP2P ? '#F59E0B' : undefined),
+        destinationAmount: type === 'transfer' ? finalDestAmount : undefined,
+        categoryId: finalCategoryId,
+        categoryName: finalCategoryName,
+        categoryIcon: finalCategoryIcon,
+        categoryColor: finalCategoryColor,
         date: safeToISO(date),
-        note: note.trim() || (isBinanceToBankP2P ? `Venta P2P Binance: $${currentAmount} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}` : undefined),
+        note: finalNote,
         updatedAt: new Date().toISOString()
       };
       updateTransaction(updatedTx);
@@ -345,21 +426,47 @@ export const TransactionModal: React.FC = () => {
         toAccountId: type === 'transfer' ? toAccountId : undefined,
         subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
         toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
-        amount: currentAmount,
-        currency: isBinanceToBankP2P ? 'USD' : currency,
+        amount: finalTxAmount,
+        currency: finalTxCurrency,
         appliedRate: type === 'transfer' ? effectiveRate : undefined,
-        destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
-        categoryId: selectedCategory?.id || (isBinanceToBankP2P ? 'cat-p2p' : 'cat-general'),
-        categoryName: isBinanceToBankP2P 
-          ? 'Cambio P2P (Binance)' 
-          : (selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General')),
-        categoryIcon: selectedCategory?.icon || (isBinanceToBankP2P ? 'ArrowLeftRight' : undefined),
-        categoryColor: selectedCategory?.color || (isBinanceToBankP2P ? '#F59E0B' : undefined),
+        destinationAmount: type === 'transfer' ? finalDestAmount : undefined,
+        categoryId: finalCategoryId,
+        categoryName: finalCategoryName,
+        categoryIcon: finalCategoryIcon,
+        categoryColor: finalCategoryColor,
         date: safeToISO(date),
-        note: note.trim() || (isBinanceToBankP2P ? `Venta P2P Binance: $${currentAmount} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}` : undefined),
+        note: finalNote,
         createdAt: new Date().toISOString()
       };
       addTransaction(newTx);
+
+      // Si es una compra de divisas bancaria (Bs -> USD) y está activa la comisión del 0,5%
+      if (type === 'transfer' && applyFxCommission && isVesToUsdBankExchange && !editingTransaction) {
+        if (fxCommissionBs > 0) {
+          const commissionCat = categories.find(c => 
+            c.id === 'cat-comisiones' || 
+            c.name.toLowerCase().includes('comision') ||
+            c.name.toLowerCase().includes('comisión')
+          );
+
+          const fxCommissionTx: Transaction = {
+            id: `tx-${Date.now() + 12}-${Math.random().toString(36).substring(2, 7)}`,
+            type: 'expense',
+            accountId,
+            subFund: (sourceAccount?.type === 'bank_ves') ? 'ves' : undefined,
+            amount: fxCommissionBs,
+            currency: 'VES',
+            categoryId: commissionCat?.id || 'cat-comisiones',
+            categoryName: commissionCat?.name || 'Comisiones Bancarias',
+            categoryIcon: commissionCat?.icon || 'Receipt',
+            categoryColor: commissionCat?.color || '#F59E0B',
+            date: safeToISO(date),
+            note: `Comisión bancaria (${fxCommissionPercentStr}%) por compra de divisas BCV (${destAccount?.name || 'Dólares'})${note.trim() ? ` - ${note.trim()}` : ''}`,
+            createdAt: new Date(Date.now() + 12).toISOString()
+          };
+          addTransaction(fxCommissionTx);
+        }
+      }
 
       // Si es una transferencia en Bs y está activa la comisión bancaria / pago móvil
       if (type === 'transfer' && applyCommission && isVesTransfer) {
@@ -428,6 +535,11 @@ export const TransactionModal: React.FC = () => {
       setNote('');
       setIsManualCommission(false);
       setIsManualBankPercent(false);
+      setIsManualFxRate(false);
+      setIsManualFxPercent(false);
+      setIsManualFxBs(false);
+      setFxCommissionPercentStr('0.5');
+      setFxCommissionCustomBs('');
       setEditingTransaction(null);
       setIsTxModalOpen(false);
     }, 500);
@@ -694,9 +806,9 @@ export const TransactionModal: React.FC = () => {
                     required
                   >
                     <option value="">Seleccionar cuenta destino...</option>
-                    {accounts.filter(a => a.id !== accountId).map(acc => (
+                    {accounts.filter(a => a.id !== accountId || a.type === 'bank_ves').map(acc => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.name} ({acc.currency} • Saldo: {RatesService.formatMoney(acc.currentBalance, acc.currency)})
+                        {acc.name} {acc.id === accountId ? '(Mismo Banco • Cambio entre fondos)' : `(${acc.currency} • Saldo: ${RatesService.formatMoney(acc.currentBalance, acc.currency)})`}
                       </option>
                     ))}
                   </select>
@@ -712,9 +824,15 @@ export const TransactionModal: React.FC = () => {
                       onChange={(e) => setToSubFund(e.target.value as SubFundType)}
                       className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold border border-blue-200 dark:border-blue-700"
                     >
-                      <option value="ves">🏦 Cuenta Bolívares (VES)</option>
-                      <option value="digital_usd">💻 Cuenta $ Digitales (${destAccount.digitalUsdBalance || 0} USD)</option>
-                      <option value="physical_usd">💵 $ Físicos (${destAccount.physicalUsdBalance || 0} USD)</option>
+                      {toAccountId !== accountId || subFund !== 'ves' ? (
+                        <option value="ves">🏦 Cuenta Bolívares (VES)</option>
+                      ) : null}
+                      {toAccountId !== accountId || subFund !== 'digital_usd' ? (
+                        <option value="digital_usd">💻 Cuenta $ Digitales (${destAccount.digitalUsdBalance || 0} USD)</option>
+                      ) : null}
+                      {toAccountId !== accountId || subFund !== 'physical_usd' ? (
+                        <option value="physical_usd">💵 $ Físicos (${destAccount.physicalUsdBalance || 0} USD)</option>
+                      ) : null}
                     </select>
                   </div>
                 )}
@@ -988,8 +1106,208 @@ export const TransactionModal: React.FC = () => {
             </div>
           )}
 
+          {/* Card Especial de Compra de Divisas / Intervención Bancaria (Bs -> USD o Dólares Electrónicos) */}
+          {isVesToUsdBankExchange && (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-emerald-500/10 border-2 border-blue-500/30 space-y-3.5 shadow-sm animate-in fade-in">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-blue-500/20">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                    <ArrowLeftRight className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <span>Compra de Divisas (Bs &rarr; Dólares)</span>
+                      <span className="px-1.5 py-0.2 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-black border border-blue-500/30">
+                        BCV
+                      </span>
+                    </h4>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                      Intervención cambiaria / Mesa de cambio bancaria
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tasa BCV Input */}
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-500/30 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Tasa de cambio aplicada:
+                    </label>
+                    <span className="text-[10px] text-slate-500 block">
+                      Basada en la tasa oficial BCV del día (editable si difiere)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={customRate}
+                      onChange={(e) => {
+                        setCustomRate(e.target.value);
+                        setIsManualFxRate(true);
+                      }}
+                      className="w-32 px-3 py-1.5 text-right rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-black text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <span className="text-xs font-bold text-slate-500">Bs/$</span>
+                  </div>
+                </div>
+
+                {/* Botones de tasas rápidas */}
+                <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[10px]">
+                  <span className="text-slate-400 font-medium">Tasas del día:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomRate(rates.bcv ? rates.bcv.toString() : '0');
+                      setIsManualFxRate(false);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 font-bold transition-colors border border-blue-500/20 flex items-center gap-1"
+                  >
+                    <span>BCV: {rates.bcv} Bs</span>
+                    <span className="text-[9px] bg-blue-500 text-white px-1 rounded">Oficial</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomRate(rates.usdt ? rates.usdt.toString() : '0');
+                      setIsManualFxRate(true);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-bold transition-colors border border-emerald-500/20"
+                  >
+                    USDT: {rates.usdt} Bs
+                  </button>
+                </div>
+              </div>
+
+              {/* Comisión Bancaria (0,5%) */}
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="applyFxComm"
+                      checked={applyFxCommission}
+                      onChange={(e) => setApplyFxCommission(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700"
+                    />
+                    <label htmlFor="applyFxComm" className="text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
+                      Cobrar comisión bancaria de operación
+                    </label>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    Sudeban 0,5%
+                  </span>
+                </div>
+
+                {applyFxCommission && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                          Porcentaje (%):
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={fxCommissionPercentStr}
+                            onChange={(e) => {
+                              setFxCommissionPercentStr(e.target.value);
+                              setIsManualFxPercent(true);
+                              setIsManualFxBs(false);
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white"
+                          />
+                          <span className="text-xs font-bold text-slate-500">%</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                          Monto en Bolívares:
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={isManualFxBs ? fxCommissionCustomBs : autoFxCommissionBs.toFixed(2)}
+                            onChange={(e) => {
+                              setFxCommissionCustomBs(e.target.value);
+                              setIsManualFxBs(true);
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white"
+                          />
+                          <span className="text-xs font-bold text-slate-500">Bs</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                      <span>Base imponible: {fxBaseVesAmount.toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs</span>
+                      {(isManualFxPercent || isManualFxBs) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFxCommissionPercentStr('0.5');
+                            setIsManualFxPercent(false);
+                            setIsManualFxBs(false);
+                            setFxCommissionCustomBs('');
+                          }}
+                          className="text-blue-500 hover:underline font-bold"
+                        >
+                          Restablecer a 0,5%
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Desglose de Operación */}
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1.5 text-xs font-semibold">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span>Monto base en Bolívares:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    Bs. {fxBaseVesAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                {applyFxCommission && (
+                  <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+                    <span>Comisión bancaria ({fxCommissionPercentStr}%):</span>
+                    <span className="font-bold">
+                      +Bs. {fxCommissionBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-1 border-t border-blue-500/20 text-rose-700 dark:text-rose-400 font-bold">
+                  <span>Total debitado en {sourceAccount?.name}:</span>
+                  <span className="text-sm font-black">
+                    -Bs. {totalVesDebited.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-blue-500/20 text-emerald-700 dark:text-emerald-300 font-black">
+                  <span>Dólares acreditados en {destAccount?.name}{toSubFund === 'digital_usd' ? ' ($ Digitales)' : toSubFund === 'physical_usd' ? ' ($ Físicos)' : ''}:</span>
+                  <span className="text-sm text-emerald-600 dark:text-emerald-400 font-black">
+                    +${fxBaseUsdAmount.toFixed(2)} USD
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Transfer Exchange Rate & Converted Destination Preview para otras transferencias entre monedas distintas */}
-          {type === 'transfer' && sourceAccount && destAccount && sourceEffectiveCurrency !== destEffectiveCurrency && !isBankToBinanceTransfer && !isBinanceToBankP2P && (
+          {type === 'transfer' && sourceAccount && destAccount && sourceEffectiveCurrency !== destEffectiveCurrency && !isBankToBinanceTransfer && !isBinanceToBankP2P && !isVesToUsdBankExchange && (
             <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-blue-700 dark:text-blue-300">

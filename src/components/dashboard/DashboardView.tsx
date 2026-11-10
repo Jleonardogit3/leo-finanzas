@@ -849,7 +849,7 @@ export const DashboardView: React.FC = () => {
                   }}
                   itemStyle={{ color: '#FFFFFF', fontWeight: 'bold' }}
                   labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
-                  formatter={(val: number, name: string) => [`$${val.toFixed(2)} USD`, name]}
+                  formatter={(val: any, name: any) => [`$${Number(val || 0).toFixed(2)} USD`, name || 'Monto']}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                 <Bar dataKey="Ingresos" name="Ingresos" fill="#10B981" radius={[6, 6, 0, 0]} />

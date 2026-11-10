@@ -577,12 +577,14 @@ export class StorageService {
 
     // Calculate balance impacts
     const updatedAccounts = accounts.map(acc => {
+      let isModified = false;
+      let newCurrent = acc.currentBalance;
+      let newDigital = acc.digitalUsdBalance ?? 0;
+      let newPhysical = acc.physicalUsdBalance ?? 0;
+
       // Direct origin account
       if (acc.id === tx.accountId) {
-        let newCurrent = acc.currentBalance;
-        let newDigital = acc.digitalUsdBalance ?? 0;
-        let newPhysical = acc.physicalUsdBalance ?? 0;
-
+        isModified = true;
         const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
 
         if (tx.subFund === 'digital_usd') {
@@ -592,22 +594,12 @@ export class StorageService {
         } else {
           newCurrent = Number((newCurrent + delta).toFixed(2));
         }
-
-        return {
-          ...acc,
-          currentBalance: newCurrent,
-          digitalUsdBalance: newDigital,
-          physicalUsdBalance: newPhysical,
-          updatedAt: new Date().toISOString()
-        };
       }
 
       // Destination account for transfers / currency exchanges
       if (tx.type === 'transfer' && tx.toAccountId && acc.id === tx.toAccountId) {
+        isModified = true;
         const incomingAmount = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
-        let newCurrent = acc.currentBalance;
-        let newDigital = acc.digitalUsdBalance ?? 0;
-        let newPhysical = acc.physicalUsdBalance ?? 0;
 
         if (tx.toSubFund === 'digital_usd') {
           newDigital = Number((newDigital + incomingAmount).toFixed(2));
@@ -616,7 +608,9 @@ export class StorageService {
         } else {
           newCurrent = Number((newCurrent + incomingAmount).toFixed(2));
         }
+      }
 
+      if (isModified) {
         return {
           ...acc,
           currentBalance: newCurrent,
@@ -664,11 +658,13 @@ export class StorageService {
     const accounts = this.getAccounts(userId);
     // Revert balance changes
     const updatedAccounts = accounts.map(acc => {
-      if (acc.id === txToDelete.accountId) {
-        let revertedCurrent = acc.currentBalance;
-        let revertedDigital = acc.digitalUsdBalance ?? 0;
-        let revertedPhysical = acc.physicalUsdBalance ?? 0;
+      let isModified = false;
+      let revertedCurrent = acc.currentBalance;
+      let revertedDigital = acc.digitalUsdBalance ?? 0;
+      let revertedPhysical = acc.physicalUsdBalance ?? 0;
 
+      if (acc.id === txToDelete.accountId) {
+        isModified = true;
         const delta = (txToDelete.type === 'expense' || txToDelete.type === 'transfer') ? txToDelete.amount : -txToDelete.amount;
 
         if (txToDelete.subFund === 'digital_usd') {
@@ -678,20 +674,11 @@ export class StorageService {
         } else {
           revertedCurrent = Number((revertedCurrent + delta).toFixed(2));
         }
-
-        return {
-          ...acc,
-          currentBalance: revertedCurrent,
-          digitalUsdBalance: revertedDigital,
-          physicalUsdBalance: revertedPhysical,
-          updatedAt: new Date().toISOString()
-        };
       }
+
       if (txToDelete.type === 'transfer' && txToDelete.toAccountId && acc.id === txToDelete.toAccountId) {
+        isModified = true;
         const incomingAmount = txToDelete.destinationAmount !== undefined ? txToDelete.destinationAmount : txToDelete.amount;
-        let revertedCurrent = acc.currentBalance;
-        let revertedDigital = acc.digitalUsdBalance ?? 0;
-        let revertedPhysical = acc.physicalUsdBalance ?? 0;
 
         if (txToDelete.toSubFund === 'digital_usd') {
           revertedDigital = Number((revertedDigital - incomingAmount).toFixed(2));
@@ -700,7 +687,9 @@ export class StorageService {
         } else {
           revertedCurrent = Number((revertedCurrent - incomingAmount).toFixed(2));
         }
+      }
 
+      if (isModified) {
         return {
           ...acc,
           currentBalance: revertedCurrent,
@@ -709,6 +698,7 @@ export class StorageService {
           updatedAt: new Date().toISOString()
         };
       }
+
       return acc;
     });
 
@@ -741,24 +731,28 @@ export class StorageService {
     // 1. Revert old transaction's balances from accounts
     let accounts = this.getAccounts(userId);
     accounts = accounts.map(acc => {
+      let isModified = false;
+      let cur = acc.currentBalance;
+      let dig = acc.digitalUsdBalance ?? 0;
+      let phy = acc.physicalUsdBalance ?? 0;
+
       if (acc.id === oldTx.accountId) {
-        let cur = acc.currentBalance;
-        let dig = acc.digitalUsdBalance ?? 0;
-        let phy = acc.physicalUsdBalance ?? 0;
+        isModified = true;
         const delta = (oldTx.type === 'expense' || oldTx.type === 'transfer') ? oldTx.amount : -oldTx.amount;
         if (oldTx.subFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
         else if (oldTx.subFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
         else cur = Number((cur + delta).toFixed(2));
-        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy };
       }
+
       if (oldTx.type === 'transfer' && oldTx.toAccountId && acc.id === oldTx.toAccountId) {
+        isModified = true;
         const incomingAmount = oldTx.destinationAmount !== undefined ? oldTx.destinationAmount : oldTx.amount;
-        let cur = acc.currentBalance;
-        let dig = acc.digitalUsdBalance ?? 0;
-        let phy = acc.physicalUsdBalance ?? 0;
         if (oldTx.toSubFund === 'digital_usd') dig = Number((dig - incomingAmount).toFixed(2));
         else if (oldTx.toSubFund === 'physical_usd') phy = Number((phy - incomingAmount).toFixed(2));
         else cur = Number((cur - incomingAmount).toFixed(2));
+      }
+
+      if (isModified) {
         return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy };
       }
       return acc;
@@ -766,24 +760,28 @@ export class StorageService {
 
     // 2. Apply new updated transaction's balances to accounts
     const updatedAccounts = accounts.map(acc => {
+      let isModified = false;
+      let cur = acc.currentBalance;
+      let dig = acc.digitalUsdBalance ?? 0;
+      let phy = acc.physicalUsdBalance ?? 0;
+
       if (acc.id === updatedTx.accountId) {
-        let cur = acc.currentBalance;
-        let dig = acc.digitalUsdBalance ?? 0;
-        let phy = acc.physicalUsdBalance ?? 0;
+        isModified = true;
         const delta = (updatedTx.type === 'expense' || updatedTx.type === 'transfer') ? -updatedTx.amount : updatedTx.amount;
         if (updatedTx.subFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
         else if (updatedTx.subFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
         else cur = Number((cur + delta).toFixed(2));
-        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy, updatedAt: new Date().toISOString() };
       }
+
       if (updatedTx.type === 'transfer' && updatedTx.toAccountId && acc.id === updatedTx.toAccountId) {
+        isModified = true;
         const incomingAmount = updatedTx.destinationAmount !== undefined ? updatedTx.destinationAmount : updatedTx.amount;
-        let cur = acc.currentBalance;
-        let dig = acc.digitalUsdBalance ?? 0;
-        let phy = acc.physicalUsdBalance ?? 0;
         if (updatedTx.toSubFund === 'digital_usd') dig = Number((dig + incomingAmount).toFixed(2));
         else if (updatedTx.toSubFund === 'physical_usd') phy = Number((phy + incomingAmount).toFixed(2));
         else cur = Number((cur + incomingAmount).toFixed(2));
+      }
+
+      if (isModified) {
         return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy, updatedAt: new Date().toISOString() };
       }
       return acc;

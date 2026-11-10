@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-10T15:09:51.833Z",
+  "lastUpdated": "2026-11-10T15:27:58.207Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -33,9 +33,9 @@
       "icon": "Landmark",
       "bankCode": "0108",
       "id": "acc-2",
-      "currentBalance": 2714.62,
+      "currentBalance": 108101.45,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-09T22:37:40.447Z"
+      "updatedAt": "2026-11-10T15:14:28.413Z"
     },
     {
       "name": "Banco Mercantil",
@@ -96,13 +96,13 @@
       "color": "#F59E0B",
       "icon": "Coins",
       "id": "acc-6",
-      "currentBalance": 1693.52,
+      "currentBalance": 1593.52,
       "digitalUsdBalance": 0,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-09T18:53:20.571Z"
+      "updatedAt": "2026-11-10T15:14:28.413Z"
     },
     {
       "name": "Efectivo ($)",
@@ -122,6 +122,25 @@
     }
   ],
   "transactions": [
+    {
+      "id": "tx-1794323668413-pxhgb",
+      "type": "transfer",
+      "accountId": "acc-6",
+      "toAccountId": "acc-2",
+      "toSubFund": "ves",
+      "amount": 100,
+      "currency": "USD",
+      "appliedRate": 1053.8683,
+      "destinationAmount": 105386.83,
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-10T15:12:00.000Z",
+      "note": "Cambio Compra Provincial 100$",
+      "createdAt": "2026-11-10T15:14:28.413Z",
+      "updatedAt": "2026-11-10T15:14:28.413Z"
+    },
     {
       "id": "tx-1794264249879-faypl",
       "type": "expense",
