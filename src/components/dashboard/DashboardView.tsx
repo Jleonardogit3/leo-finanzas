@@ -77,6 +77,43 @@ const CustomDonutTooltip: React.FC<CustomDonutTooltipProps> = ({ active, payload
   return null;
 };
 
+interface CustomBarTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+}
+
+const CustomBarTooltip: React.FC<CustomBarTooltipProps> = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="px-3.5 py-2.5 rounded-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/80 shadow-2xl text-white pointer-events-none min-w-[150px]">
+        <div className="font-bold text-xs text-slate-300 mb-1.5 border-b border-slate-800 pb-1">
+          {label}
+        </div>
+        <div className="space-y-1 text-xs">
+          {payload.map((entry: any, index: number) => {
+            const name = entry.name || (index === 0 ? 'Ingresos' : 'Egresos');
+            const color = entry.color || (index === 0 ? '#10B981' : '#F43F5E');
+            const value = Number(entry.value || 0);
+            return (
+              <div key={`bar-tip-${index}`} className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 font-medium text-slate-300">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                  <span>{name}:</span>
+                </span>
+                <span className="font-bold" style={{ color }}>
+                  ${value.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const DashboardView: React.FC = () => {
   const { 
     totalNetWorthUsdBcv, 
@@ -861,17 +898,8 @@ export const DashboardView: React.FC = () => {
                 <XAxis dataKey="name" stroke="#64748B" fontSize={11} tickLine={false} />
                 <YAxis stroke="#64748B" fontSize={11} tickLine={false} />
                 <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#0F172A', 
-                    borderColor: '#334155', 
-                    borderRadius: '16px',
-                    color: '#FFFFFF',
-                    fontSize: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
-                  }}
-                  itemStyle={{ color: '#FFFFFF', fontWeight: 'bold' }}
-                  labelStyle={{ color: '#94A3B8', fontWeight: 'bold', marginBottom: '4px' }}
-                  formatter={(val: any, name: any) => [`$${Number(val || 0).toFixed(2)} USD`, name || 'Monto']}
+                  content={<CustomBarTooltip />}
+                  cursor={{ fill: 'rgba(255, 255, 255, 0.05)', radius: 8 }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                 <Bar dataKey="Ingresos" name="Ingresos" fill="#10B981" radius={[6, 6, 0, 0]} />
