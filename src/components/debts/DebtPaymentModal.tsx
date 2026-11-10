@@ -72,11 +72,40 @@ export const DebtPaymentModal: React.FC = () => {
     }
   }, [activeDebtForPayment, liveUsdRemaining, liveVesRemaining, accounts]);
 
+  const selectedTargetAccount = accounts.find(a => a.id === targetAccountId);
+  const isTargetUsd = selectedTargetAccount?.currency === 'USD' || 
+    targetSubFund === 'digital_usd' || 
+    targetSubFund === 'physical_usd';
+  const currentPaymentAmount = parseFloat(amountStr) || 0;
+  const bcvRate = rates.bcv > 0 ? rates.bcv : 1;
+
+  // Live account impact amount (calculated unconditionally before any early return)
+  const { accountImpactAmount, accountImpactCurrency } = useMemo(() => {
+    if (currentPaymentAmount <= 0) {
+      return { accountImpactAmount: 0, accountImpactCurrency: isTargetUsd ? 'USD' : 'VES' };
+    }
+    if (isTargetUsd && paymentCurrency === 'VES') {
+      return {
+        accountImpactAmount: Number((currentPaymentAmount / bcvRate).toFixed(2)),
+        accountImpactCurrency: 'USD'
+      };
+    }
+    if (!isTargetUsd && paymentCurrency === 'USD') {
+      return {
+        accountImpactAmount: Number((currentPaymentAmount * bcvRate).toFixed(2)),
+        accountImpactCurrency: 'VES'
+      };
+    }
+    return {
+      accountImpactAmount: currentPaymentAmount,
+      accountImpactCurrency: paymentCurrency
+    };
+  }, [currentPaymentAmount, isTargetUsd, paymentCurrency, bcvRate]);
+
+  // Hook rules: Early return ONLY after all hooks (useState, useMemo, useEffect) have been invoked
   if (!isDebtPaymentModalOpen || !activeDebtForPayment) return null;
 
   const isPayable = activeDebtForPayment.debtType === 'payable';
-  const currentPaymentAmount = parseFloat(amountStr) || 0;
-  const bcvRate = rates.bcv > 0 ? rates.bcv : 1;
 
   const handleCurrencyChange = (newCurr: Currency) => {
     if (newCurr === paymentCurrency) return;
@@ -101,34 +130,6 @@ export const DebtPaymentModal: React.FC = () => {
       setAmountStr(liveUsdRemaining.toFixed(2));
     }
   };
-
-  const selectedTargetAccount = accounts.find(a => a.id === targetAccountId);
-  const isTargetUsd = selectedTargetAccount?.currency === 'USD' || 
-    targetSubFund === 'digital_usd' || 
-    targetSubFund === 'physical_usd';
-
-  // Live account impact amount
-  const { accountImpactAmount, accountImpactCurrency } = useMemo(() => {
-    if (currentPaymentAmount <= 0) {
-      return { accountImpactAmount: 0, accountImpactCurrency: isTargetUsd ? 'USD' : 'VES' };
-    }
-    if (isTargetUsd && paymentCurrency === 'VES') {
-      return {
-        accountImpactAmount: Number((currentPaymentAmount / bcvRate).toFixed(2)),
-        accountImpactCurrency: 'USD'
-      };
-    }
-    if (!isTargetUsd && paymentCurrency === 'USD') {
-      return {
-        accountImpactAmount: Number((currentPaymentAmount * bcvRate).toFixed(2)),
-        accountImpactCurrency: 'VES'
-      };
-    }
-    return {
-      accountImpactAmount: currentPaymentAmount,
-      accountImpactCurrency: paymentCurrency
-    };
-  }, [currentPaymentAmount, isTargetUsd, paymentCurrency, bcvRate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

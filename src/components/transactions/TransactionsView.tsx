@@ -315,20 +315,39 @@ export const TransactionsView: React.FC = () => {
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <div className={`text-xs sm:text-sm font-black ${
-                        isIncome 
-                          ? 'text-emerald-600 dark:text-emerald-400' 
-                          : isTransfer
-                          ? 'text-blue-600 dark:text-blue-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}>
-                        {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{RatesService.formatMoney(tx.amount, tx.currency)}
-                      </div>
-                      <div className="text-[10px] text-slate-600 dark:text-slate-400">
-                        {tx.currency === 'VES' 
-                          ? `≈ $${(tx.amount / (rates.usdt || 1)).toFixed(2)} USD` 
-                          : `≈ ${(tx.amount * rates.usdt).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs`}
-                      </div>
+                      {isTransfer && tx.destinationAmount && tx.destinationAmount !== tx.amount ? (
+                        <div>
+                          <div className="text-xs sm:text-sm font-black text-blue-600 dark:text-blue-400">
+                            -{RatesService.formatMoney(tx.amount, tx.currency)} ➔ +{RatesService.formatMoney(tx.destinationAmount, tx.currency === 'USD' ? 'VES' : 'USD')}
+                          </div>
+                          {tx.appliedRate ? (
+                            <div className="text-[10px] text-slate-500 font-semibold">
+                              Tasa: {tx.appliedRate.toLocaleString('es-VE')} Bs/$
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-500 font-semibold">
+                              Cambio entre cuentas
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className={`text-xs sm:text-sm font-black ${
+                            isIncome 
+                              ? 'text-emerald-600 dark:text-emerald-400' 
+                              : isTransfer
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                          }`}>
+                            {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{RatesService.formatMoney(tx.amount, tx.currency)}
+                          </div>
+                          <div className="text-[10px] text-slate-600 dark:text-slate-400">
+                            {tx.currency === 'VES' 
+                              ? `≈ $${(tx.amount / (rates.usdt || 1)).toFixed(2)} USD` 
+                              : `≈ ${(tx.amount * rates.usdt).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs`}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <button

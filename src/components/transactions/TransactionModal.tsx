@@ -222,6 +222,26 @@ export const TransactionModal: React.FC = () => {
     (subFund === 'digital_usd' || (sourceAccount?.currency === 'USD' && subFund !== 'ves' && subFund !== 'physical_usd')) &&
     isDestBinance;
 
+  // Binance P2P Transfer: Transfer from Binance ($ / USDT) to a bank in Bolívares (VES)
+  const isSourceBinance = (sourceAccount?.name || '').toLowerCase().includes('binance') || sourceAccount?.type === 'wallet_crypto';
+  const isDestBankInBs = Boolean(destAccount && ((destAccount.type === 'bank_ves' && toSubFund === 'ves') || destAccount.currency === 'VES'));
+  const isBinanceToBankP2P = type === 'transfer' && isSourceBinance && isDestBankInBs;
+
+  // Auto-set currency to USD and default P2P rate when transferring Binance -> Bank (Bs)
+  useEffect(() => {
+    if (isBinanceToBankP2P) {
+      if (currency !== 'USD') {
+        setCurrency('USD');
+      }
+      if (!customRate || customRate === '0') {
+        setCustomRate(rates.usdt ? rates.usdt.toString() : (rates.bcv ? rates.bcv.toString() : ''));
+      }
+      if (toSubFund !== 'ves') {
+        setToSubFund('ves');
+      }
+    }
+  }, [isBinanceToBankP2P, currency, customRate, toSubFund, rates]);
+
   // Auto-set default bank commission percent when bank changes (Provincial: 1.5%, others: 2.45%)
   useEffect(() => {
     if (!isManualBankPercent && isBankToBinanceTransfer) {
@@ -261,7 +281,7 @@ export const TransactionModal: React.FC = () => {
   }
 
   // Calculate if the transfer is eligible for VES bank / Pago Móvil commission
-  const isVesTransfer = type === 'transfer' && !isBankToBinanceTransfer && (
+  const isVesTransfer = type === 'transfer' && !isBankToBinanceTransfer && !isBinanceToBankP2P && (
     currency === 'VES' || 
     sourceAccount?.currency === 'VES' || 
     (sourceAccount?.type === 'bank_ves' && subFund === 'ves')
@@ -303,15 +323,17 @@ export const TransactionModal: React.FC = () => {
         subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
         toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
         amount: currentAmount,
-        currency,
+        currency: isBinanceToBankP2P ? 'USD' : currency,
         appliedRate: type === 'transfer' ? effectiveRate : undefined,
         destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
-        categoryId: selectedCategory?.id || 'cat-general',
-        categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
-        categoryIcon: selectedCategory?.icon,
-        categoryColor: selectedCategory?.color,
+        categoryId: selectedCategory?.id || (isBinanceToBankP2P ? 'cat-p2p' : 'cat-general'),
+        categoryName: isBinanceToBankP2P 
+          ? 'Cambio P2P (Binance)' 
+          : (selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General')),
+        categoryIcon: selectedCategory?.icon || (isBinanceToBankP2P ? 'ArrowLeftRight' : undefined),
+        categoryColor: selectedCategory?.color || (isBinanceToBankP2P ? '#F59E0B' : undefined),
         date: safeToISO(date),
-        note: note.trim() || undefined,
+        note: note.trim() || (isBinanceToBankP2P ? `Venta P2P Binance: $${currentAmount} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}` : undefined),
         updatedAt: new Date().toISOString()
       };
       updateTransaction(updatedTx);
@@ -324,15 +346,17 @@ export const TransactionModal: React.FC = () => {
         subFund: (sourceAccount?.type === 'bank_ves') ? subFund : undefined,
         toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
         amount: currentAmount,
-        currency,
+        currency: isBinanceToBankP2P ? 'USD' : currency,
         appliedRate: type === 'transfer' ? effectiveRate : undefined,
         destinationAmount: type === 'transfer' ? calculatedDestAmount : undefined,
-        categoryId: selectedCategory?.id || 'cat-general',
-        categoryName: selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'),
-        categoryIcon: selectedCategory?.icon,
-        categoryColor: selectedCategory?.color,
+        categoryId: selectedCategory?.id || (isBinanceToBankP2P ? 'cat-p2p' : 'cat-general'),
+        categoryName: isBinanceToBankP2P 
+          ? 'Cambio P2P (Binance)' 
+          : (selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General')),
+        categoryIcon: selectedCategory?.icon || (isBinanceToBankP2P ? 'ArrowLeftRight' : undefined),
+        categoryColor: selectedCategory?.color || (isBinanceToBankP2P ? '#F59E0B' : undefined),
         date: safeToISO(date),
-        note: note.trim() || undefined,
+        note: note.trim() || (isBinanceToBankP2P ? `Venta P2P Binance: $${currentAmount} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}` : undefined),
         createdAt: new Date().toISOString()
       };
       addTransaction(newTx);
@@ -874,8 +898,98 @@ export const TransactionModal: React.FC = () => {
             </div>
           )}
 
-          {/* Transfer Exchange Rate & Converted Destination Preview */}
-          {type === 'transfer' && sourceAccount && destAccount && sourceEffectiveCurrency !== destEffectiveCurrency && !isBankToBinanceTransfer && (
+          {/* Card Especial de Cambio P2P Binance ($ USD) -> Banco en Bs */}
+          {isBinanceToBankP2P && (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-emerald-500/10 to-teal-500/10 border border-emerald-500/30 space-y-3.5 shadow-sm animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                    <ArrowLeftRight className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <span>Cambio P2P: Binance &rarr; {destAccount?.name || 'Banco'}</span>
+                      <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-black border border-amber-500/30">
+                        P2P
+                      </span>
+                    </h4>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                      Venta de USDT en Binance P2P con depósito en Bolívares
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tasa P2P Input */}
+              <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-500/30 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      Tasa de cambio P2P acordada:
+                    </label>
+                    <span className="text-[10px] text-slate-500 block">
+                      Precio en Bs por cada dólar / USDT vendido
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={customRate}
+                      onChange={(e) => setCustomRate(e.target.value)}
+                      className="w-32 px-3 py-1.5 text-right rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-black text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                    <span className="text-xs font-bold text-slate-500">Bs/$</span>
+                  </div>
+                </div>
+
+                {/* Botones de tasas rápidas */}
+                <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[10px]">
+                  <span className="text-slate-400 font-medium">Tasas del día:</span>
+                  <button
+                    type="button"
+                    onClick={() => setCustomRate(rates.usdt ? rates.usdt.toString() : '0')}
+                    className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-bold transition-colors border border-emerald-500/20"
+                  >
+                    USDT: {rates.usdt} Bs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomRate(rates.bcv ? rates.bcv.toString() : '0')}
+                    className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 font-bold transition-colors border border-blue-500/20"
+                  >
+                    BCV: {rates.bcv} Bs
+                  </button>
+                </div>
+              </div>
+
+              {/* Resumen de Montos P2P */}
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1.5 text-xs font-semibold">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span>Dólares debitados de Binance:</span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400">
+                    -${currentAmount.toFixed(2)} USD
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                  <span>Tasa P2P aplicada:</span>
+                  <span className="font-bold">{effectiveRate.toFixed(2)} Bs / USD</span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-black">
+                  <span>Bolívares a recibir en {destAccount?.name}:</span>
+                  <span className="text-sm text-emerald-600 dark:text-emerald-400 font-black">
+                    +Bs. {calculatedDestAmount.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Transfer Exchange Rate & Converted Destination Preview para otras transferencias entre monedas distintas */}
+          {type === 'transfer' && sourceAccount && destAccount && sourceEffectiveCurrency !== destEffectiveCurrency && !isBankToBinanceTransfer && !isBinanceToBankP2P && (
             <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-blue-700 dark:text-blue-300">
