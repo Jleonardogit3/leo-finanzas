@@ -59,6 +59,12 @@ export interface Transaction {
   note?: string;
   createdAt: string;
   updatedAt?: string;
+
+  // Auditoría de saldo: balance antes y después de esta operación
+  accountBalanceBefore?: number;
+  accountBalanceAfter?: number;
+  toAccountBalanceBefore?: number;
+  toAccountBalanceAfter?: number;
 }
 
 export type DebtStatus = 'pending' | 'partially_paid' | 'paid' | 'uncollectible';

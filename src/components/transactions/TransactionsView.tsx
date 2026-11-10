@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { RatesService } from '../../services/ratesService';
-import { TimeFilter, TransactionType, Transaction } from '../../types';
+import { StorageService } from '../../services/storageService';
+import { TimeFilter, TransactionType, Transaction, Account, SubFundType, Currency } from '../../types';
 
 export const TransactionsView: React.FC = () => {
   const { 
@@ -32,6 +33,27 @@ export const TransactionsView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
+
+  // Memoized running balance impacts across all transactions in history
+  const balanceImpacts = useMemo(() => {
+    return StorageService.computeRunningBalanceImpacts(transactions, accounts);
+  }, [transactions, accounts]);
+
+  const getAccountSubFundLabel = (acc?: Account | null, subFund?: SubFundType) => {
+    if (!acc) return 'Cuenta';
+    if (acc.type === 'bank_ves') {
+      if (subFund === 'digital_usd') return `${acc.name} ($ Digitales)`;
+      if (subFund === 'physical_usd') return `${acc.name} ($ Físicos)`;
+      return `${acc.name} (Bs)`;
+    }
+    return acc.name;
+  };
+
+  const getSubFundCurrency = (acc?: Account | null, subFund?: SubFundType): Currency => {
+    if (subFund === 'digital_usd' || subFund === 'physical_usd') return 'USD';
+    if (subFund === 'ves') return 'VES';
+    return acc?.currency || 'USD';
+  };
 
   // Helper for safe date display
   const formatTxDate = (dateVal: string | undefined | null) => {
@@ -273,11 +295,12 @@ export const TransactionsView: React.FC = () => {
               const toAccount = tx.toAccountId ? accounts.find(a => a.id === tx.toAccountId) : null;
               const isIncome = tx.type === 'income';
               const isTransfer = tx.type === 'transfer';
+              const impact = balanceImpacts.get(tx.id);
 
               return (
                 <div key={tx.id} className="py-3.5 flex items-center justify-between gap-3 group">
                   <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-2xl ${
+                    <div className={`p-3 rounded-2xl shrink-0 ${
                       isIncome 
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' 
                         : isTransfer 
@@ -310,6 +333,44 @@ export const TransactionsView: React.FC = () => {
                         )}
                         <span>• {formatTxDate(tx.date)}</span>
                       </div>
+
+                      {/* Saldo Resultante con este Movimiento */}
+                      {impact && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+                          {isTransfer && toAccount ? (
+                            <>
+                              {/* Impacto Cuenta Origen */}
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 font-medium">
+                                <span className="font-bold">{getAccountSubFundLabel(account, tx.subFund)}:</span>
+                                <span className="line-through opacity-70">{RatesService.formatMoney(impact.accountBalanceBefore, getSubFundCurrency(account, tx.subFund))}</span>
+                                <span>➔</span>
+                                <span className="font-black text-rose-900 dark:text-rose-100">{RatesService.formatMoney(impact.accountBalanceAfter, getSubFundCurrency(account, tx.subFund))}</span>
+                              </span>
+
+                              {/* Impacto Cuenta Destino */}
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-medium">
+                                <span className="font-bold">{getAccountSubFundLabel(toAccount, tx.toSubFund)}:</span>
+                                <span className="line-through opacity-70">{RatesService.formatMoney(impact.toAccountBalanceBefore ?? 0, getSubFundCurrency(toAccount, tx.toSubFund))}</span>
+                                <span>➔</span>
+                                <span className="font-black text-emerald-900 dark:text-emerald-100">{RatesService.formatMoney(impact.toAccountBalanceAfter ?? 0, getSubFundCurrency(toAccount, tx.toSubFund))}</span>
+                              </span>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium">
+                              <span className="font-semibold text-slate-500 dark:text-slate-400">
+                                Saldo {getAccountSubFundLabel(account, tx.subFund)}:
+                              </span>
+                              <span className="line-through opacity-70">
+                                {RatesService.formatMoney(impact.accountBalanceBefore, getSubFundCurrency(account, tx.subFund))}
+                              </span>
+                              <span className="text-slate-400">➔</span>
+                              <span className={`font-black ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                                {RatesService.formatMoney(impact.accountBalanceAfter, getSubFundCurrency(account, tx.subFund))}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-10T15:27:58.207Z",
+  "lastUpdated": "2026-11-10T16:13:15.216Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -16,9 +16,9 @@
       "icon": "Building2",
       "bankCode": "0102",
       "id": "acc-1",
-      "currentBalance": 764.66,
+      "currentBalance": 2264.66,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-09T22:35:22.616Z"
+      "updatedAt": "2026-11-10T15:57:11.120Z"
     },
     {
       "name": "Banco Provincial (BBVA)",
@@ -33,9 +33,9 @@
       "icon": "Landmark",
       "bankCode": "0108",
       "id": "acc-2",
-      "currentBalance": 108101.45,
+      "currentBalance": 90017.38,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-10T15:14:28.413Z"
+      "updatedAt": "2026-11-10T16:13:06.163Z"
     },
     {
       "name": "Banco Mercantil",
@@ -118,10 +118,77 @@
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-09T22:44:09.880Z"
+      "updatedAt": "2026-11-10T15:53:59.862Z"
     }
   ],
   "transactions": [
+    {
+      "id": "tx-1794326231119-56lmy",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 500,
+      "currency": "VES",
+      "categoryId": "cat-custom-1794247335853",
+      "categoryName": "Pasajes",
+      "categoryIcon": "Tag",
+      "categoryColor": "#64748B",
+      "date": "2026-11-10T15:56:00.000Z",
+      "note": "Pasajes Mama",
+      "createdAt": "2026-11-10T15:57:11.119Z",
+      "updatedAt": "2026-11-10T15:57:11.120Z"
+    },
+    {
+      "id": "tx-1794326216462-iwwrv",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 14,
+      "currency": "VES",
+      "categoryId": "cat-custom-1793806188173",
+      "categoryName": "Comision Banco",
+      "categoryIcon": "Tag",
+      "categoryColor": "#ffffff",
+      "date": "2026-11-10T15:56:00.000Z",
+      "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Transferencia a Banco de Venezuela",
+      "createdAt": "2026-11-10T15:56:56.462Z",
+      "updatedAt": "2026-11-10T15:56:56.453Z"
+    },
+    {
+      "id": "tx-1794326216449-kje6w",
+      "type": "transfer",
+      "accountId": "acc-2",
+      "toAccountId": "acc-1",
+      "subFund": "ves",
+      "toSubFund": "ves",
+      "amount": 2000,
+      "currency": "VES",
+      "appliedRate": 899.2705,
+      "destinationAmount": 2000,
+      "categoryId": "cat-comida",
+      "categoryName": "Comida",
+      "categoryIcon": "Utensils",
+      "categoryColor": "#F97316",
+      "date": "2026-11-10T15:56:00.000Z",
+      "createdAt": "2026-11-10T15:56:56.449Z",
+      "updatedAt": "2026-11-10T15:56:56.450Z"
+    },
+    {
+      "id": "tx-1794326321507-rtkwm",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 8048.07,
+      "currency": "VES",
+      "categoryId": "cat-entretenimiento",
+      "categoryName": "Entretenimiento",
+      "categoryIcon": "Gamepad2",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-10T15:15:00.000Z",
+      "note": "Salida Cumpleaños Laura",
+      "createdAt": "2026-11-10T15:58:41.507Z",
+      "updatedAt": "2026-11-10T16:13:06.163Z"
+    },
     {
       "id": "tx-1794323668413-pxhgb",
       "type": "transfer",
@@ -140,21 +207,6 @@
       "note": "Cambio Compra Provincial 100$",
       "createdAt": "2026-11-10T15:14:28.413Z",
       "updatedAt": "2026-11-10T15:14:28.413Z"
-    },
-    {
-      "id": "tx-1794264249879-faypl",
-      "type": "expense",
-      "accountId": "acc-7",
-      "amount": 40,
-      "currency": "USD",
-      "categoryId": "cat-trabajo",
-      "categoryName": "Trabajo",
-      "categoryIcon": "Briefcase",
-      "categoryColor": "#64748B",
-      "date": "2026-11-09T22:43:00.000Z",
-      "note": "Alquiler local",
-      "createdAt": "2026-11-09T22:44:09.879Z",
-      "updatedAt": "2026-11-09T22:44:09.880Z"
     },
     {
       "id": "tx-1794263421735-jnb1a",
@@ -254,6 +306,40 @@
       "note": "Pago comisiones BNC",
       "createdAt": "2026-11-09T20:18:54.241Z",
       "updatedAt": "2026-11-09T20:18:54.242Z"
+    },
+    {
+      "id": "tx-debt-1794326142868",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 8022,
+      "currency": "VES",
+      "appliedRate": 899.2705,
+      "categoryId": "cat-pago-deuda",
+      "categoryName": "Pago de Deuda: Yogurt Mercantil",
+      "categoryIcon": "CreditCard",
+      "categoryColor": "#EF4444",
+      "date": "2026-11-09T19:32:00.000Z",
+      "note": "Pago realizado por deuda propia: Prestamo Cumpleaños Laura (8.022,00 Bs (Tasa BCV 899.2705 Bs/$)) - Pago prestamo yogurt",
+      "createdAt": "2026-11-10T15:55:42.868Z",
+      "updatedAt": "2026-11-10T15:55:42.868Z"
+    },
+    {
+      "id": "tx-debt-1794326039861",
+      "type": "expense",
+      "accountId": "acc-7",
+      "subFund": "ves",
+      "amount": 40,
+      "currency": "USD",
+      "appliedRate": 899.2705,
+      "categoryId": "cat-pago-deuda",
+      "categoryName": "Pago de Deuda: Local",
+      "categoryIcon": "CreditCard",
+      "categoryColor": "#EF4444",
+      "date": "2026-11-09T19:32:00.000Z",
+      "note": "Pago realizado por deuda propia: Alquiler Local ($40.00 USD (Tasa BCV 899.2705 Bs/$)) - Alquiler Local",
+      "createdAt": "2026-11-10T15:53:59.861Z",
+      "updatedAt": "2026-11-10T15:53:59.861Z"
     },
     {
       "id": "tx-1794250587303-f24c4",
@@ -1061,29 +1147,25 @@
       "originalAmount": 40,
       "currencyType": "USD_USDT",
       "appliedRateAtCreation": 1043.6595,
-      "remainingAmount": 40,
-      "status": "pending",
+      "remainingAmount": 0,
+      "status": "paid",
       "dueDate": "2026-11-10",
       "peggedUsdAmount": 40,
-      "lastCalculatedRate": 1043.6595,
+      "lastCalculatedRate": 899.2705,
       "createdAt": "2026-11-09T19:43:51.344Z",
-      "updatedAt": "2026-11-09T19:45:52.583Z",
-      "payments": []
-    },
-    {
-      "id": "debt-1794250639819-v5x7h",
-      "debtType": "payable",
-      "debtorName": "Yogurt Mercantil",
-      "concept": "Prestamo Cumpleaños Laura",
-      "originalAmount": 8024,
-      "currencyType": "VES_BCV",
-      "appliedRateAtCreation": 897.5383,
-      "remainingAmount": 8024,
-      "status": "pending",
-      "dueDate": "2026-11-08",
-      "createdAt": "2026-11-09T18:57:19.819Z",
-      "updatedAt": "2026-11-09T18:57:29.820Z",
-      "payments": []
+      "updatedAt": "2026-11-10T15:53:59.860Z",
+      "payments": [
+        {
+          "amount": 40,
+          "currency": "USD",
+          "date": "2026-11-09T19:32:00.000Z",
+          "note": "Alquiler Local",
+          "appliedRate": 899.2705,
+          "receivedInAccountId": "acc-7",
+          "receivedInSubFund": "ves",
+          "id": "debt-pay-1794326039860"
+        }
+      ]
     },
     {
       "id": "debt-1793806996496-kzstz",
@@ -1680,6 +1762,16 @@
       "id": "tx-1793972942354-vd2rq",
       "type": "transaction",
       "deletedAt": "2026-11-06T13:50:22.642Z"
+    },
+    {
+      "id": "tx-1794264249879-faypl",
+      "type": "transaction",
+      "deletedAt": "2026-11-10T15:53:13.854Z"
+    },
+    {
+      "id": "debt-1794250639819-v5x7h",
+      "type": "debt",
+      "deletedAt": "2026-11-10T15:58:01.970Z"
     }
   ],
   "auditLogs": [],

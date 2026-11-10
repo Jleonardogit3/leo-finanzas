@@ -575,6 +575,11 @@ export class StorageService {
     const transactions = this.getTransactions(userId);
     const accounts = this.getAccounts(userId);
 
+    let originBefore: number | undefined;
+    let originAfter: number | undefined;
+    let destBefore: number | undefined;
+    let destAfter: number | undefined;
+
     // Calculate balance impacts
     const updatedAccounts = accounts.map(acc => {
       let isModified = false;
@@ -588,11 +593,17 @@ export class StorageService {
         const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
 
         if (tx.subFund === 'digital_usd') {
+          originBefore = newDigital;
           newDigital = Number((newDigital + delta).toFixed(2));
+          originAfter = newDigital;
         } else if (tx.subFund === 'physical_usd') {
+          originBefore = newPhysical;
           newPhysical = Number((newPhysical + delta).toFixed(2));
+          originAfter = newPhysical;
         } else {
+          originBefore = newCurrent;
           newCurrent = Number((newCurrent + delta).toFixed(2));
+          originAfter = newCurrent;
         }
       }
 
@@ -602,11 +613,17 @@ export class StorageService {
         const incomingAmount = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
 
         if (tx.toSubFund === 'digital_usd') {
+          destBefore = newDigital;
           newDigital = Number((newDigital + incomingAmount).toFixed(2));
+          destAfter = newDigital;
         } else if (tx.toSubFund === 'physical_usd') {
+          destBefore = newPhysical;
           newPhysical = Number((newPhysical + incomingAmount).toFixed(2));
+          destAfter = newPhysical;
         } else {
+          destBefore = newCurrent;
           newCurrent = Number((newCurrent + incomingAmount).toFixed(2));
+          destAfter = newCurrent;
         }
       }
 
@@ -625,6 +642,10 @@ export class StorageService {
 
     const txWithUpdated: Transaction = {
       ...tx,
+      accountBalanceBefore: originBefore !== undefined ? originBefore : tx.accountBalanceBefore,
+      accountBalanceAfter: originAfter !== undefined ? originAfter : tx.accountBalanceAfter,
+      toAccountBalanceBefore: destBefore !== undefined ? destBefore : tx.toAccountBalanceBefore,
+      toAccountBalanceAfter: destAfter !== undefined ? destAfter : tx.toAccountBalanceAfter,
       updatedAt: tx.updatedAt || new Date().toISOString()
     };
     const updatedTxs = [txWithUpdated, ...transactions].sort((a, b) => {
@@ -759,6 +780,11 @@ export class StorageService {
     });
 
     // 2. Apply new updated transaction's balances to accounts
+    let originBefore: number | undefined;
+    let originAfter: number | undefined;
+    let destBefore: number | undefined;
+    let destAfter: number | undefined;
+
     const updatedAccounts = accounts.map(acc => {
       let isModified = false;
       let cur = acc.currentBalance;
@@ -768,17 +794,37 @@ export class StorageService {
       if (acc.id === updatedTx.accountId) {
         isModified = true;
         const delta = (updatedTx.type === 'expense' || updatedTx.type === 'transfer') ? -updatedTx.amount : updatedTx.amount;
-        if (updatedTx.subFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
-        else if (updatedTx.subFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
-        else cur = Number((cur + delta).toFixed(2));
+        if (updatedTx.subFund === 'digital_usd') {
+          originBefore = dig;
+          dig = Number((dig + delta).toFixed(2));
+          originAfter = dig;
+        } else if (updatedTx.subFund === 'physical_usd') {
+          originBefore = phy;
+          phy = Number((phy + delta).toFixed(2));
+          originAfter = phy;
+        } else {
+          originBefore = cur;
+          cur = Number((cur + delta).toFixed(2));
+          originAfter = cur;
+        }
       }
 
       if (updatedTx.type === 'transfer' && updatedTx.toAccountId && acc.id === updatedTx.toAccountId) {
         isModified = true;
         const incomingAmount = updatedTx.destinationAmount !== undefined ? updatedTx.destinationAmount : updatedTx.amount;
-        if (updatedTx.toSubFund === 'digital_usd') dig = Number((dig + incomingAmount).toFixed(2));
-        else if (updatedTx.toSubFund === 'physical_usd') phy = Number((phy + incomingAmount).toFixed(2));
-        else cur = Number((cur + incomingAmount).toFixed(2));
+        if (updatedTx.toSubFund === 'digital_usd') {
+          destBefore = dig;
+          dig = Number((dig + incomingAmount).toFixed(2));
+          destAfter = dig;
+        } else if (updatedTx.toSubFund === 'physical_usd') {
+          destBefore = phy;
+          phy = Number((phy + incomingAmount).toFixed(2));
+          destAfter = phy;
+        } else {
+          destBefore = cur;
+          cur = Number((cur + incomingAmount).toFixed(2));
+          destAfter = cur;
+        }
       }
 
       if (isModified) {
@@ -789,6 +835,10 @@ export class StorageService {
 
     const txWithUpdated: Transaction = {
       ...updatedTx,
+      accountBalanceBefore: originBefore !== undefined ? originBefore : updatedTx.accountBalanceBefore,
+      accountBalanceAfter: originAfter !== undefined ? originAfter : updatedTx.accountBalanceAfter,
+      toAccountBalanceBefore: destBefore !== undefined ? destBefore : updatedTx.toAccountBalanceBefore,
+      toAccountBalanceAfter: destAfter !== undefined ? destAfter : updatedTx.toAccountBalanceAfter,
       updatedAt: new Date().toISOString()
     };
 
@@ -812,6 +862,81 @@ export class StorageService {
     }
 
     return { updatedAccounts, transaction: txWithUpdated };
+  }
+
+  /**
+   * Computes before and after balance impacts for every transaction in history
+   */
+  static computeRunningBalanceImpacts(
+    transactions: Transaction[],
+    accounts: Account[]
+  ): Map<string, {
+    accountBalanceBefore: number;
+    accountBalanceAfter: number;
+    toAccountBalanceBefore?: number;
+    toAccountBalanceAfter?: number;
+  }> {
+    // Sort descending: newest first
+    const sorted = [...transactions].sort((a, b) => {
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+
+    // Start with live current balances of all accounts
+    const balances: Record<string, { ves: number; digital_usd: number; physical_usd: number }> = {};
+    for (const acc of accounts) {
+      balances[acc.id] = {
+        ves: Number((acc.currentBalance ?? 0).toFixed(2)),
+        digital_usd: Number((acc.digitalUsdBalance ?? 0).toFixed(2)),
+        physical_usd: Number((acc.physicalUsdBalance ?? 0).toFixed(2))
+      };
+    }
+
+    const map = new Map<string, {
+      accountBalanceBefore: number;
+      accountBalanceAfter: number;
+      toAccountBalanceBefore?: number;
+      toAccountBalanceAfter?: number;
+    }>();
+
+    for (const tx of sorted) {
+      const origSub = tx.subFund || 'ves';
+      const destSub = tx.toSubFund || 'ves';
+
+      const currentOrigBal = balances[tx.accountId] ? balances[tx.accountId][origSub] : 0;
+      const origDelta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
+      const calculatedOrigBefore = Number((currentOrigBal - origDelta).toFixed(2));
+      const calculatedOrigAfter = currentOrigBal;
+
+      let calculatedDestBefore: number | undefined = undefined;
+      let calculatedDestAfter: number | undefined = undefined;
+
+      if (tx.type === 'transfer' && tx.toAccountId && balances[tx.toAccountId]) {
+        const currentDestBal = balances[tx.toAccountId][destSub];
+        const incoming = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+        calculatedDestBefore = Number((currentDestBal - incoming).toFixed(2));
+        calculatedDestAfter = currentDestBal;
+      }
+
+      // Rewind balances for the older transactions
+      if (balances[tx.accountId]) {
+        balances[tx.accountId][origSub] = calculatedOrigBefore;
+      }
+      if (tx.type === 'transfer' && tx.toAccountId && balances[tx.toAccountId] && calculatedDestBefore !== undefined) {
+        balances[tx.toAccountId][destSub] = calculatedDestBefore;
+      }
+
+      map.set(tx.id, {
+        accountBalanceBefore: tx.accountBalanceBefore !== undefined ? tx.accountBalanceBefore : calculatedOrigBefore,
+        accountBalanceAfter: tx.accountBalanceAfter !== undefined ? tx.accountBalanceAfter : calculatedOrigAfter,
+        toAccountBalanceBefore: tx.toAccountBalanceBefore !== undefined ? tx.toAccountBalanceBefore : calculatedDestBefore,
+        toAccountBalanceAfter: tx.toAccountBalanceAfter !== undefined ? tx.toAccountBalanceAfter : calculatedDestAfter
+      });
+    }
+
+    return map;
   }
 
   /**
