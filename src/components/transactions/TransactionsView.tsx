@@ -333,44 +333,6 @@ export const TransactionsView: React.FC = () => {
                         )}
                         <span>• {formatTxDate(tx.date)}</span>
                       </div>
-
-                      {/* Saldo Resultante con este Movimiento */}
-                      {impact && (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                          {isTransfer && toAccount ? (
-                            <>
-                              {/* Impacto Cuenta Origen */}
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 font-medium">
-                                <span className="font-bold">{getAccountSubFundLabel(account, tx.subFund)}:</span>
-                                <span className="line-through opacity-70">{RatesService.formatMoney(impact.accountBalanceBefore, getSubFundCurrency(account, tx.subFund))}</span>
-                                <span>➔</span>
-                                <span className="font-black text-rose-900 dark:text-rose-100">{RatesService.formatMoney(impact.accountBalanceAfter, getSubFundCurrency(account, tx.subFund))}</span>
-                              </span>
-
-                              {/* Impacto Cuenta Destino */}
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-medium">
-                                <span className="font-bold">{getAccountSubFundLabel(toAccount, tx.toSubFund)}:</span>
-                                <span className="line-through opacity-70">{RatesService.formatMoney(impact.toAccountBalanceBefore ?? 0, getSubFundCurrency(toAccount, tx.toSubFund))}</span>
-                                <span>➔</span>
-                                <span className="font-black text-emerald-900 dark:text-emerald-100">{RatesService.formatMoney(impact.toAccountBalanceAfter ?? 0, getSubFundCurrency(toAccount, tx.toSubFund))}</span>
-                              </span>
-                            </>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium">
-                              <span className="font-semibold text-slate-500 dark:text-slate-400">
-                                Saldo {getAccountSubFundLabel(account, tx.subFund)}:
-                              </span>
-                              <span className="line-through opacity-70">
-                                {RatesService.formatMoney(impact.accountBalanceBefore, getSubFundCurrency(account, tx.subFund))}
-                              </span>
-                              <span className="text-slate-400">➔</span>
-                              <span className={`font-black ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                                {RatesService.formatMoney(impact.accountBalanceAfter, getSubFundCurrency(account, tx.subFund))}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -381,6 +343,24 @@ export const TransactionsView: React.FC = () => {
                           <div className="text-xs sm:text-sm font-black text-blue-600 dark:text-blue-400">
                             -{RatesService.formatMoney(tx.amount, tx.currency)} ➔ +{RatesService.formatMoney(tx.destinationAmount, tx.currency === 'USD' ? 'VES' : 'USD')}
                           </div>
+                          {impact && (
+                            <div className="text-[10px] space-y-0.5 my-0.5 font-semibold">
+                              <div className="text-rose-600 dark:text-rose-400">
+                                <span className="text-slate-400 font-normal">{getAccountSubFundLabel(account, tx.subFund)}: </span>
+                                <span className="line-through opacity-70">{RatesService.formatMoney(impact.accountBalanceBefore, getSubFundCurrency(account, tx.subFund))}</span>
+                                <span className="mx-0.5">➔</span>
+                                <span className="font-black">{RatesService.formatMoney(impact.accountBalanceAfter, getSubFundCurrency(account, tx.subFund))}</span>
+                              </div>
+                              {toAccount && (
+                                <div className="text-emerald-600 dark:text-emerald-400">
+                                  <span className="text-slate-400 font-normal">{getAccountSubFundLabel(toAccount, tx.toSubFund)}: </span>
+                                  <span className="line-through opacity-70">{RatesService.formatMoney(impact.toAccountBalanceBefore ?? 0, getSubFundCurrency(toAccount, tx.toSubFund))}</span>
+                                  <span className="mx-0.5">➔</span>
+                                  <span className="font-black">{RatesService.formatMoney(impact.toAccountBalanceAfter ?? 0, getSubFundCurrency(toAccount, tx.toSubFund))}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {tx.appliedRate ? (
                             <div className="text-[10px] text-slate-500 font-semibold">
                               Tasa: {tx.appliedRate.toLocaleString('es-VE')} Bs/$
@@ -402,7 +382,19 @@ export const TransactionsView: React.FC = () => {
                           }`}>
                             {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{RatesService.formatMoney(tx.amount, tx.currency)}
                           </div>
-                          <div className="text-[10px] text-slate-600 dark:text-slate-400">
+                          {impact && (
+                            <div className="text-[10px] text-slate-700 dark:text-slate-300 font-bold leading-tight my-0.5">
+                              <span className="text-slate-400 font-normal">Saldo: </span>
+                              <span className="line-through text-slate-400 font-normal">
+                                {RatesService.formatMoney(impact.accountBalanceBefore, getSubFundCurrency(account, tx.subFund))}
+                              </span>
+                              <span className="text-slate-400 mx-1">➔</span>
+                              <span className={`font-black ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                                {RatesService.formatMoney(impact.accountBalanceAfter, getSubFundCurrency(account, tx.subFund))}
+                              </span>
+                            </div>
+                          )}
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
                             {tx.currency === 'VES' 
                               ? `≈ $${(tx.amount / (rates.usdt || 1)).toFixed(2)} USD` 
                               : `≈ ${(tx.amount * rates.usdt).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs`}

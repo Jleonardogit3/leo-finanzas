@@ -91,7 +91,7 @@ export const App: React.FC = () => {
         <Sidebar />
 
         {/* Dynamic Content View */}
-        <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-full overflow-x-hidden">
+        <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-full overflow-x-hidden min-w-0">
           <ErrorBoundary>
             {renderActiveView()}
           </ErrorBoundary>

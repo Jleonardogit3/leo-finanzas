@@ -49,7 +49,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-64 lg:w-72 border-r border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md p-4 min-h-[calc(100vh-4rem)] select-none">
+    <aside className="hidden md:flex flex-col w-64 lg:w-72 shrink-0 sticky top-14 sm:top-16 self-start h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-y-auto border-r border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md p-4 select-none z-20">
       
       {/* Quick Action Button */}
       <button
