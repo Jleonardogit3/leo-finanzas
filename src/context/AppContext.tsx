@@ -434,15 +434,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [user?.uid]);
 
-  // Gatillo de sincronización en segundo plano con debounce para no saturar la red
-  const triggerBackgroundSync = useCallback((delayMs: number = 600, overrideUserId?: string | null) => {
+  // Canal de difusión instantánea entre pestañas del mismo navegador
+  const broadcastSyncChannel = useMemo(() => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      return new BroadcastChannel('finanzas_vzla_sync_channel');
+    }
+    return null;
+  }, []);
+
+  // Gatillo de sincronización en segundo plano inmediato (multi-dispositivo)
+  const triggerBackgroundSync = useCallback((delayMs: number = 50, overrideUserId?: string | null) => {
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
+
+    // Notificar inmediatamente a las demás pestañas abiertas en este dispositivo
+    broadcastSyncChannel?.postMessage({ type: 'DATA_CHANGED', timestamp: Date.now() });
+
     syncTimeoutRef.current = setTimeout(() => {
       syncWithServer(undefined, { silent: true, overrideUserId }).catch(() => {});
     }, delayMs);
-  }, [syncWithServer]);
+  }, [syncWithServer, broadcastSyncChannel]);
 
   const login = (usernameInput: string, passwordInput: string): { success: boolean; message?: string } => {
     const cleanUser = usernameInput.trim();
@@ -846,23 +858,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(interval);
   }, []);
 
-  // Sincronización automática periódica en segundo plano cada 1 hora como máximo
+  // Sincronización multi-dispositivo en vivo: cada 12 segundos mientras la pantalla esté activa
   useEffect(() => {
-    const ONE_HOUR_MS = 60 * 60 * 1000; // 1 hora máxima
-    
-    const checkHourlySync = () => {
-      const lastSync = SyncService.getLastSyncTime();
-      if (!lastSync) return;
-      const elapsed = Date.now() - new Date(lastSync).getTime();
-      if (elapsed >= ONE_HOUR_MS && !isSyncingRef.current) {
-        syncWithServer(undefined, { silent: true });
+    const liveMultiDeviceSync = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine && !isSyncingRef.current) {
+        syncWithServer(undefined, { silent: true }).catch(() => {});
       }
     };
 
-    // Revisar periódicamente cada 5 minutos si ya transcurrió 1 hora
-    const interval = setInterval(checkHourlySync, 5 * 60 * 1000);
+    // Consultar cada 12 segundos para actualizar de inmediato cambios hechos desde otros dispositivos
+    const interval = setInterval(liveMultiDeviceSync, 12 * 1000);
     return () => clearInterval(interval);
   }, [syncWithServer]);
+
+  // Escuchar difusiones instantáneas entre pestañas del mismo dispositivo
+  useEffect(() => {
+    if (!broadcastSyncChannel) return;
+
+    const handleBroadcastMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'DATA_CHANGED') {
+        const activeUid = userRef.current?.uid ?? user?.uid;
+        reloadDataForUser(activeUid);
+      }
+    };
+
+    broadcastSyncChannel.addEventListener('message', handleBroadcastMessage);
+    return () => {
+      broadcastSyncChannel.removeEventListener('message', handleBroadcastMessage);
+    };
+  }, [broadcastSyncChannel, user?.uid]);
 
   // Sincronización automática exhaustiva:
   // Se ejecuta SIEMPRE que la página o app se abra tras un cierre en cualquier dispositivo

@@ -55,8 +55,7 @@ export const SyncModal: React.FC = () => {
   const LOCAL_WIFI_IP = serverInfo?.localWifiIp || '192.168.1.121';
   const LOCAL_ETH_IP = serverInfo?.localEthIp || '172.16.10.23';
   const PORT = serverInfo?.appPort || '8085';
-  const defaultTunnel = 'https://guitar-archived-gotta-possession.trycloudflare.com';
-  const activeTunnelUrl = serverInfo?.tunnelUrl || defaultTunnel;
+  const appOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://leo-finanzas-rouge.vercel.app';
 
   const wifiUrl = `http://${LOCAL_WIFI_IP}:${PORT}`;
   const ethUrl = `http://${LOCAL_ETH_IP}:${PORT}`;
@@ -230,26 +229,11 @@ export const SyncModal: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2 pt-1 pl-6">
                 <button
-                  onClick={() => handleSelectServerUrl(wifiUrl)}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5 active:scale-95"
-                >
-                  <Wifi className="w-3.5 h-3.5" />
-                  <span>Usar Wi-Fi Local ({LOCAL_WIFI_IP}:{PORT})</span>
-                </button>
-                {activeTunnelUrl && (
-                  <button
-                    onClick={() => handleSelectServerUrl(activeTunnelUrl)}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5 active:scale-95"
-                  >
-                    <Globe className="w-3.5 h-3.5" />
-                    <span>Usar Túnel Global</span>
-                  </button>
-                )}
-                <button
                   onClick={() => handleSelectServerUrl(window.location.origin)}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-750 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors"
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
                 >
-                  Restablecer a Origen Actual
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Usar Servidor Web ({window.location.origin})</span>
                 </button>
               </div>
             </div>
@@ -310,14 +294,12 @@ export const SyncModal: React.FC = () => {
                   >
                     Ethernet ({LOCAL_ETH_IP}:{PORT})
                   </button>
-                  {activeTunnelUrl && (
-                    <button 
-                      onClick={() => handleSelectServerUrl(activeTunnelUrl)}
-                      className="px-2 py-0.5 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
-                    >
-                      Túnel HTTPS
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => handleSelectServerUrl(appOrigin)}
+                    className="px-2 py-0.5 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+                  >
+                    Servidor Web ({appOrigin})
+                  </button>
                 </div>
               </div>
             )}
@@ -328,30 +310,30 @@ export const SyncModal: React.FC = () => {
             <div className="flex items-center gap-2">
               <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300">
-                Dirección para Conectar desde Cualquier Lugar
+                Dirección para Conectar desde Cualquier Dispositivo
               </h3>
             </div>
             
             <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-              Usa el <strong>Enlace Global HTTPS</strong> para acceder desde tu teléfono usando <strong>datos móviles (Digitel, Movistar, Movilnet)</strong> o <strong>cualquier red Wi-Fi</strong> fuera de tu casa:
+              Accede desde tu teléfono o computadora a través de la <strong>dirección web oficial</strong> para sincronizar todos tus datos en tiempo real:
             </p>
 
             <div className="grid grid-cols-1 gap-2.5 pt-1">
-              {/* Opción 1: Enlace Global HTTPS */}
+              {/* Opción 1: Enlace Web Oficial */}
               <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border-2 border-emerald-500/50 shadow-md flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 mb-1">
                       <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-500 text-white shadow-xs flex items-center gap-1">
                         <Globe className="w-3 h-3" />
-                        Acceso Global (Datos Móviles & Cualquier Wi-Fi)
+                        Acceso Universal (Móvil & PC)
                       </span>
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                        ¡Funciona en todo el mundo!
+                        ¡Sincronización en tiempo real!
                       </span>
                     </div>
                     <code className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 select-all block py-0.5 break-all">
-                      {activeTunnelUrl}
+                      {appOrigin}
                     </code>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -364,10 +346,10 @@ export const SyncModal: React.FC = () => {
                       <span>{showQr ? 'Ocultar QR' : 'Código QR'}</span>
                     </button>
                     <button
-                      onClick={() => handleCopy(activeTunnelUrl)}
+                      onClick={() => handleCopy(appOrigin)}
                       className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all active:scale-95"
                     >
-                      {copiedIp === activeTunnelUrl ? (
+                      {copiedIp === appOrigin ? (
                         <>
                           <Check className="w-3.5 h-3.5" />
                           <span>¡Copiado!</span>
@@ -387,7 +369,7 @@ export const SyncModal: React.FC = () => {
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-2 animate-in fade-in zoom-in-95 duration-200">
                     <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">
                       <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(activeTunnelUrl)}&margin=4`}
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(appOrigin)}&margin=4`}
                         alt="Código QR para acceso global"
                         className="w-44 h-44 object-contain"
                       />

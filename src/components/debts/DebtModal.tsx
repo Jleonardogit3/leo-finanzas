@@ -11,10 +11,13 @@ import {
   CreditCard,
   ArrowDownLeft,
   ArrowUpRight,
-  Check
+  Check,
+  Wallet
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Debt, DebtCurrencyType, DebtType } from '../../types';
+import { Debt, DebtCurrencyType, DebtType, SubFundType, Transaction } from '../../types';
+import { RatesService } from '../../services/ratesService';
+import { BankLogo } from '../common/BankLogo';
 
 export const DebtModal: React.FC = () => {
   const { 
@@ -24,7 +27,9 @@ export const DebtModal: React.FC = () => {
     updateDebt,
     editingDebt,
     setEditingDebt,
-    rates 
+    rates,
+    accounts,
+    addTransaction
   } = useApp();
 
   const [debtType, setDebtType] = useState<DebtType>('receivable');
@@ -35,6 +40,11 @@ export const DebtModal: React.FC = () => {
   const [currencyType, setCurrencyType] = useState<DebtCurrencyType>('USD_USDT');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Opción para descontar o acreditar saldo de una cuenta bancaria
+  const [affectAccount, setAffectAccount] = useState<boolean>(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [selectedSubFund, setSelectedSubFund] = useState<SubFundType>('ves');
 
   useEffect(() => {
     if (isDebtModalOpen) {
@@ -47,6 +57,7 @@ export const DebtModal: React.FC = () => {
         setCurrencyType(editingDebt.currencyType);
         setDueDate(editingDebt.dueDate ? editingDebt.dueDate.slice(0, 10) : '');
         setNotes(editingDebt.notes || '');
+        setAffectAccount(false);
       } else {
         setDebtType('receivable');
         setDebtorName('');
@@ -56,9 +67,14 @@ export const DebtModal: React.FC = () => {
         setCurrencyType('USD_USDT');
         setDueDate('');
         setNotes('');
+        setAffectAccount(false);
+        if (accounts.length > 0) {
+          setSelectedAccountId(accounts[0].id);
+          setSelectedSubFund('ves');
+        }
       }
     }
-  }, [isDebtModalOpen, editingDebt]);
+  }, [isDebtModalOpen, editingDebt, accounts]);
 
   if (!isDebtModalOpen) return null;
 
@@ -142,6 +158,31 @@ export const DebtModal: React.FC = () => {
       };
 
       saveDebt(newDebt);
+
+      // Si el usuario eligió descontar o ingresar el monto en su cuenta
+      if (affectAccount && selectedAccountId) {
+        const targetAcc = accounts.find(a => a.id === selectedAccountId);
+        const txCurrency = currencyType === 'VES_BCV' ? 'VES' : 'USD';
+        const isExpense = debtType === 'receivable';
+
+        const debtTx: Transaction = {
+          id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          type: isExpense ? 'expense' : 'income',
+          accountId: selectedAccountId,
+          subFund: (targetAcc?.type === 'bank_ves') ? selectedSubFund : undefined,
+          amount: currentAmount,
+          currency: txCurrency,
+          appliedRate,
+          categoryId: 'cat-prestamos',
+          categoryName: isExpense ? `Préstamo a ${debtorName.trim()}` : `Préstamo de ${debtorName.trim()}`,
+          categoryIcon: 'HandCoins',
+          categoryColor: '#6366F1',
+          date: new Date().toISOString(),
+          note: `Deuda registrada: ${concept.trim() || debtorName.trim()}`,
+          createdAt: new Date().toISOString()
+        };
+        addTransaction(debtTx);
+      }
     }
 
     setEditingDebt(null);
@@ -409,6 +450,71 @@ export const DebtModal: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Opción para descontar o acreditar el saldo de la cuenta */}
+          {!editingDebt && (
+            <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60 space-y-2.5">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {isPayable
+                      ? '¿Acreditar este dinero en una de mis cuentas?'
+                      : '¿Descontar este dinero del saldo de una cuenta?'}
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={affectAccount}
+                  onChange={(e) => setAffectAccount(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                />
+              </label>
+
+              {affectAccount && (
+                <div className="pt-2 border-t border-indigo-200 dark:border-indigo-800/60 space-y-2 animate-in fade-in">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                      Cuenta {isPayable ? 'donde ingresa' : 'desde donde prestas'}:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {accounts.find(a => a.id === selectedAccountId) && (
+                        <BankLogo name={accounts.find(a => a.id === selectedAccountId)!.name} size="md" />
+                      )}
+                      <select
+                        value={selectedAccountId}
+                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                        className="flex-1 px-3 py-2 text-xs font-medium rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {accounts.map(acc => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.name} ({acc.currency} • Saldo: {RatesService.formatMoney(acc.currentBalance, acc.currency)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {accounts.find(a => a.id === selectedAccountId)?.type === 'bank_ves' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Subfondo de la cuenta:
+                      </label>
+                      <select
+                        value={selectedSubFund}
+                        onChange={(e) => setSelectedSubFund(e.target.value as SubFundType)}
+                        className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      >
+                        <option value="ves">🏦 Cuenta Bolívares (VES)</option>
+                        <option value="digital_usd">💻 Cuenta $ Digitales</option>
+                        <option value="physical_usd">💵 Cuenta $ Físicos</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Submit */}
           <div className="pt-2">

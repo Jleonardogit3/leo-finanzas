@@ -1,25 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-const ACTIVE_TUNNEL_FALLBACK = 'https://guitar-archived-gotta-possession.trycloudflare.com';
-
-function getTunnelUrl() {
-  if (process.env.TUNNEL_URL && process.env.TUNNEL_URL.trim()) {
-    return process.env.TUNNEL_URL.trim().replace(/\/+$/, '');
-  }
-  try {
-    const tunnelLog = path.join(process.cwd(), 'data', 'tunnel.log');
-    if (fs.existsSync(tunnelLog)) {
-      const content = fs.readFileSync(tunnelLog, 'utf-8');
-      const matches = content.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/g);
-      if (matches && matches.length > 0) {
-        return matches[matches.length - 1];
-      }
-    }
-  } catch {}
-  return ACTIVE_TUNNEL_FALLBACK;
-}
-
 function mergeCollections(serverList = [], clientList = [], deletedItemsMap = new Map()) {
   const itemMap = new Map();
   let uploaded = 0;
@@ -93,33 +74,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 1. Intentar conectar en vivo con el Servidor Central local a través del Túnel Seguro Cloudflare
-  const tunnel = getTunnelUrl();
-  if (tunnel) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
-      const forwardRes = await fetch(`${tunnel}/api/sync`, {
-        method: req.method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: req.method === 'POST' ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : undefined,
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      if (forwardRes.ok) {
-        const liveData = await forwardRes.json();
-        res.status(200).json(liveData);
-        return;
-      }
-    } catch (e) {
-      console.warn('Forwarding to live local sync server via tunnel timed out/failed, falling back to local dataset:', e.message);
-    }
-  }
-
-  // 2. Fallback de contingencia si el servidor central local está apagado
   if (req.method === 'GET') {
     res.status(200).json({
       online: true,

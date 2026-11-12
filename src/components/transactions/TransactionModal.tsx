@@ -12,10 +12,13 @@ import {
   Coins,
   DollarSign,
   ArrowDown,
-  Receipt
+  Receipt,
+  Smartphone,
+  CreditCard,
+  HandCoins
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { TransactionType, Currency, Transaction, SubFundType } from '../../types';
+import { TransactionType, Currency, Transaction, SubFundType, Debt, DebtCurrencyType } from '../../types';
 import { RatesService } from '../../services/ratesService';
 import { BankLogo } from '../common/BankLogo';
 
@@ -63,7 +66,10 @@ export const TransactionModal: React.FC = () => {
     updateTransaction,
     editingTransaction,
     setEditingTransaction,
-    setIsCategoryModalOpen 
+    setIsCategoryModalOpen,
+    transactions,
+    debts,
+    saveDebt
   } = useApp();
 
   const [type, setType] = useState<TransactionType>('expense');
@@ -74,10 +80,25 @@ export const TransactionModal: React.FC = () => {
   const [subFund, setSubFund] = useState<SubFundType>('ves');
   const [toSubFund, setToSubFund] = useState<SubFundType>('ves');
   const [customRate, setCustomRate] = useState<string>('');
+  const [isManualCustomRate, setIsManualCustomRate] = useState<boolean>(false);
   const [categoryId, setCategoryId] = useState<string>('');
+  const [categoryError, setCategoryError] = useState<boolean>(false);
   const [date, setDate] = useState<string>(() => safeFormatDateTime(new Date().toISOString()));
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Pago Móvil en Egresos: 0,30% de cobro bancario
+  const [expensePaymentMethod, setExpensePaymentMethod] = useState<'normal' | 'pago_movil'>('normal');
+  const [pagoMovilCommissionPercentStr, setPagoMovilCommissionPercentStr] = useState<string>('0.30');
+  const [pagoMovilCommissionCustomBs, setPagoMovilCommissionCustomBs] = useState<string>('');
+  const [isManualPmBs, setIsManualPmBs] = useState<boolean>(false);
+
+  // Asignación de Deudas en nuevo movimiento
+  const [isAssigningDebt, setIsAssigningDebt] = useState<boolean>(false);
+  const [debtPersonName, setDebtPersonName] = useState<string>('');
+  const [debtConcept, setDebtConcept] = useState<string>('');
+  const [debtCurrencyType, setDebtCurrencyType] = useState<DebtCurrencyType>('VES_BCV');
+  const [debtDeductFromAccount, setDebtDeductFromAccount] = useState<boolean>(true);
 
   // Transfer commission state (0.30% • Min Bs. 14.00)
   const [applyCommission, setApplyCommission] = useState<boolean>(true);
@@ -97,6 +118,11 @@ export const TransactionModal: React.FC = () => {
   const [applyFxCommission, setApplyFxCommission] = useState<boolean>(true);
   const [isManualFxRate, setIsManualFxRate] = useState<boolean>(false);
 
+  // Tasas de referencia según la fecha seleccionada (BCV y USDT del día o históricas)
+  const dateRates = useMemo(() => {
+    return RatesService.getRatesForDate(date, transactions, debts);
+  }, [date, transactions, debts]);
+
   // Filter categories by movement type (memoized to avoid new array reference on every render):
   const filteredCategories = useMemo(() => {
     return categories.filter(c => {
@@ -106,19 +132,11 @@ export const TransactionModal: React.FC = () => {
     });
   }, [categories, type]);
 
-  // Handle type change and ensure valid category without competing effects
+  // Handle type change: deja en blanco la categoría para que el usuario la seleccione obligatoriamente
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
-    if (newType !== 'transfer') {
-      const validForNewType = categories.filter(c => {
-        if (newType === 'expense') return c.type === 'expense' || c.type === 'both';
-        if (newType === 'income') return c.type === 'income' || c.type === 'both';
-        return true;
-      });
-      if (validForNewType.length > 0 && !validForNewType.some(c => c.id === categoryId)) {
-        setCategoryId(validForNewType[0].id);
-      }
-    }
+    setCategoryId('');
+    setCategoryError(false);
   };
 
   // Unified effect: Synchronize modal fields when opened, either loading editing data or resetting for a new transaction
@@ -138,11 +156,17 @@ export const TransactionModal: React.FC = () => {
           ? editingTransaction.appliedRate.toString() 
           : (rates?.usdt ? rates.usdt.toString() : '0')
       );
-      setCategoryId(editingTransaction.categoryId || (categories[0]?.id || ''));
+      setIsManualCustomRate(true);
+      setCategoryId(editingTransaction.categoryId || '');
+      setCategoryError(false);
       setDate(safeFormatDateTime(editingTransaction.date));
       setNote(editingTransaction.note || '');
       setApplyCommission(false); // Do not double-apply commission when editing an existing transaction
       setIsManualCommission(false);
+      setExpensePaymentMethod('normal');
+      setIsAssigningDebt(false);
+      setDebtPersonName('');
+      setDebtConcept('');
     } else {
       setType('expense');
       setAmountStr('');
@@ -154,15 +178,35 @@ export const TransactionModal: React.FC = () => {
       setToAccountId('');
       setToSubFund('ves');
       
-      const defaultCat = categories.find(c => c.type === 'expense' || c.type === 'both');
-      setCategoryId(defaultCat ? defaultCat.id : (categories[0]?.id || ''));
+      // Categoría vacía por defecto para obligar al usuario a elegir una
+      setCategoryId('');
+      setCategoryError(false);
       
+      setExpensePaymentMethod('normal');
+      setPagoMovilCommissionPercentStr('0.30');
+      setIsManualPmBs(false);
+      setPagoMovilCommissionCustomBs('');
+
+      setIsAssigningDebt(false);
+      setDebtPersonName('');
+      setDebtConcept('');
+      setDebtCurrencyType('VES_BCV');
+      setDebtDeductFromAccount(true);
+
+      setIsManualCustomRate(false);
       setCustomRate(rates?.usdt ? rates.usdt.toString() : '0');
       setDate(safeFormatDateTime(new Date().toISOString()));
       setApplyCommission(true);
       setIsManualCommission(false);
     }
   }, [isTxModalOpen, editingTransaction]);
+
+  // Actualizar tasa automática según la fecha seleccionada si no está en modo manual
+  useEffect(() => {
+    if (!isManualCustomRate && dateRates) {
+      setCustomRate(dateRates.usdt.toString());
+    }
+  }, [dateRates, isManualCustomRate]);
 
   // When accountId changes, auto-set currency to that account's native currency
   const handleAccountChange = (id: string) => {
@@ -364,9 +408,72 @@ export const TransactionModal: React.FC = () => {
     }
   }, [defaultCommission, isManualCommission, isVesTransfer]);
 
+  // Pago Móvil para egresos en Bolívares
+  const isVesExpense = type === 'expense' && (
+    currency === 'VES' || 
+    sourceAccount?.currency === 'VES' || 
+    (sourceAccount?.type === 'bank_ves' && subFund === 'ves')
+  );
+
+  const pmPercent = parseFloat(pagoMovilCommissionPercentStr) || 0.30;
+  const autoPmCommissionBs = Number(((currentAmount * pmPercent) / 100).toFixed(2));
+  const pmCommissionBs = isManualPmBs ? (parseFloat(pagoMovilCommissionCustomBs) || 0) : autoPmCommissionBs;
+  const totalExpenseWithPm = expensePaymentMethod === 'pago_movil' ? Number((currentAmount + pmCommissionBs).toFixed(2)) : currentAmount;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentAmount <= 0 || !accountId) return;
+
+    if (type !== 'transfer' && !categoryId && !isAssigningDebt) {
+      setCategoryError(true);
+      alert('Por favor selecciona una categoría obligatoriamente para este movimiento.');
+      return;
+    }
+
+    if (isAssigningDebt) {
+      if (!debtPersonName.trim()) {
+        alert('Por favor ingresa el nombre de la persona para la deuda / préstamo.');
+        return;
+      }
+      if (!debtConcept.trim()) {
+        alert('Por favor ingresa el concepto de la deuda / préstamo.');
+        return;
+      }
+
+      const appliedRateForDebt = debtCurrencyType === 'VES_BCV' ? dateRates.bcv : dateRates.usdt;
+      const peggedUsdAmount = debtCurrencyType === 'USD_USDT'
+        ? currentAmount
+        : (appliedRateForDebt > 0 ? Number((currentAmount / appliedRateForDebt).toFixed(4)) : currentAmount);
+
+      const debtDirection = type === 'expense' ? 'receivable' : 'payable';
+
+      const newDebt: Debt = {
+        id: `debt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        debtorName: debtPersonName.trim(),
+        concept: debtConcept.trim(),
+        originalAmount: currentAmount,
+        currencyType: debtCurrencyType,
+        appliedRateAtCreation: appliedRateForDebt,
+        peggedUsdAmount: peggedUsdAmount,
+        remainingAmount: currentAmount,
+        status: 'pending',
+        debtType: debtDirection,
+        notes: note.trim() || undefined,
+        createdAt: safeToISO(date),
+        updatedAt: safeToISO(date),
+        payments: []
+      };
+      saveDebt(newDebt);
+
+      if (!debtDeductFromAccount) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          setIsSuccess(false);
+          setIsTxModalOpen(false);
+        }, 300);
+        return;
+      }
+    }
 
     const isSameAccountSubFundTransfer = type === 'transfer' && accountId === toAccountId && subFund !== toSubFund;
     if (type === 'transfer' && (!toAccountId || (toAccountId === accountId && !isSameAccountSubFundTransfer))) {
@@ -380,17 +487,21 @@ export const TransactionModal: React.FC = () => {
     const finalTxCurrency = isVesToUsdBankExchange ? 'VES' : (isBinanceToBankP2P ? 'USD' : currency);
     const finalDestAmount = isVesToUsdBankExchange ? fxBaseUsdAmount : calculatedDestAmount;
     const finalCategoryId = selectedCategory?.id || (
-      isBinanceToBankP2P ? 'cat-p2p' : isVesToUsdBankExchange ? 'cat-cambio-divisas' : 'cat-general'
+      isAssigningDebt ? 'cat-prestamos' : isBinanceToBankP2P ? 'cat-p2p' : isVesToUsdBankExchange ? 'cat-cambio-divisas' : 'cat-general'
     );
-    const finalCategoryName = isBinanceToBankP2P 
+    const finalCategoryName = isAssigningDebt
+      ? (type === 'expense' ? `Préstamo a ${debtPersonName.trim()}` : `Préstamo de ${debtPersonName.trim()}`)
+      : isBinanceToBankP2P 
       ? 'Cambio P2P (Binance)' 
       : isVesToUsdBankExchange
       ? 'Compra de Divisas (BCV)'
       : (selectedCategory?.name || (type === 'transfer' ? 'Transferencia / Cambio' : 'General'));
-    const finalCategoryIcon = selectedCategory?.icon || (isBinanceToBankP2P || isVesToUsdBankExchange ? 'ArrowLeftRight' : undefined);
-    const finalCategoryColor = selectedCategory?.color || (isBinanceToBankP2P ? '#F59E0B' : isVesToUsdBankExchange ? '#3B82F6' : undefined);
+    const finalCategoryIcon = selectedCategory?.icon || (isAssigningDebt ? 'HandCoins' : isBinanceToBankP2P || isVesToUsdBankExchange ? 'ArrowLeftRight' : undefined);
+    const finalCategoryColor = selectedCategory?.color || (isAssigningDebt ? '#6366F1' : isBinanceToBankP2P ? '#F59E0B' : isVesToUsdBankExchange ? '#3B82F6' : undefined);
     const finalNote = note.trim() || (
-      isBinanceToBankP2P 
+      isAssigningDebt
+        ? `Préstamo: ${debtConcept.trim()}`
+        : isBinanceToBankP2P 
         ? `Venta P2P Binance: $${currentAmount} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}` 
         : isVesToUsdBankExchange
         ? `Compra de divisas BCV: $${fxBaseUsdAmount.toFixed(2)} USD @ ${effectiveRate} Bs/$ hacia ${destAccount?.name}${toSubFund === 'digital_usd' ? ' ($ Digitales)' : toSubFund === 'physical_usd' ? ' ($ Físicos)' : ''}`
@@ -524,6 +635,32 @@ export const TransactionModal: React.FC = () => {
           };
           addTransaction(bankCommissionTx);
         }
+      }
+
+      // Si es un egreso por Pago Móvil en Bolívares y genera comisión del 0,30%
+      if (type === 'expense' && expensePaymentMethod === 'pago_movil' && pmCommissionBs > 0 && !editingTransaction) {
+        const commissionCat = categories.find(c => 
+          c.id === 'cat-comisiones' || 
+          c.name.toLowerCase().includes('comision') ||
+          c.name.toLowerCase().includes('comisión')
+        );
+
+        const pmCommissionTx: Transaction = {
+          id: `tx-${Date.now() + 18}-${Math.random().toString(36).substring(2, 7)}`,
+          type: 'expense',
+          accountId,
+          subFund: (sourceAccount?.type === 'bank_ves') ? 'ves' : undefined,
+          amount: pmCommissionBs,
+          currency: 'VES',
+          categoryId: commissionCat?.id || 'cat-comisiones',
+          categoryName: commissionCat?.name || 'Comisiones Bancarias',
+          categoryIcon: commissionCat?.icon || 'Percent',
+          categoryColor: commissionCat?.color || '#F59E0B',
+          date: safeToISO(date),
+          note: `Comisión bancaria Pago Móvil (${pmPercent}%) - ${finalCategoryName}${note.trim() ? ` (${note.trim()})` : ''}`,
+          createdAt: new Date(Date.now() + 18).toISOString()
+        };
+        addTransaction(pmCommissionTx);
       }
     }
 
@@ -725,6 +862,173 @@ export const TransactionModal: React.FC = () => {
                   </select>
                 </div>
               )}
+
+              {/* Opción Pago Móvil vs Consumo Normal para Egresos en Bs */}
+              {isVesExpense && (
+                <div className="mt-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                      Modalidad del Egreso
+                    </label>
+                    <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80 font-medium">
+                      Pago Móvil añade el 0,30% bancario
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-amber-500/20">
+                    <button
+                      type="button"
+                      onClick={() => setExpensePaymentMethod('normal')}
+                      className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        expensePaymentMethod === 'normal'
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Consumo Normal</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setExpensePaymentMethod('pago_movil')}
+                      className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        expensePaymentMethod === 'pago_movil'
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      <span>Pago Móvil (0,30%)</span>
+                    </button>
+                  </div>
+
+                  {expensePaymentMethod === 'pago_movil' && (
+                    <div className="pt-2 border-t border-amber-500/20 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 dark:text-slate-300">Comisión bancaria:</span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={pagoMovilCommissionPercentStr}
+                            onChange={(e) => setPagoMovilCommissionPercentStr(e.target.value)}
+                            className="w-14 px-1.5 py-0.5 text-center text-xs font-bold rounded-lg bg-white dark:bg-slate-900 border border-amber-500/30 text-amber-900 dark:text-amber-200"
+                          />
+                          <span className="font-bold text-amber-700 dark:text-amber-400">%</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-amber-800 dark:text-amber-300">
+                        <span>Monto comisión ({pmPercent}%):</span>
+                        <span className="font-bold">+{RatesService.formatMoney(pmCommissionBs, 'VES')}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between font-black text-xs pt-1 border-t border-amber-500/20 text-slate-900 dark:text-white">
+                        <span>Total debitado de {sourceAccount?.name}:</span>
+                        <span className="text-rose-600 dark:text-rose-400">
+                          {RatesService.formatMoney(totalExpenseWithPm, 'VES')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Card: Asignar a Deudas / Préstamos */}
+              <div className="mt-3 p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HandCoins className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                        ¿Asignar a Deudas & Cobros?
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {type === 'expense' 
+                          ? 'Préstamo otorgado a otra persona (deuda a cobrar)' 
+                          : 'Dinero prestado recibido (deuda por pagar)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={isAssigningDebt}
+                      onChange={(e) => setIsAssigningDebt(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {isAssigningDebt && (
+                  <div className="space-y-2.5 pt-2 border-t border-indigo-200 dark:border-indigo-800/60 animate-in fade-in duration-150">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                          {type === 'expense' ? 'Persona que te debe (Deudor) *' : 'Persona a quien le debes (Acreedor) *'}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej. Carlos Mendoza, Hermana..."
+                          value={debtPersonName}
+                          onChange={(e) => setDebtPersonName(e.target.value)}
+                          className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          required={isAssigningDebt}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                          Concepto del Préstamo *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej. Para repuesto de moto, Emergencia médica..."
+                          value={debtConcept}
+                          onChange={(e) => setDebtConcept(e.target.value)}
+                          className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          required={isAssigningDebt}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                          Modalidad de la Deuda
+                        </label>
+                        <select
+                          value={debtCurrencyType}
+                          onChange={(e) => setDebtCurrencyType(e.target.value as DebtCurrencyType)}
+                          className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="VES_BCV">Bs fijados a Tasa BCV (Anti-devaluación)</option>
+                          <option value="USD_USDT">Dólares Fijos ($ USD / USDT)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-3 sm:pt-4">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800 dark:text-slate-200">
+                          <input
+                            type="checkbox"
+                            checked={debtDeductFromAccount}
+                            onChange={(e) => setDebtDeductFromAccount(e.target.checked)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                          />
+                          <span>
+                            {type === 'expense' 
+                              ? `Descontar saldo de ${sourceAccount?.name || 'la cuenta'}`
+                              : `Acreditar saldo a ${sourceAccount?.name || 'la cuenta'}`}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1331,11 +1635,11 @@ export const TransactionModal: React.FC = () => {
           )}
 
           {/* Category Selection (Income / Expense) */}
-          {type !== 'transfer' && (
+          {type !== 'transfer' && !isAssigningDebt && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  Categoría
+                  Categoría *
                 </label>
                 <button
                   type="button"
@@ -1348,11 +1652,19 @@ export const TransactionModal: React.FC = () => {
               </div>
               <select
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium text-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setCategoryError(false);
+                }}
+                className={`w-full px-3.5 py-2.5 rounded-xl font-medium text-xs border focus:outline-none focus:ring-2 ${
+                  categoryError && !categoryId
+                    ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 focus:ring-rose-500'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-emerald-500'
+                }`}
               >
+                <option value="" disabled>-- Selecciona una categoría (Obligatorio) --</option>
                 {filteredCategories.length === 0 && (
-                  <option value="">Sin categorías disponibles</option>
+                  <option value="" disabled>Sin categorías disponibles</option>
                 )}
                 {/* Fallback si la categoría actual no está en la lista filtrada */}
                 {categoryId && !filteredCategories.some(c => c.id === categoryId) && (
@@ -1366,14 +1678,26 @@ export const TransactionModal: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {categoryError && !categoryId && (
+                <p className="text-[11px] text-rose-500 font-bold mt-1">
+                  ⚠️ Por favor selecciona una categoría para este movimiento.
+                </p>
+              )}
             </div>
           )}
 
           {/* Date & Time Picker */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-              Fecha y Hora
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Fecha y Hora
+              </label>
+              {dateRates.isHistorical && (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                  Tasa Histórica del {dateRates.rateDate}
+                </span>
+              )}
+            </div>
             <div className="relative">
               <input
                 type="datetime-local"
@@ -1383,6 +1707,19 @@ export const TransactionModal: React.FC = () => {
                 required
               />
             </div>
+
+            {/* Referencia de tasas oficiales tomadas para esa fecha */}
+            {dateRates.isHistorical && (
+              <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-[11px]">
+                <span className="text-amber-800 dark:text-amber-300 font-semibold flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Tasas del día ({dateRates.rateDate}):</span>
+                </span>
+                <span className="font-black text-amber-900 dark:text-amber-200">
+                  BCV: {dateRates.bcv} | USDT: {dateRates.usdt} Bs/$
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Optional Note */}

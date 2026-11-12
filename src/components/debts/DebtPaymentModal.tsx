@@ -12,7 +12,9 @@ export const DebtPaymentModal: React.FC = () => {
     activeDebtForPayment, 
     addDebtPayment,
     accounts,
-    rates 
+    rates,
+    transactions,
+    debts
   } = useApp();
 
   const [paymentCurrency, setPaymentCurrency] = useState<Currency>('VES');
@@ -21,6 +23,24 @@ export const DebtPaymentModal: React.FC = () => {
   const [targetSubFund, setTargetSubFund] = useState<SubFundType>('ves');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
   const [note, setNote] = useState('');
+  const [customRate, setCustomRate] = useState('');
+  const [isManualRate, setIsManualRate] = useState(false);
+
+  // Obtener tasa histórica o del día según la fecha seleccionada
+  const dateRates = useMemo(() => {
+    return RatesService.getRatesForDate(date, transactions, debts);
+  }, [date, transactions, debts]);
+
+  // Actualizar la tasa por defecto cuando cambia la fecha si no ha sido modificada manualmente
+  useEffect(() => {
+    if (!isManualRate) {
+      setCustomRate(dateRates.bcv.toString());
+    }
+  }, [dateRates.bcv, isManualRate]);
+
+  const bcvRate = isManualRate && parseFloat(customRate) > 0 
+    ? parseFloat(customRate) 
+    : (dateRates.bcv > 0 ? dateRates.bcv : (rates.bcv > 0 ? rates.bcv : 1));
 
   // Live calculation of debt status protected against devaluation
   const { liveUsdRemaining, liveVesRemaining, isVESIndexed } = useMemo(() => {
@@ -28,7 +48,6 @@ export const DebtPaymentModal: React.FC = () => {
       return { liveUsdRemaining: 0, liveVesRemaining: 0, isVESIndexed: false };
     }
 
-    const bcv = rates.bcv > 0 ? rates.bcv : 1;
     const isVES = activeDebtForPayment.currencyType === 'VES_BCV';
 
     let usdOriginal = activeDebtForPayment.peggedUsdAmount || 0;
@@ -38,25 +57,25 @@ export const DebtPaymentModal: React.FC = () => {
       } else {
         usdOriginal = activeDebtForPayment.appliedRateAtCreation > 0
           ? activeDebtForPayment.originalAmount / activeDebtForPayment.appliedRateAtCreation
-          : activeDebtForPayment.originalAmount / bcv;
+          : activeDebtForPayment.originalAmount / bcvRate;
       }
     }
 
     const totalPaidUsd = (activeDebtForPayment.payments || []).reduce((sum, p) => {
       if (p.currency === 'USD') return sum + p.amount;
-      const rate = p.appliedRate || bcv;
+      const rate = p.appliedRate || bcvRate;
       return sum + (p.amount / rate);
     }, 0);
 
     const remUsd = Math.max(0, usdOriginal - totalPaidUsd);
-    const remVes = Number((remUsd * bcv).toFixed(2));
+    const remVes = Number((remUsd * bcvRate).toFixed(2));
 
     return {
       liveUsdRemaining: remUsd,
       liveVesRemaining: remVes,
       isVESIndexed: isVES
     };
-  }, [activeDebtForPayment, rates.bcv]);
+  }, [activeDebtForPayment, bcvRate]);
 
   useEffect(() => {
     if (activeDebtForPayment) {
@@ -69,6 +88,8 @@ export const DebtPaymentModal: React.FC = () => {
         setTargetAccountId(accounts[0].id);
         setTargetSubFund('ves');
       }
+      setIsManualRate(false);
+      setCustomRate(dateRates.bcv.toString());
     }
   }, [activeDebtForPayment, liveUsdRemaining, liveVesRemaining, accounts]);
 
@@ -77,7 +98,6 @@ export const DebtPaymentModal: React.FC = () => {
     targetSubFund === 'digital_usd' || 
     targetSubFund === 'physical_usd';
   const currentPaymentAmount = parseFloat(amountStr) || 0;
-  const bcvRate = rates.bcv > 0 ? rates.bcv : 1;
 
   // Live account impact amount (calculated unconditionally before any early return)
   const { accountImpactAmount, accountImpactCurrency } = useMemo(() => {
@@ -376,6 +396,60 @@ export const DebtPaymentModal: React.FC = () => {
                 isPayable ? 'focus:ring-rose-500' : 'focus:ring-emerald-500'
               }`}
             />
+          </div>
+
+          {/* Tasa de Cambio aplicada según la fecha */}
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Tasa de Referencia de la Fecha
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {dateRates.isHistorical 
+                    ? `Tomada de los registros del ${dateRates.rateDate}` 
+                    : 'Tasa oficial BCV del día actual'}
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
+                dateRates.isHistorical 
+                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+              }`}>
+                {dateRates.isHistorical ? 'Histórica' : 'En Vivo'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  step="any"
+                  value={customRate}
+                  onChange={(e) => {
+                    setCustomRate(e.target.value);
+                    setIsManualRate(true);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-black border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="absolute right-3 top-2.5 text-[11px] font-bold text-slate-400">
+                  Bs / $
+                </span>
+              </div>
+
+              {isManualRate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManualRate(false);
+                    setCustomRate(dateRates.bcv.toString());
+                  }}
+                  className="px-2.5 py-2 rounded-xl text-[11px] font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 transition-colors"
+                >
+                  Restablecer ({dateRates.bcv})
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Note */}
