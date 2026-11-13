@@ -24,14 +24,9 @@ function localSyncDevPlugin(): Plugin {
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(JSON.stringify({
               status: 'online',
-              service: 'Finanzas Venezuela Local Sync (Vite Dev)',
+              service: 'Finanzas Venezuela Servidor Web Central',
               serverTime: new Date().toISOString(),
               lastUpdated: db.lastUpdated || db.serverCreatedAt,
-              tunnelUrl: activeTunnel,
-              localWifiIp: '192.168.1.121',
-              localEthIp: '172.16.10.23',
-              containerIp: '172.28.0.10',
-              appPort: '8085',
               totalRecords: {
                 accounts: (db.accounts || []).length,
                 transactions: (db.transactions || []).length,

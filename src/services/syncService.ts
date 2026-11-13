@@ -16,19 +16,25 @@ const DELETED_ITEMS_KEY = 'finanzas_vzla_deleted_items';
 
 export class SyncService {
   /**
-   * Obtiene la URL del servidor de sincronización configurado o detecta el actual
+   * Obtiene la URL del servidor web de sincronización permanente
    */
   static getSyncServerUrl(): string {
     const saved = localStorage.getItem(SYNC_SERVER_URL_KEY);
-    if (saved && saved.trim()) {
-      return saved.trim().replace(/\/+$/, '');
+    if (saved) {
+      // Limpiar cualquier residuo de IPs locales o puertos antiguos para evitar datos inconsistentes
+      const isLocalIp = saved.includes('192.168.') || saved.includes('172.16.') || saved.includes('localhost') || saved.includes(':8085') || saved.includes(':3001');
+      if (isLocalIp) {
+        localStorage.removeItem(SYNC_SERVER_URL_KEY);
+      } else if (saved.trim()) {
+        return saved.trim().replace(/\/+$/, '');
+      }
     }
-    // En el navegador, la ruta relativa apunta al mismo host/puerto actual
-    return window.location.origin;
+    // Servidor web oficial permanente (el mismo host y origen donde se ejecuta la app)
+    return typeof window !== 'undefined' ? window.location.origin : 'https://leo-finanzas-rouge.vercel.app';
   }
 
   static setSyncServerUrl(url: string): void {
-    if (!url || !url.trim()) {
+    if (!url || !url.trim() || (typeof window !== 'undefined' && url === window.location.origin)) {
       localStorage.removeItem(SYNC_SERVER_URL_KEY);
     } else {
       localStorage.setItem(SYNC_SERVER_URL_KEY, url.trim().replace(/\/+$/, ''));
