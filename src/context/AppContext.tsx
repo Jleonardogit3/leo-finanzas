@@ -794,7 +794,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Auth state listener & Cloud Firestore synchronization
+  // Auth state listener para sesión de usuario
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -807,35 +807,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
         setUser(fbUser);
         localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(fbUser));
-        const synced = await StorageService.syncWithFirestore(currentUser.uid);
-        if (synced) {
-          setAccounts(StorageService.getAccounts());
-          setTransactions(StorageService.getTransactions());
-          setCategories(StorageService.getCategories());
-          setPortfolioAssets(StorageService.getPortfolioAssets());
-          setGoals(StorageService.getGoals());
-          setDebts(StorageService.getDebts());
-          setLosses(StorageService.getLosses());
-          setAuditLogs(StorageService.getAuditLogs());
-        }
       } else {
         const localSession = localStorage.getItem('finanzas_vzla_auth_session');
         if (localSession) {
           try {
             const parsed = JSON.parse(localSession);
             if (parsed && parsed.uid) {
-              StorageService.syncWithFirestore(parsed.uid).then(synced => {
-                if (synced) {
-                  setAccounts(StorageService.getAccounts());
-                  setTransactions(StorageService.getTransactions());
-                  setCategories(StorageService.getCategories());
-                  setPortfolioAssets(StorageService.getPortfolioAssets());
-                  setGoals(StorageService.getGoals());
-                  setDebts(StorageService.getDebts());
-                  setLosses(StorageService.getLosses());
-                  setAuditLogs(StorageService.getAuditLogs());
-                }
-              });
+              setUser(parsed);
             }
           } catch {}
         }

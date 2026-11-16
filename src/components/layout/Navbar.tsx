@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/AppContext';
-import { auth, googleProvider, signInWithPopup, signOut } from '../../services/firebase';
+import { auth, signOut } from '../../services/firebase';
 
 export const Navbar: React.FC = () => {
   const { mode, isDark, toggleTheme } = useTheme();

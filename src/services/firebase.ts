@@ -5,19 +5,12 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signOut,
+  signOut, 
   onAuthStateChanged,
   User 
 } from 'firebase/auth';
-import { 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager,
-  getFirestore,
-  Firestore
-} from 'firebase/firestore';
 
-// Environment variables configuration with fallbacks
+// Configuración de Firebase (Auth opcional; sincronización permanente gestionada por el Servidor Web Central)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDiaeCpePtOXdng_vffdwfZvixyVtJdkYM",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "finanzas-vzla-app.firebaseapp.com",
@@ -34,22 +27,8 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Initialize Firestore with robust Offline Persistence Cache
-let firestoreDb: Firestore;
-
-try {
-  firestoreDb = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
-  console.info('[Firebase] Firestore persistent local cache initialized successfully (multi-tab enabled).');
-} catch (error) {
-  console.warn('[Firebase] Warning initializing persistent cache, falling back to standard Firestore:', error);
-  firestoreDb = getFirestore(app);
-}
-
-export const db = firestoreDb;
+// Firestore eliminado para evitar errores de permisos gRPC en consola; la persistencia se realiza vía Servidor Web Central
+export const db = null as any;
 
 // Auth helper exports
 export {

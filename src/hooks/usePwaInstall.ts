@@ -27,7 +27,7 @@ export function usePwaInstall() {
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
+      // Capturar el evento para el botón de instalación manual sin forzar la advertencia de Chromium
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };

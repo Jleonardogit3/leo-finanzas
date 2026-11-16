@@ -46,6 +46,9 @@ const AUDIT_LOGS_STORAGE_KEY = 'finanzas_vzla_audit_logs';
 const SETUP_COMPLETED_KEY = 'finanzas_vzla_setup_completed';
 const REGISTERED_USERS_KEY = 'finanzas_vzla_registered_users';
 
+// Sincronización delegada exclusivamente al Servidor Web Central permanente
+const ENABLE_FIRESTORE = false;
+
 export const DEFAULT_ADMIN_USER: RegisteredUser = {
   uid: 'jleonardo-admin',
   username: 'Jleonardo',
@@ -383,7 +386,7 @@ export class StorageService {
       localStorage.setItem(txKey, JSON.stringify(newTxList));
     }
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         const catRef = doc(db, `users/${userId}/categories`, catToSave.id);
         setDoc(catRef, catToSave, { merge: true });
@@ -398,7 +401,7 @@ export class StorageService {
     SyncService.recordDeletion(categoryId, 'category');
     const categories = this.getCategories(userId).filter(c => c.id !== categoryId);
     localStorage.setItem(key, JSON.stringify(categories));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/categories`, categoryId));
       } catch (err) {
@@ -463,7 +466,7 @@ export class StorageService {
     }
     localStorage.setItem(key, JSON.stringify(updated));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         const accRef = doc(db, `users/${userId}/accounts`, account.id);
         setDoc(accRef, account, { merge: true });
@@ -501,7 +504,7 @@ export class StorageService {
 
     SyncService.recordDeletion(accountId, 'account');
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/accounts`, accountId));
       } catch (e) {
@@ -538,7 +541,7 @@ export class StorageService {
     }
 
     localStorage.setItem(key, JSON.stringify(accountsList));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       accountsList.forEach(acc => {
         try {
           const accRef = doc(db, `users/${userId}/accounts`, acc.id);
@@ -657,7 +660,7 @@ export class StorageService {
     localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         const txRef = doc(db, `users/${userId}/transactions`, txWithUpdated.id);
         setDoc(txRef, txWithUpdated);
@@ -727,7 +730,7 @@ export class StorageService {
     localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/transactions`, txId));
         this.batchSaveAccounts(updatedAccounts, userId);
@@ -851,7 +854,7 @@ export class StorageService {
     localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         const txRef = doc(db, `users/${userId}/transactions`, txWithUpdated.id);
         setDoc(txRef, txWithUpdated);
@@ -970,7 +973,7 @@ export class StorageService {
     }
     localStorage.setItem(key, JSON.stringify(updated));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/portfolio`, assetToSave.id), assetToSave, { merge: true });
       } catch (e) {
@@ -985,7 +988,7 @@ export class StorageService {
     SyncService.recordDeletion(id, 'asset');
     const assets = this.getPortfolioAssets(userId).filter(a => a.id !== id);
     localStorage.setItem(key, JSON.stringify(assets));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/portfolio`, id));
       } catch (e) {
@@ -1058,7 +1061,7 @@ export class StorageService {
     }
     localStorage.setItem(key, JSON.stringify(updated));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/goals`, goal.id), goal, { merge: true });
       } catch (e) {
@@ -1073,7 +1076,7 @@ export class StorageService {
     SyncService.recordDeletion(id, 'goal');
     const goals = this.getGoals(userId).filter(g => g.id !== id);
     localStorage.setItem(key, JSON.stringify(goals));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/goals`, id));
       } catch (e) {
@@ -1183,7 +1186,7 @@ export class StorageService {
     });
     localStorage.setItem(key, JSON.stringify(updated));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/debts`, debt.id), debt, { merge: true });
       } catch (e) {
@@ -1198,7 +1201,7 @@ export class StorageService {
     SyncService.recordDeletion(id, 'debt');
     const debts = this.getDebts(userId).filter(d => d.id !== id);
     localStorage.setItem(key, JSON.stringify(debts));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/debts`, id));
       } catch (e) {
@@ -1325,7 +1328,7 @@ export class StorageService {
       }
     }
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/debts`, updatedDebt.id), updatedDebt, { merge: true });
       } catch (e) {
@@ -1426,7 +1429,7 @@ export class StorageService {
         SyncService.recordDeletion(removedTx.id, 'transaction');
         updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
         localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-        if (userId) {
+        if (ENABLE_FIRESTORE && userId) {
           try {
             deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
           } catch (e) {
@@ -1435,12 +1438,12 @@ export class StorageService {
         }
       }
 
-      if (userId) {
+      if (ENABLE_FIRESTORE && userId) {
         this.batchSaveAccounts(updatedAccounts, userId);
       }
     }
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/debts`, updatedDebt.id), updatedDebt, { merge: true });
       } catch (e) {
@@ -1505,7 +1508,7 @@ export class StorageService {
             const removedTx = updatedTransactions[txIdx];
             SyncService.recordDeletion(removedTx.id, 'transaction');
             updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIdx);
-            if (userId) {
+            if (ENABLE_FIRESTORE && userId) {
               try { deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id)); } catch (e) {}
             }
           }
@@ -1513,7 +1516,7 @@ export class StorageService {
       }
       localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
       localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
-      if (userId) {
+      if (ENABLE_FIRESTORE && userId) {
         this.batchSaveAccounts(updatedAccounts, userId);
       }
     }
@@ -1624,7 +1627,7 @@ export class StorageService {
       }
     }
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/losses`, loss.id), loss, { merge: true });
       } catch (e) {
@@ -1640,7 +1643,7 @@ export class StorageService {
     SyncService.recordDeletion(id, 'loss');
     const losses = this.getLosses(userId).filter(l => l.id !== id);
     localStorage.setItem(key, JSON.stringify(losses));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/losses`, id));
       } catch (e) {
@@ -1715,7 +1718,7 @@ export class StorageService {
       }
     }
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/losses`, updatedLoss.id), updatedLoss, { merge: true });
       } catch (e) {
@@ -1818,7 +1821,7 @@ export class StorageService {
         SyncService.recordDeletion(removedTx.id, 'transaction');
         updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
         localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-        if (userId) {
+        if (ENABLE_FIRESTORE && userId) {
           try {
             deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
           } catch (e) {
@@ -1827,12 +1830,12 @@ export class StorageService {
         }
       }
 
-      if (userId) {
+      if (ENABLE_FIRESTORE && userId) {
         this.batchSaveAccounts(updatedAccounts, userId);
       }
     }
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/losses`, updatedLoss.id), updatedLoss, { merge: true });
       } catch (e) {
@@ -1895,7 +1898,7 @@ export class StorageService {
         SyncService.recordDeletion(removedTx.id, 'transaction');
         updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
         localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-        if (userId) {
+        if (ENABLE_FIRESTORE && userId) {
           try {
             deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
           } catch (e) {}
@@ -1946,7 +1949,7 @@ export class StorageService {
             const removedTx = updatedTransactions[recTxIdx];
             SyncService.recordDeletion(removedTx.id, 'transaction');
             updatedTransactions = updatedTransactions.filter((_, idx) => idx !== recTxIdx);
-            if (userId) {
+            if (ENABLE_FIRESTORE && userId) {
               try { deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id)); } catch (e) {}
             }
           }
@@ -1971,7 +1974,7 @@ export class StorageService {
           updatedAt: new Date().toISOString()
         };
         localStorage.setItem(this.getKey(DEBTS_STORAGE_KEY, userId), JSON.stringify(updatedDebts));
-        if (userId) {
+        if (ENABLE_FIRESTORE && userId) {
           try {
             setDoc(doc(db, `users/${userId}/debts`, d.id), updatedDebts[debtIdx], { merge: true });
           } catch (e) {}
@@ -2027,7 +2030,7 @@ export class StorageService {
 
     const { updatedLosses } = this.saveLoss(lossItem, userId, false);
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/debts`, updatedDebt.id), updatedDebt, { merge: true });
       } catch (e) {
@@ -2086,7 +2089,7 @@ export class StorageService {
 
     localStorage.setItem(this.getKey(TODOS_STORAGE_KEY, userId), JSON.stringify(updated));
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/todos`, itemToSave.id), itemToSave, { merge: true });
       } catch (e) {
@@ -2104,7 +2107,7 @@ export class StorageService {
 
     SyncService.recordDeletion(id, 'todo');
 
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         deleteDoc(doc(db, `users/${userId}/todos`, id));
       } catch (e) {
@@ -2233,6 +2236,7 @@ export class StorageService {
    * Sincroniza bidireccionalmente los datos con Cloud Firestore
    */
   static async syncWithFirestore(userId: string): Promise<boolean> {
+    if (!ENABLE_FIRESTORE || !userId) return false;
     if (!userId) return false;
     try {
       const collections = [
@@ -2321,7 +2325,7 @@ export class StorageService {
     const logs = this.getAuditLogs(userId);
     const updated = [entry, ...logs.slice(0, 199)];
     localStorage.setItem(key, JSON.stringify(updated));
-    if (userId) {
+    if (ENABLE_FIRESTORE && userId) {
       try {
         setDoc(doc(db, `users/${userId}/audit_logs`, entry.id), entry, { merge: true });
       } catch (e) {}
