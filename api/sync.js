@@ -174,6 +174,97 @@ function mergeCollections(serverList = [], clientList = [], deletedItemsMap = ne
   };
 }
 
+/**
+ * Reconcilia la cadena cronológica completa de balances de más antiguo a más reciente
+ */
+function reconcileChronologicalTimeline(transactions = [], accounts = []) {
+  const sorted = [...transactions].sort((a, b) => {
+    const timeA = new Date(a.date || a.createdAt || 0).getTime();
+    const timeB = new Date(b.date || b.createdAt || 0).getTime();
+    if (timeA !== timeB) return timeA - timeB;
+    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+  });
+
+  const totalDeltas = {};
+  for (const acc of accounts) {
+    totalDeltas[`${acc.id}_ves`] = 0;
+    totalDeltas[`${acc.id}_digital_usd`] = 0;
+    totalDeltas[`${acc.id}_physical_usd`] = 0;
+  }
+
+  for (const tx of sorted) {
+    const origSub = tx.subFund || 'ves';
+    const destSub = tx.toSubFund || 'ves';
+    const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
+    const origKey = `${tx.accountId}_${origSub}`;
+    totalDeltas[origKey] = (totalDeltas[origKey] || 0) + delta;
+
+    if (tx.type === 'transfer' && tx.toAccountId) {
+      const destKey = `${tx.toAccountId}_${destSub}`;
+      const incoming = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+      totalDeltas[destKey] = (totalDeltas[destKey] || 0) + incoming;
+    }
+  }
+
+  const runningBalances = {};
+  for (const acc of accounts) {
+    runningBalances[`${acc.id}_ves`] = Number(((acc.currentBalance ?? 0) - (totalDeltas[`${acc.id}_ves`] || 0)).toFixed(2));
+    runningBalances[`${acc.id}_digital_usd`] = Number(((acc.digitalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_digital_usd`] || 0)).toFixed(2));
+    runningBalances[`${acc.id}_physical_usd`] = Number(((acc.physicalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_physical_usd`] || 0)).toFixed(2));
+  }
+
+  const reconciledTxs = [];
+  for (const tx of sorted) {
+    const origSub = tx.subFund || 'ves';
+    const destSub = tx.toSubFund || 'ves';
+    const origKey = `${tx.accountId}_${origSub}`;
+    const destKey = tx.toAccountId ? `${tx.toAccountId}_${destSub}` : null;
+
+    const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
+    const origBefore = runningBalances[origKey] !== undefined ? runningBalances[origKey] : 0;
+    const origAfter = Number((origBefore + delta).toFixed(2));
+    runningBalances[origKey] = origAfter;
+
+    let destBefore = undefined;
+    let destAfter = undefined;
+    if (tx.type === 'transfer' && destKey) {
+      const incoming = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+      destBefore = runningBalances[destKey] !== undefined ? runningBalances[destKey] : 0;
+      destAfter = Number((destBefore + incoming).toFixed(2));
+      runningBalances[destKey] = destAfter;
+    }
+
+    reconciledTxs.push({
+      ...tx,
+      accountBalanceBefore: origBefore,
+      accountBalanceAfter: origAfter,
+      toAccountBalanceBefore: destBefore,
+      toAccountBalanceAfter: destAfter
+    });
+  }
+
+  const updatedAccounts = accounts.map(acc => {
+    const ves = runningBalances[`${acc.id}_ves`];
+    const dig = runningBalances[`${acc.id}_digital_usd`];
+    const phy = runningBalances[`${acc.id}_physical_usd`];
+    return {
+      ...acc,
+      currentBalance: ves !== undefined ? ves : acc.currentBalance,
+      digitalUsdBalance: dig !== undefined ? dig : acc.digitalUsdBalance,
+      physicalUsdBalance: phy !== undefined ? phy : acc.physicalUsdBalance
+    };
+  });
+
+  const sortedDesc = [...reconciledTxs].sort((a, b) => {
+    const timeB = new Date(b.date || b.createdAt || 0).getTime();
+    const timeA = new Date(a.date || a.createdAt || 0).getTime();
+    if (timeB !== timeA) return timeB - timeA;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+
+  return { reconciledTransactions: sortedDesc, reconciledAccounts: updatedAccounts };
+}
+
 export default async function handler(req, res) {
   // CORS universal
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -235,18 +326,19 @@ export default async function handler(req, res) {
       const goalsResult = mergeCollections(centralDb?.goals || [], clientData.goals || [], deletedItemsMap);
       const todosResult = mergeCollections(centralDb?.todos || [], clientData.todos || [], deletedItemsMap);
 
+      // Reconciliar la cadena cronológica completa de balances
+      const { reconciledTransactions, reconciledAccounts } = reconcileChronologicalTimeline(
+        transactionsResult.merged,
+        accountsResult.merged
+      );
+
       const nowIso = new Date().toISOString();
       const mergedData = {
         version: 1,
         serverCreatedAt: centralDb?.serverCreatedAt || nowIso,
         lastUpdated: nowIso,
-        accounts: accountsResult.merged,
-        transactions: transactionsResult.merged.sort((a, b) => {
-          const timeB = new Date(b.date || b.createdAt || 0).getTime();
-          const timeA = new Date(a.date || a.createdAt || 0).getTime();
-          if (timeB !== timeA) return timeB - timeA;
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        }),
+        accounts: reconciledAccounts,
+        transactions: reconciledTransactions,
         debts: debtsResult.merged.sort((a, b) => {
           const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
           const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();

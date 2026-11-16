@@ -574,103 +574,150 @@ export class StorageService {
     }
   }
 
-  static addTransaction(tx: Transaction, userId?: string | null): { updatedAccounts: Account[], transaction: Transaction } {
-    const transactions = this.getTransactions(userId);
-    const accounts = this.getAccounts(userId);
+  /**
+   * Calcula los balances base de cada cuenta y subfondo antes del inicio del historial
+   */
+  static computeBaseBalances(
+    transactions: Transaction[],
+    accounts: Account[]
+  ): Record<string, number> {
+    const totalDeltas: Record<string, number> = {};
+    for (const acc of accounts) {
+      totalDeltas[`${acc.id}_ves`] = 0;
+      totalDeltas[`${acc.id}_digital_usd`] = 0;
+      totalDeltas[`${acc.id}_physical_usd`] = 0;
+    }
 
-    let originBefore: number | undefined;
-    let originAfter: number | undefined;
-    let destBefore: number | undefined;
-    let destAfter: number | undefined;
+    for (const tx of transactions) {
+      const origSub = tx.subFund || 'ves';
+      const destSub = tx.toSubFund || 'ves';
+      const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
+      const origKey = `${tx.accountId}_${origSub}`;
+      totalDeltas[origKey] = (totalDeltas[origKey] || 0) + delta;
 
-    // Calculate balance impacts
-    const updatedAccounts = accounts.map(acc => {
-      let isModified = false;
-      let newCurrent = acc.currentBalance;
-      let newDigital = acc.digitalUsdBalance ?? 0;
-      let newPhysical = acc.physicalUsdBalance ?? 0;
-
-      // Direct origin account
-      if (acc.id === tx.accountId) {
-        isModified = true;
-        const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
-
-        if (tx.subFund === 'digital_usd') {
-          originBefore = newDigital;
-          newDigital = Number((newDigital + delta).toFixed(2));
-          originAfter = newDigital;
-        } else if (tx.subFund === 'physical_usd') {
-          originBefore = newPhysical;
-          newPhysical = Number((newPhysical + delta).toFixed(2));
-          originAfter = newPhysical;
-        } else {
-          originBefore = newCurrent;
-          newCurrent = Number((newCurrent + delta).toFixed(2));
-          originAfter = newCurrent;
-        }
+      if (tx.type === 'transfer' && tx.toAccountId) {
+        const destKey = `${tx.toAccountId}_${destSub}`;
+        const incoming = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+        totalDeltas[destKey] = (totalDeltas[destKey] || 0) + incoming;
       }
+    }
 
-      // Destination account for transfers / currency exchanges
-      if (tx.type === 'transfer' && tx.toAccountId && acc.id === tx.toAccountId) {
-        isModified = true;
-        const incomingAmount = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+    const baseBalances: Record<string, number> = {};
+    for (const acc of accounts) {
+      baseBalances[`${acc.id}_ves`] = Number(((acc.currentBalance ?? 0) - (totalDeltas[`${acc.id}_ves`] || 0)).toFixed(2));
+      baseBalances[`${acc.id}_digital_usd`] = Number(((acc.digitalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_digital_usd`] || 0)).toFixed(2));
+      baseBalances[`${acc.id}_physical_usd`] = Number(((acc.physicalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_physical_usd`] || 0)).toFixed(2));
+    }
 
-        if (tx.toSubFund === 'digital_usd') {
-          destBefore = newDigital;
-          newDigital = Number((newDigital + incomingAmount).toFixed(2));
-          destAfter = newDigital;
-        } else if (tx.toSubFund === 'physical_usd') {
-          destBefore = newPhysical;
-          newPhysical = Number((newPhysical + incomingAmount).toFixed(2));
-          destAfter = newPhysical;
-        } else {
-          destBefore = newCurrent;
-          newCurrent = Number((newCurrent + incomingAmount).toFixed(2));
-          destAfter = newCurrent;
-        }
-      }
+    return baseBalances;
+  }
 
-      if (isModified) {
-        return {
-          ...acc,
-          currentBalance: newCurrent,
-          digitalUsdBalance: newDigital,
-          physicalUsdBalance: newPhysical,
-          updatedAt: new Date().toISOString()
-        };
-      }
-
-      return acc;
+  /**
+   * Reconcilia la cadena cronológica completa de balances de más antiguo a más reciente.
+   * Si se proporcionan baseBalances, inicia desde allí; de lo contrario calcula la base de las cuentas.
+   */
+  static reconcileChronologicalBalances(
+    transactions: Transaction[],
+    accounts: Account[],
+    customBaseBalances?: Record<string, number>
+  ): { transactions: Transaction[]; accounts: Account[] } {
+    const sorted = [...transactions].sort((a, b) => {
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      if (timeA !== timeB) return timeA - timeB;
+      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
     });
 
-    const txWithUpdated: Transaction = {
-      ...tx,
-      accountBalanceBefore: originBefore !== undefined ? originBefore : tx.accountBalanceBefore,
-      accountBalanceAfter: originAfter !== undefined ? originAfter : tx.accountBalanceAfter,
-      toAccountBalanceBefore: destBefore !== undefined ? destBefore : tx.toAccountBalanceBefore,
-      toAccountBalanceAfter: destAfter !== undefined ? destAfter : tx.toAccountBalanceAfter,
-      updatedAt: tx.updatedAt || new Date().toISOString()
-    };
-    const updatedTxs = [txWithUpdated, ...transactions].sort((a, b) => {
+    const base = customBaseBalances || this.computeBaseBalances(transactions, accounts);
+    const runningBalances: Record<string, number> = { ...base };
+
+    const reconciledTxs: Transaction[] = [];
+
+    for (const tx of sorted) {
+      const origSub = tx.subFund || 'ves';
+      const destSub = tx.toSubFund || 'ves';
+      const origKey = `${tx.accountId}_${origSub}`;
+      const destKey = tx.toAccountId ? `${tx.toAccountId}_${destSub}` : null;
+
+      const delta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
+      const origBefore = runningBalances[origKey] !== undefined ? runningBalances[origKey] : 0;
+      const origAfter = Number((origBefore + delta).toFixed(2));
+      runningBalances[origKey] = origAfter;
+
+      let destBefore: number | undefined = undefined;
+      let destAfter: number | undefined = undefined;
+
+      if (tx.type === 'transfer' && destKey) {
+        const incoming = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
+        destBefore = runningBalances[destKey] !== undefined ? runningBalances[destKey] : 0;
+        destAfter = Number((destBefore + incoming).toFixed(2));
+        runningBalances[destKey] = destAfter;
+      }
+
+      reconciledTxs.push({
+        ...tx,
+        accountBalanceBefore: origBefore,
+        accountBalanceAfter: origAfter,
+        toAccountBalanceBefore: destBefore,
+        toAccountBalanceAfter: destAfter
+      });
+    }
+
+    const updatedAccounts = accounts.map(acc => {
+      const updatedVes = runningBalances[`${acc.id}_ves`];
+      const updatedDig = runningBalances[`${acc.id}_digital_usd`];
+      const updatedPhy = runningBalances[`${acc.id}_physical_usd`];
+
+      return {
+        ...acc,
+        currentBalance: updatedVes !== undefined ? updatedVes : acc.currentBalance,
+        digitalUsdBalance: updatedDig !== undefined ? updatedDig : acc.digitalUsdBalance,
+        physicalUsdBalance: updatedPhy !== undefined ? updatedPhy : acc.physicalUsdBalance,
+        updatedAt: new Date().toISOString()
+      };
+    });
+
+    const sortedDesc = [...reconciledTxs].sort((a, b) => {
       const timeB = new Date(b.date || b.createdAt || 0).getTime();
       const timeA = new Date(a.date || a.createdAt || 0).getTime();
       if (timeB !== timeA) return timeB - timeA;
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
-    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
+
+    return { transactions: sortedDesc, accounts: updatedAccounts };
+  }
+
+  static addTransaction(tx: Transaction, userId?: string | null): { updatedAccounts: Account[], transaction: Transaction } {
+    const transactions = this.getTransactions(userId);
+    const accounts = this.getAccounts(userId);
+
+    // Calcular balances base antes de insertar el nuevo movimiento
+    const baseBalances = this.computeBaseBalances(transactions, accounts);
+    const newTxList = [tx, ...transactions];
+
+    // Reconciliar cronológicamente toda la línea de tiempo a partir de los balances base
+    const { transactions: reconciledTxs, accounts: updatedAccounts } = this.reconcileChronologicalBalances(
+      newTxList,
+      accounts,
+      baseBalances
+    );
+
+    const savedTx = reconciledTxs.find(t => t.id === tx.id) || tx;
+
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(reconciledTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
     if (ENABLE_FIRESTORE && userId) {
       try {
-        const txRef = doc(db, `users/${userId}/transactions`, txWithUpdated.id);
-        setDoc(txRef, txWithUpdated);
+        const txRef = doc(db, `users/${userId}/transactions`, savedTx.id);
+        setDoc(txRef, savedTx);
         this.batchSaveAccounts(updatedAccounts, userId);
       } catch (e) {
         console.warn('Transaction offline save queued in firestore cache', e);
       }
     }
 
-    return { updatedAccounts, transaction: txWithUpdated };
+    return { updatedAccounts, transaction: savedTx };
   }
 
   static deleteTransaction(txId: string, userId?: string | null): Account[] {
@@ -680,54 +727,16 @@ export class StorageService {
     if (!txToDelete) return this.getAccounts(userId);
 
     const accounts = this.getAccounts(userId);
-    // Revert balance changes
-    const updatedAccounts = accounts.map(acc => {
-      let isModified = false;
-      let revertedCurrent = acc.currentBalance;
-      let revertedDigital = acc.digitalUsdBalance ?? 0;
-      let revertedPhysical = acc.physicalUsdBalance ?? 0;
+    const baseBalances = this.computeBaseBalances(transactions, accounts);
+    const newTxList = transactions.filter(t => t.id !== txId);
 
-      if (acc.id === txToDelete.accountId) {
-        isModified = true;
-        const delta = (txToDelete.type === 'expense' || txToDelete.type === 'transfer') ? txToDelete.amount : -txToDelete.amount;
+    const { transactions: reconciledTxs, accounts: updatedAccounts } = this.reconcileChronologicalBalances(
+      newTxList,
+      accounts,
+      baseBalances
+    );
 
-        if (txToDelete.subFund === 'digital_usd') {
-          revertedDigital = Number((revertedDigital + delta).toFixed(2));
-        } else if (txToDelete.subFund === 'physical_usd') {
-          revertedPhysical = Number((revertedPhysical + delta).toFixed(2));
-        } else {
-          revertedCurrent = Number((revertedCurrent + delta).toFixed(2));
-        }
-      }
-
-      if (txToDelete.type === 'transfer' && txToDelete.toAccountId && acc.id === txToDelete.toAccountId) {
-        isModified = true;
-        const incomingAmount = txToDelete.destinationAmount !== undefined ? txToDelete.destinationAmount : txToDelete.amount;
-
-        if (txToDelete.toSubFund === 'digital_usd') {
-          revertedDigital = Number((revertedDigital - incomingAmount).toFixed(2));
-        } else if (txToDelete.toSubFund === 'physical_usd') {
-          revertedPhysical = Number((revertedPhysical - incomingAmount).toFixed(2));
-        } else {
-          revertedCurrent = Number((revertedCurrent - incomingAmount).toFixed(2));
-        }
-      }
-
-      if (isModified) {
-        return {
-          ...acc,
-          currentBalance: revertedCurrent,
-          digitalUsdBalance: revertedDigital,
-          physicalUsdBalance: revertedPhysical,
-          updatedAt: new Date().toISOString()
-        };
-      }
-
-      return acc;
-    });
-
-    const updatedTxs = transactions.filter(t => t.id !== txId);
-    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(reconciledTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
     if (ENABLE_FIRESTORE && userId) {
@@ -752,119 +761,32 @@ export class StorageService {
       return this.addTransaction(updatedTx, userId);
     }
 
-    // 1. Revert old transaction's balances from accounts
-    let accounts = this.getAccounts(userId);
-    accounts = accounts.map(acc => {
-      let isModified = false;
-      let cur = acc.currentBalance;
-      let dig = acc.digitalUsdBalance ?? 0;
-      let phy = acc.physicalUsdBalance ?? 0;
+    const accounts = this.getAccounts(userId);
+    const baseBalances = this.computeBaseBalances(transactions, accounts);
+    const newTxList = transactions.map(t => t.id === updatedTx.id ? { ...t, ...updatedTx } : t);
 
-      if (acc.id === oldTx.accountId) {
-        isModified = true;
-        const delta = (oldTx.type === 'expense' || oldTx.type === 'transfer') ? oldTx.amount : -oldTx.amount;
-        if (oldTx.subFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
-        else if (oldTx.subFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
-        else cur = Number((cur + delta).toFixed(2));
-      }
+    const { transactions: reconciledTxs, accounts: updatedAccounts } = this.reconcileChronologicalBalances(
+      newTxList,
+      accounts,
+      baseBalances
+    );
 
-      if (oldTx.type === 'transfer' && oldTx.toAccountId && acc.id === oldTx.toAccountId) {
-        isModified = true;
-        const incomingAmount = oldTx.destinationAmount !== undefined ? oldTx.destinationAmount : oldTx.amount;
-        if (oldTx.toSubFund === 'digital_usd') dig = Number((dig - incomingAmount).toFixed(2));
-        else if (oldTx.toSubFund === 'physical_usd') phy = Number((phy - incomingAmount).toFixed(2));
-        else cur = Number((cur - incomingAmount).toFixed(2));
-      }
+    const savedTx = reconciledTxs.find(t => t.id === updatedTx.id) || updatedTx;
 
-      if (isModified) {
-        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy };
-      }
-      return acc;
-    });
-
-    // 2. Apply new updated transaction's balances to accounts
-    let originBefore: number | undefined;
-    let originAfter: number | undefined;
-    let destBefore: number | undefined;
-    let destAfter: number | undefined;
-
-    const updatedAccounts = accounts.map(acc => {
-      let isModified = false;
-      let cur = acc.currentBalance;
-      let dig = acc.digitalUsdBalance ?? 0;
-      let phy = acc.physicalUsdBalance ?? 0;
-
-      if (acc.id === updatedTx.accountId) {
-        isModified = true;
-        const delta = (updatedTx.type === 'expense' || updatedTx.type === 'transfer') ? -updatedTx.amount : updatedTx.amount;
-        if (updatedTx.subFund === 'digital_usd') {
-          originBefore = dig;
-          dig = Number((dig + delta).toFixed(2));
-          originAfter = dig;
-        } else if (updatedTx.subFund === 'physical_usd') {
-          originBefore = phy;
-          phy = Number((phy + delta).toFixed(2));
-          originAfter = phy;
-        } else {
-          originBefore = cur;
-          cur = Number((cur + delta).toFixed(2));
-          originAfter = cur;
-        }
-      }
-
-      if (updatedTx.type === 'transfer' && updatedTx.toAccountId && acc.id === updatedTx.toAccountId) {
-        isModified = true;
-        const incomingAmount = updatedTx.destinationAmount !== undefined ? updatedTx.destinationAmount : updatedTx.amount;
-        if (updatedTx.toSubFund === 'digital_usd') {
-          destBefore = dig;
-          dig = Number((dig + incomingAmount).toFixed(2));
-          destAfter = dig;
-        } else if (updatedTx.toSubFund === 'physical_usd') {
-          destBefore = phy;
-          phy = Number((phy + incomingAmount).toFixed(2));
-          destAfter = phy;
-        } else {
-          destBefore = cur;
-          cur = Number((cur + incomingAmount).toFixed(2));
-          destAfter = cur;
-        }
-      }
-
-      if (isModified) {
-        return { ...acc, currentBalance: cur, digitalUsdBalance: dig, physicalUsdBalance: phy, updatedAt: new Date().toISOString() };
-      }
-      return acc;
-    });
-
-    const txWithUpdated: Transaction = {
-      ...updatedTx,
-      accountBalanceBefore: originBefore !== undefined ? originBefore : updatedTx.accountBalanceBefore,
-      accountBalanceAfter: originAfter !== undefined ? originAfter : updatedTx.accountBalanceAfter,
-      toAccountBalanceBefore: destBefore !== undefined ? destBefore : updatedTx.toAccountBalanceBefore,
-      toAccountBalanceAfter: destAfter !== undefined ? destAfter : updatedTx.toAccountBalanceAfter,
-      updatedAt: new Date().toISOString()
-    };
-
-    const updatedTxs = transactions.map(t => t.id === updatedTx.id ? txWithUpdated : t).sort((a, b) => {
-      const timeB = new Date(b.date || b.createdAt || 0).getTime();
-      const timeA = new Date(a.date || a.createdAt || 0).getTime();
-      if (timeB !== timeA) return timeB - timeA;
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-    });
-    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTxs));
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(reconciledTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
 
     if (ENABLE_FIRESTORE && userId) {
       try {
-        const txRef = doc(db, `users/${userId}/transactions`, txWithUpdated.id);
-        setDoc(txRef, txWithUpdated);
+        const txRef = doc(db, `users/${userId}/transactions`, savedTx.id);
+        setDoc(txRef, savedTx);
         this.batchSaveAccounts(updatedAccounts, userId);
       } catch (e) {
         console.warn('Update transaction offline queued', e);
       }
     }
 
-    return { updatedAccounts, transaction: txWithUpdated };
+    return { updatedAccounts, transaction: savedTx };
   }
 
   /**
@@ -879,24 +801,7 @@ export class StorageService {
     toAccountBalanceBefore?: number;
     toAccountBalanceAfter?: number;
   }> {
-    // Sort descending: newest first
-    const sorted = [...transactions].sort((a, b) => {
-      const timeB = new Date(b.date || b.createdAt || 0).getTime();
-      const timeA = new Date(a.date || a.createdAt || 0).getTime();
-      if (timeB !== timeA) return timeB - timeA;
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-    });
-
-    // Start with live current balances of all accounts
-    const balances: Record<string, { ves: number; digital_usd: number; physical_usd: number }> = {};
-    for (const acc of accounts) {
-      balances[acc.id] = {
-        ves: Number((acc.currentBalance ?? 0).toFixed(2)),
-        digital_usd: Number((acc.digitalUsdBalance ?? 0).toFixed(2)),
-        physical_usd: Number((acc.physicalUsdBalance ?? 0).toFixed(2))
-      };
-    }
-
+    const { transactions: reconciled } = this.reconcileChronologicalBalances(transactions, accounts);
     const map = new Map<string, {
       accountBalanceBefore: number;
       accountBalanceAfter: number;
@@ -904,38 +809,12 @@ export class StorageService {
       toAccountBalanceAfter?: number;
     }>();
 
-    for (const tx of sorted) {
-      const origSub = tx.subFund || 'ves';
-      const destSub = tx.toSubFund || 'ves';
-
-      const currentOrigBal = balances[tx.accountId] ? balances[tx.accountId][origSub] : 0;
-      const origDelta = (tx.type === 'expense' || tx.type === 'transfer') ? -tx.amount : tx.amount;
-      const calculatedOrigBefore = Number((currentOrigBal - origDelta).toFixed(2));
-      const calculatedOrigAfter = currentOrigBal;
-
-      let calculatedDestBefore: number | undefined = undefined;
-      let calculatedDestAfter: number | undefined = undefined;
-
-      if (tx.type === 'transfer' && tx.toAccountId && balances[tx.toAccountId]) {
-        const currentDestBal = balances[tx.toAccountId][destSub];
-        const incoming = tx.destinationAmount !== undefined ? tx.destinationAmount : tx.amount;
-        calculatedDestBefore = Number((currentDestBal - incoming).toFixed(2));
-        calculatedDestAfter = currentDestBal;
-      }
-
-      // Rewind balances for the older transactions
-      if (balances[tx.accountId]) {
-        balances[tx.accountId][origSub] = calculatedOrigBefore;
-      }
-      if (tx.type === 'transfer' && tx.toAccountId && balances[tx.toAccountId] && calculatedDestBefore !== undefined) {
-        balances[tx.toAccountId][destSub] = calculatedDestBefore;
-      }
-
+    for (const tx of reconciled) {
       map.set(tx.id, {
-        accountBalanceBefore: tx.accountBalanceBefore !== undefined ? tx.accountBalanceBefore : calculatedOrigBefore,
-        accountBalanceAfter: tx.accountBalanceAfter !== undefined ? tx.accountBalanceAfter : calculatedOrigAfter,
-        toAccountBalanceBefore: tx.toAccountBalanceBefore !== undefined ? tx.toAccountBalanceBefore : calculatedDestBefore,
-        toAccountBalanceAfter: tx.toAccountBalanceAfter !== undefined ? tx.toAccountBalanceAfter : calculatedDestAfter
+        accountBalanceBefore: tx.accountBalanceBefore ?? 0,
+        accountBalanceAfter: tx.accountBalanceAfter ?? 0,
+        toAccountBalanceBefore: tx.toAccountBalanceBefore,
+        toAccountBalanceAfter: tx.toAccountBalanceAfter
       });
     }
 

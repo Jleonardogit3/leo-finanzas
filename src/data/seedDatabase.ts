@@ -19,7 +19,7 @@ export interface DatabaseSchema {
 export const SEED_DATABASE: DatabaseSchema = {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-13T14:37:17.887Z",
+  "lastUpdated": "2026-11-16T20:58:17.222Z",
   "accounts": [
     {
       "name": "Banco de Venezuela",
@@ -171,8 +171,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-12T20:51:00.000Z",
       "note": "Reparación iPhone 13 corneta Jesús Flores",
       "createdAt": "2026-11-12T20:52:13.498Z",
-      "accountBalanceBefore": 1424.2,
-      "accountBalanceAfter": 1399.2,
+      "accountBalanceBefore": 1044.2,
+      "accountBalanceAfter": 1019.2,
       "updatedAt": "2026-11-12T20:52:13.498Z"
     },
     {
@@ -188,8 +188,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-12T20:51:00.000Z",
       "note": "Compra router casa",
       "createdAt": "2026-11-12T20:51:44.144Z",
-      "accountBalanceBefore": 1454.2,
-      "accountBalanceAfter": 1424.2,
+      "accountBalanceBefore": 1074.2,
+      "accountBalanceAfter": 1044.2,
       "updatedAt": "2026-11-12T20:51:44.145Z"
     },
     {
@@ -205,8 +205,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-12T20:01:00.000Z",
       "note": "Pago cable y forro Roberto",
       "createdAt": "2026-11-12T21:01:30.320Z",
-      "accountBalanceBefore": 1014.2,
-      "accountBalanceAfter": 1029.2,
+      "accountBalanceBefore": 1059.2,
+      "accountBalanceAfter": 1074.2,
       "updatedAt": "2026-11-12T21:01:30.320Z"
     },
     {
@@ -222,8 +222,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-12T19:59:00.000Z",
       "note": "Abono Joan",
       "createdAt": "2026-11-12T21:00:22.019Z",
-      "accountBalanceBefore": 999.2,
-      "accountBalanceAfter": 1014.2,
+      "accountBalanceBefore": 1044.2,
+      "accountBalanceAfter": 1059.2,
       "updatedAt": "2026-11-12T21:00:22.021Z"
     },
     {
@@ -240,10 +240,10 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-12T19:58:00.000Z",
       "note": "Cambio USDT a efectivo Gabriel",
       "createdAt": "2026-11-12T20:59:22.897Z",
-      "accountBalanceBefore": 1399.2,
-      "accountBalanceAfter": 999.2,
-      "toAccountBalanceBefore": 1239,
-      "toAccountBalanceAfter": 1639,
+      "accountBalanceBefore": 1444.2,
+      "accountBalanceAfter": 1044.2,
+      "toAccountBalanceBefore": 1249,
+      "toAccountBalanceAfter": 1649,
       "updatedAt": "2026-11-12T20:59:22.898Z"
     },
     {
@@ -445,8 +445,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "createdAt": "2026-11-12T14:53:38.618Z",
       "accountBalanceBefore": 148878.92,
       "accountBalanceAfter": 100878.92,
-      "toAccountBalanceBefore": 2165.31,
-      "toAccountBalanceAfter": 50165.31,
+      "toAccountBalanceBefore": 349205.33,
+      "toAccountBalanceAfter": 397205.33,
       "updatedAt": "2026-11-12T14:53:38.619Z"
     },
     {
@@ -463,8 +463,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T23:07:00.000Z",
       "note": "Cashea pintura casa",
       "createdAt": "2026-11-12T15:08:50.831Z",
-      "accountBalanceBefore": 403399.44,
-      "accountBalanceAfter": 397205.33,
+      "accountBalanceBefore": 355399.44,
+      "accountBalanceAfter": 349205.33,
       "updatedAt": "2026-11-12T15:08:50.831Z"
     },
     {
@@ -481,8 +481,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T23:06:00.000Z",
       "note": "Cashea zapatos Mama",
       "createdAt": "2026-11-12T15:07:18.776Z",
-      "accountBalanceBefore": 418420.39,
-      "accountBalanceAfter": 403399.44,
+      "accountBalanceBefore": 370420.39,
+      "accountBalanceAfter": 355399.44,
       "updatedAt": "2026-11-12T15:07:18.777Z"
     },
     {
@@ -498,8 +498,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "categoryColor": "#64748B",
       "date": "2026-11-11T22:05:00.000Z",
       "createdAt": "2026-11-12T15:05:57.932Z",
-      "accountBalanceBefore": 419138.39,
-      "accountBalanceAfter": 418420.39,
+      "accountBalanceBefore": 371138.39,
+      "accountBalanceAfter": 370420.39,
       "updatedAt": "2026-11-12T15:06:10.390Z"
     },
     {
@@ -516,8 +516,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T21:03:00.000Z",
       "note": "Mercado casa Suraki y Sujer",
       "createdAt": "2026-11-12T15:04:06.690Z",
-      "accountBalanceBefore": 466082.7,
-      "accountBalanceAfter": 419138.39,
+      "accountBalanceBefore": 418082.7,
+      "accountBalanceAfter": 371138.39,
       "updatedAt": "2026-11-12T15:05:08.123Z"
     },
     {
@@ -534,10 +534,10 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T21:01:00.000Z",
       "note": "Cambio 10usdt a $ anggela",
       "createdAt": "2026-11-12T21:02:26.358Z",
-      "accountBalanceBefore": 1029.2,
-      "accountBalanceAfter": 1019.2,
-      "toAccountBalanceBefore": 1639,
-      "toAccountBalanceAfter": 1649,
+      "accountBalanceBefore": 1454.2,
+      "accountBalanceAfter": 1444.2,
+      "toAccountBalanceBefore": 1239,
+      "toAccountBalanceAfter": 1249,
       "updatedAt": "2026-11-12T21:02:26.359Z"
     },
     {
@@ -554,8 +554,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T20:00:00.000Z",
       "note": "Retiro baterias MiniUps Zoom",
       "createdAt": "2026-11-12T15:01:58.839Z",
-      "accountBalanceBefore": 467751.31,
-      "accountBalanceAfter": 466082.7,
+      "accountBalanceBefore": 419751.31,
+      "accountBalanceAfter": 418082.7,
       "updatedAt": "2026-11-12T15:01:58.839Z"
     },
     {
@@ -575,10 +575,10 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T17:53:00.000Z",
       "note": "Compra de divisas BCV: $20.00 USD @ 1003.63 Bs/$ hacia Efectivo ($)",
       "createdAt": "2026-11-12T17:58:16.720Z",
-      "accountBalanceBefore": 365961.33,
-      "accountBalanceAfter": 345708.21,
-      "toAccountBalanceBefore": 1239,
-      "toAccountBalanceAfter": 1259,
+      "accountBalanceBefore": 440004.43,
+      "accountBalanceAfter": 419751.31,
+      "toAccountBalanceBefore": 1219,
+      "toAccountBalanceAfter": 1239,
       "updatedAt": "2026-11-12T18:01:33.647Z"
     },
     {
@@ -594,8 +594,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "categoryColor": "#64748B",
       "date": "2026-11-11T15:00:00.000Z",
       "createdAt": "2026-11-12T15:00:27.335Z",
-      "accountBalanceBefore": 467995.31,
-      "accountBalanceAfter": 467751.31,
+      "accountBalanceBefore": 440248.43,
+      "accountBalanceAfter": 440004.43,
       "updatedAt": "2026-11-12T15:00:45.872Z"
     },
     {
@@ -612,8 +612,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T14:58:00.000Z",
       "note": "Bono Corresponsabilidad Vultur",
       "createdAt": "2026-11-12T14:59:54.150Z",
-      "accountBalanceBefore": 50165.31,
-      "accountBalanceAfter": 467995.31,
+      "accountBalanceBefore": 22418.43,
+      "accountBalanceAfter": 440248.43,
       "updatedAt": "2026-11-12T14:59:54.150Z"
     },
     {
@@ -651,8 +651,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-11T01:05:00.000Z",
       "note": "Venta P2P Binance: $140 USD @ 1071.7404 Bs/$ hacia Banco Provincial (BBVA)",
       "createdAt": "2026-11-11T03:07:07.099Z",
-      "accountBalanceBefore": 1593.52,
-      "accountBalanceAfter": 1453.52,
+      "accountBalanceBefore": 1594.2,
+      "accountBalanceAfter": 1454.2,
       "toAccountBalanceBefore": 12346.91,
       "toAccountBalanceAfter": 162390.57,
       "updatedAt": "2026-11-11T03:07:07.100Z"
@@ -671,8 +671,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-10T23:10:00.000Z",
       "note": "Pasaje gym",
       "createdAt": "2026-11-11T03:10:24.353Z",
-      "accountBalanceBefore": 2264.66,
-      "accountBalanceAfter": 2020.66,
+      "accountBalanceBefore": 22662.43,
+      "accountBalanceAfter": 22418.43,
       "updatedAt": "2026-11-11T03:10:24.354Z"
     },
     {
@@ -688,8 +688,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "categoryColor": "#10B981",
       "date": "2026-11-10T21:11:00.000Z",
       "createdAt": "2026-11-11T03:12:14.491Z",
-      "accountBalanceBefore": 2020.66,
-      "accountBalanceAfter": 2165.31,
+      "accountBalanceBefore": 22517.78,
+      "accountBalanceAfter": 22662.43,
       "updatedAt": "2026-11-12T14:59:02.014Z"
     },
     {
@@ -712,8 +712,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "createdAt": "2026-11-11T03:02:35.580Z",
       "accountBalanceBefore": 97613.21,
       "accountBalanceAfter": 12346.91,
-      "toAccountBalanceBefore": 538.99,
-      "toAccountBalanceAfter": 633.81,
+      "toAccountBalanceBefore": 539.17,
+      "toAccountBalanceAfter": 633.99,
       "updatedAt": "2026-11-11T03:04:04.520Z"
     },
     {
@@ -730,7 +730,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-10T15:56:00.000Z",
       "note": "Pasajes Mama",
       "createdAt": "2026-11-10T15:57:11.119Z",
-      "updatedAt": "2026-11-10T16:15:28.728Z"
+      "updatedAt": "2026-11-10T16:15:28.728Z",
+      "accountBalanceBefore": 23017.78,
+      "accountBalanceAfter": 22517.78
     },
     {
       "id": "tx-1794326216462-iwwrv",
@@ -746,7 +748,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-10T15:56:00.000Z",
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Transferencia a Banco de Venezuela",
       "createdAt": "2026-11-10T15:56:56.462Z",
-      "updatedAt": "2026-11-10T15:56:56.453Z"
+      "updatedAt": "2026-11-10T15:56:56.453Z",
+      "accountBalanceBefore": 97627.21,
+      "accountBalanceAfter": 97613.21
     },
     {
       "id": "tx-1794326216449-kje6w",
@@ -765,7 +769,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "categoryColor": "#F97316",
       "date": "2026-11-10T15:56:00.000Z",
       "createdAt": "2026-11-10T15:56:56.449Z",
-      "updatedAt": "2026-11-10T15:56:56.450Z"
+      "updatedAt": "2026-11-10T15:56:56.450Z",
+      "accountBalanceBefore": 99627.21,
+      "accountBalanceAfter": 97627.21,
+      "toAccountBalanceBefore": 21017.78,
+      "toAccountBalanceAfter": 23017.78
     },
     {
       "id": "tx-1794326321507-rtkwm",
@@ -781,7 +789,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-10T15:15:00.000Z",
       "note": "Salida Cumpleaños Laura",
       "createdAt": "2026-11-10T15:58:41.507Z",
-      "updatedAt": "2026-11-10T16:13:06.163Z"
+      "updatedAt": "2026-11-10T16:13:06.163Z",
+      "accountBalanceBefore": 107675.28,
+      "accountBalanceAfter": 99627.21
     },
     {
       "id": "tx-1794323668413-pxhgb",
@@ -800,7 +810,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-10T15:12:00.000Z",
       "note": "Cambio Compra Provincial 100$",
       "createdAt": "2026-11-10T15:14:28.413Z",
-      "updatedAt": "2026-11-10T15:14:28.413Z"
+      "updatedAt": "2026-11-10T15:14:28.413Z",
+      "accountBalanceBefore": 1694.2,
+      "accountBalanceAfter": 1594.2,
+      "toAccountBalanceBefore": 2288.45,
+      "toAccountBalanceAfter": 107675.28
     },
     {
       "id": "tx-1794366155598-1rehz",
@@ -816,8 +830,8 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-10T14:57:00.000Z",
       "note": "Comisión bancaria (0.5%) por compra de divisas BCV (Banco Provincial (BBVA))",
       "createdAt": "2026-11-11T03:02:35.598Z",
-      "accountBalanceBefore": 12773.08,
-      "accountBalanceAfter": 12346.91,
+      "accountBalanceBefore": 2714.62,
+      "accountBalanceAfter": 2288.45,
       "updatedAt": "2026-11-11T03:02:35.586Z"
     },
     {
@@ -834,7 +848,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T22:30:00.000Z",
       "note": "Compra dona",
       "createdAt": "2026-11-09T22:30:21.735Z",
-      "updatedAt": "2026-11-09T22:30:21.735Z"
+      "updatedAt": "2026-11-09T22:30:21.735Z",
+      "accountBalanceBefore": 4195.62,
+      "accountBalanceAfter": 2714.62
     },
     {
       "id": "tx-1794262850560-k7olo",
@@ -849,7 +865,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "categoryColor": "#64748B",
       "date": "2026-11-09T22:19:00.000Z",
       "createdAt": "2026-11-09T22:20:50.560Z",
-      "updatedAt": "2026-11-09T22:20:50.561Z"
+      "updatedAt": "2026-11-09T22:20:50.561Z",
+      "accountBalanceBefore": 439.17,
+      "accountBalanceAfter": 539.17
     },
     {
       "id": "tx-1794262591062-kicqv",
@@ -865,7 +883,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T22:15:00.000Z",
       "note": "Compra 100$ electrónicos provincial",
       "createdAt": "2026-11-09T22:16:31.062Z",
-      "updatedAt": "2026-11-09T22:16:31.063Z"
+      "updatedAt": "2026-11-09T22:16:31.063Z",
+      "accountBalanceBefore": 94401.22,
+      "accountBalanceAfter": 4195.62
     },
     {
       "id": "tx-1794262535325-yo1us",
@@ -881,7 +901,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T22:14:00.000Z",
       "note": "Cambio 70usdt y 20$ abuela Marcela",
       "createdAt": "2026-11-09T22:15:35.325Z",
-      "updatedAt": "2026-11-09T22:15:35.326Z"
+      "updatedAt": "2026-11-09T22:15:35.326Z",
+      "accountBalanceBefore": 2977.7,
+      "accountBalanceAfter": 94401.22
     },
     {
       "id": "tx-1794255534254-vyu5c",
@@ -897,7 +919,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T20:18:00.000Z",
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Pago comisiones BNC",
       "createdAt": "2026-11-09T20:18:54.254Z",
-      "updatedAt": "2026-11-09T20:18:54.244Z"
+      "updatedAt": "2026-11-09T20:18:54.244Z",
+      "accountBalanceBefore": 661.66,
+      "accountBalanceAfter": 647.66
     },
     {
       "id": "tx-1794255534241-x8j1f",
@@ -917,7 +941,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T20:18:00.000Z",
       "note": "Pago comisiones BNC",
       "createdAt": "2026-11-09T20:18:54.241Z",
-      "updatedAt": "2026-11-09T20:18:54.242Z"
+      "updatedAt": "2026-11-09T20:18:54.242Z",
+      "accountBalanceBefore": 1361.66,
+      "accountBalanceAfter": 661.66,
+      "toAccountBalanceBefore": -426.3,
+      "toAccountBalanceAfter": 273.7
     },
     {
       "id": "tx-debt-1794326039861",
@@ -934,7 +962,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T19:32:00.000Z",
       "note": "Pago realizado por deuda propia: Alquiler Local ($40.00 USD (Tasa BCV 899.2705 Bs/$)) - Alquiler Local",
       "createdAt": "2026-11-10T15:53:59.861Z",
-      "updatedAt": "2026-11-10T15:53:59.861Z"
+      "updatedAt": "2026-11-10T15:53:59.861Z",
+      "accountBalanceBefore": 1259,
+      "accountBalanceAfter": 1219
     },
     {
       "id": "tx-1794250587303-f24c4",
@@ -950,7 +980,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T18:56:00.000Z",
       "note": "Mantenimiento Cuenta BNC",
       "createdAt": "2026-11-09T18:56:27.303Z",
-      "updatedAt": "2026-11-09T22:40:50.450Z"
+      "updatedAt": "2026-11-09T22:40:50.450Z",
+      "accountBalanceBefore": 50,
+      "accountBalanceAfter": -426.3
     },
     {
       "id": "tx-1794250524350-vrumn",
@@ -966,7 +998,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T18:55:00.000Z",
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Mantenimiento BNC",
       "createdAt": "2026-11-09T18:55:24.350Z",
-      "updatedAt": "2026-11-09T18:55:24.340Z"
+      "updatedAt": "2026-11-09T18:55:24.340Z",
+      "accountBalanceBefore": 18.49,
+      "accountBalanceAfter": 4.49
     },
     {
       "id": "tx-1794250524339-53qp6",
@@ -986,7 +1020,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T18:55:00.000Z",
       "note": "Mantenimiento BNC",
       "createdAt": "2026-11-09T18:55:24.339Z",
-      "updatedAt": "2026-11-09T18:55:24.339Z"
+      "updatedAt": "2026-11-09T18:55:24.339Z",
+      "accountBalanceBefore": 68.49,
+      "accountBalanceAfter": 18.49,
+      "toAccountBalanceBefore": 0,
+      "toAccountBalanceAfter": 50
     },
     {
       "id": "tx-1794250285592-nwudi",
@@ -1001,7 +1039,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T18:50:00.000Z",
       "note": "Pago Claude Papa",
       "createdAt": "2026-11-09T18:51:25.592Z",
-      "updatedAt": "2026-11-09T18:51:25.592Z"
+      "updatedAt": "2026-11-09T18:51:25.592Z",
+      "accountBalanceBefore": 1714.4,
+      "accountBalanceAfter": 1694.2
     },
     {
       "id": "tx-1794250254276-rgd16",
@@ -1016,7 +1056,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T18:50:00.000Z",
       "note": "Venta USDT para comprar $ Provincial",
       "createdAt": "2026-11-09T18:50:54.276Z",
-      "updatedAt": "2026-11-09T18:50:54.277Z"
+      "updatedAt": "2026-11-09T18:50:54.277Z",
+      "accountBalanceBefore": 1784.4,
+      "accountBalanceAfter": 1714.4
     },
     {
       "id": "tx-1794263983976-bvcgt",
@@ -1032,7 +1074,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T16:39:00.000Z",
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Comisiones BNC",
       "createdAt": "2026-11-09T22:39:43.976Z",
-      "updatedAt": "2026-11-09T22:39:43.967Z"
+      "updatedAt": "2026-11-09T22:39:43.967Z",
+      "accountBalanceBefore": 1375.66,
+      "accountBalanceAfter": 1361.66
     },
     {
       "id": "tx-1794263983962-d3yv9",
@@ -1052,7 +1096,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-09T16:39:00.000Z",
       "note": "Comisiones BNC",
       "createdAt": "2026-11-09T22:39:43.962Z",
-      "updatedAt": "2026-11-09T22:39:43.963Z"
+      "updatedAt": "2026-11-09T22:39:43.963Z",
+      "accountBalanceBefore": 2075.66,
+      "accountBalanceAfter": 1375.66,
+      "toAccountBalanceBefore": -700,
+      "toAccountBalanceAfter": 0
     },
     {
       "id": "tx-1794262211011-hvpkq",
@@ -1068,7 +1116,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T22:09:00.000Z",
       "note": "Cervezas Cumpleaños Laura",
       "createdAt": "2026-11-09T22:10:11.011Z",
-      "updatedAt": "2026-11-09T22:10:11.012Z"
+      "updatedAt": "2026-11-09T22:10:11.012Z",
+      "accountBalanceBefore": 10607.7,
+      "accountBalanceAfter": 2977.7
     },
     {
       "id": "tx-1794262155981-4bmki",
@@ -1084,7 +1134,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T22:08:00.000Z",
       "note": "Préstamo yogurt mercantil",
       "createdAt": "2026-11-09T22:09:15.981Z",
-      "updatedAt": "2026-11-09T22:09:15.982Z"
+      "updatedAt": "2026-11-09T22:09:15.982Z",
+      "accountBalanceBefore": 2607.7,
+      "accountBalanceAfter": 10607.7
     },
     {
       "id": "tx-1794250120370-w2qen",
@@ -1099,7 +1151,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T18:48:00.000Z",
       "note": "Pago Samir cumpleaños Laura",
       "createdAt": "2026-11-09T18:48:40.370Z",
-      "updatedAt": "2026-11-09T18:48:40.370Z"
+      "updatedAt": "2026-11-09T18:48:40.370Z",
+      "accountBalanceBefore": 1782.9,
+      "accountBalanceAfter": 1784.4
     },
     {
       "id": "tx-1794247457208-ottzb",
@@ -1115,7 +1169,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T18:03:00.000Z",
       "note": "Hamburguesas Cumbre",
       "createdAt": "2026-11-09T18:04:17.208Z",
-      "updatedAt": "2026-11-09T18:04:38.467Z"
+      "updatedAt": "2026-11-09T18:04:38.467Z",
+      "accountBalanceBefore": 50.3,
+      "accountBalanceAfter": 34.31
     },
     {
       "id": "tx-1794247372263-bm00b",
@@ -1131,7 +1187,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T18:01:00.000Z",
       "note": "Recarga ridery",
       "createdAt": "2026-11-09T18:02:52.263Z",
-      "updatedAt": "2026-11-09T18:03:11.993Z"
+      "updatedAt": "2026-11-09T18:03:11.993Z",
+      "accountBalanceBefore": 23261.63,
+      "accountBalanceAfter": 21017.78
     },
     {
       "id": "tx-1794247307132-dwsnz",
@@ -1147,7 +1205,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T18:01:00.000Z",
       "note": "Recarga Movistar",
       "createdAt": "2026-11-09T18:01:47.132Z",
-      "updatedAt": "2026-11-09T18:01:47.133Z"
+      "updatedAt": "2026-11-09T18:01:47.133Z",
+      "accountBalanceBefore": 24161.63,
+      "accountBalanceAfter": 23261.63
     },
     {
       "id": "tx-1794247257070-3zx3k",
@@ -1163,7 +1223,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T18:00:00.000Z",
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Pago ridery",
       "createdAt": "2026-11-09T18:00:57.070Z",
-      "updatedAt": "2026-11-09T18:00:57.061Z"
+      "updatedAt": "2026-11-09T18:00:57.061Z",
+      "accountBalanceBefore": 82.49,
+      "accountBalanceAfter": 68.49
     },
     {
       "id": "tx-1794247257057-eykhf",
@@ -1183,7 +1245,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-08T18:00:00.000Z",
       "note": "Pago ridery",
       "createdAt": "2026-11-09T18:00:57.057Z",
-      "updatedAt": "2026-11-09T18:00:57.058Z"
+      "updatedAt": "2026-11-09T18:00:57.058Z",
+      "accountBalanceBefore": 3782.49,
+      "accountBalanceAfter": 82.49,
+      "toAccountBalanceBefore": 20461.63,
+      "toAccountBalanceAfter": 24161.63
     },
     {
       "id": "tx-1794263581762-1bdxn",
@@ -1199,7 +1265,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-07T22:32:00.000Z",
       "note": "Cambio en mercantil de USDT",
       "createdAt": "2026-11-09T22:33:01.763Z",
-      "updatedAt": "2026-11-09T22:37:40.447Z"
+      "updatedAt": "2026-11-09T22:37:40.447Z",
+      "accountBalanceBefore": -2646.08,
+      "accountBalanceAfter": 2607.7
     },
     {
       "id": "tx-1794262085517-cswh3",
@@ -1215,7 +1283,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-07T22:07:00.000Z",
       "note": "Pago reembolso envío baterías mini UPS",
       "createdAt": "2026-11-09T22:08:05.517Z",
-      "updatedAt": "2026-11-09T22:08:05.518Z"
+      "updatedAt": "2026-11-09T22:08:05.518Z",
+      "accountBalanceBefore": -4306.08,
+      "accountBalanceAfter": -2646.08
     },
     {
       "id": "tx-1794247119646-dldv2",
@@ -1231,7 +1301,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-07T17:58:00.000Z",
       "note": "Recarga Movistar",
       "createdAt": "2026-11-09T17:58:39.646Z",
-      "updatedAt": "2026-11-09T17:58:39.646Z"
+      "updatedAt": "2026-11-09T17:58:39.646Z",
+      "accountBalanceBefore": 21361.63,
+      "accountBalanceAfter": 20461.63
     },
     {
       "id": "tx-1794250071829-4jpqt",
@@ -1246,7 +1318,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T18:47:00.000Z",
       "note": "Compra Bateria Laptop Dell Andrea",
       "createdAt": "2026-11-09T18:47:51.829Z",
-      "updatedAt": "2026-11-09T18:49:42.327Z"
+      "updatedAt": "2026-11-09T18:49:42.327Z",
+      "accountBalanceBefore": 1841.9,
+      "accountBalanceAfter": 1782.9
     },
     {
       "id": "tx-1794250040601-tyxs1",
@@ -1261,7 +1335,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T18:46:00.000Z",
       "note": "Compra 2 Baterias Mini Ups",
       "createdAt": "2026-11-09T18:47:20.602Z",
-      "updatedAt": "2026-11-09T18:47:20.602Z"
+      "updatedAt": "2026-11-09T18:47:20.602Z",
+      "accountBalanceBefore": 1857.9,
+      "accountBalanceAfter": 1841.9
     },
     {
       "id": "tx-1794249972227-h7maz",
@@ -1277,7 +1353,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T18:42:00.000Z",
       "note": "Comisión bancaria (1.5%) por transferencia a Binance (Binance ($)) - Cambio cuenta binance",
       "createdAt": "2026-11-09T18:46:12.227Z",
-      "updatedAt": "2026-11-09T18:46:12.212Z"
+      "updatedAt": "2026-11-09T18:46:12.212Z",
+      "accountBalanceBefore": 446.99,
+      "accountBalanceAfter": 439.17
     },
     {
       "id": "tx-1794249972207-tn7ut",
@@ -1296,7 +1374,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T18:42:00.000Z",
       "note": "Cambio cuenta binance",
       "createdAt": "2026-11-09T18:46:12.207Z",
-      "updatedAt": "2026-11-09T18:46:12.208Z"
+      "updatedAt": "2026-11-09T18:46:12.208Z",
+      "accountBalanceBefore": 968.49,
+      "accountBalanceAfter": 446.99,
+      "toAccountBalanceBefore": 1357.78,
+      "toAccountBalanceAfter": 1857.9
     },
     {
       "id": "tx-debt-1793982029017",
@@ -1313,7 +1395,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T17:50:00.000Z",
       "note": "Abono de deuda por cobrar: Compra bolso - Reembolso provincial",
       "createdAt": "2026-11-06T16:20:29.017Z",
-      "updatedAt": "2026-11-06T16:20:29.017Z"
+      "updatedAt": "2026-11-06T16:20:29.017Z",
+      "accountBalanceBefore": 931.49,
+      "accountBalanceAfter": 968.49
     },
     {
       "id": "tx-1793986030299-fw5jp",
@@ -1329,7 +1413,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T17:26:00.000Z",
       "note": "Compra 50$ efectivo",
       "createdAt": "2026-11-06T17:27:10.299Z",
-      "updatedAt": "2026-11-06T17:28:01.315Z"
+      "updatedAt": "2026-11-06T17:28:01.315Z",
+      "accountBalanceBefore": 0.3,
+      "accountBalanceAfter": 50.3
     },
     {
       "id": "tx-1793981971750-r97j4",
@@ -1345,7 +1431,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T16:19:00.000Z",
       "note": "Compra $ tesoro",
       "createdAt": "2026-11-06T16:19:31.751Z",
-      "updatedAt": "2026-11-06T16:19:56.740Z"
+      "updatedAt": "2026-11-06T16:19:56.740Z",
+      "accountBalanceBefore": 0,
+      "accountBalanceAfter": 110
     },
     {
       "id": "tx-1793981921473-9qv01",
@@ -1361,7 +1449,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T16:18:00.000Z",
       "note": "Compra mercado casa",
       "createdAt": "2026-11-06T16:18:41.473Z",
-      "updatedAt": "2026-11-09T17:49:28.775Z"
+      "updatedAt": "2026-11-09T17:49:28.775Z",
+      "accountBalanceBefore": 47193.92,
+      "accountBalanceAfter": -4306.08
     },
     {
       "id": "tx-1793981864588-zedta",
@@ -1377,7 +1467,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T16:16:00.000Z",
       "note": "Cambio compra 50$ binance",
       "createdAt": "2026-11-06T16:17:44.589Z",
-      "updatedAt": "2026-11-06T16:17:44.589Z"
+      "updatedAt": "2026-11-06T16:17:44.589Z",
+      "accountBalanceBefore": 36066.62,
+      "accountBalanceAfter": 47193.92
     },
     {
       "id": "tx-1793979604909-7r95w",
@@ -1393,7 +1485,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T15:39:00.000Z",
       "note": "Pago préstamo para compra 50$ provincial",
       "createdAt": "2026-11-06T15:40:04.909Z",
-      "updatedAt": "2026-11-09T22:08:53.189Z"
+      "updatedAt": "2026-11-09T22:08:53.189Z",
+      "accountBalanceBefore": 67473.49,
+      "accountBalanceAfter": 3782.49
     },
     {
       "id": "tx-1793979549553-r8sto",
@@ -1409,7 +1503,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T15:38:00.000Z",
       "note": "Cambio binance para compra 50$",
       "createdAt": "2026-11-06T15:39:09.553Z",
-      "updatedAt": "2026-11-06T15:39:09.554Z"
+      "updatedAt": "2026-11-06T15:39:09.554Z",
+      "accountBalanceBefore": 1957.15,
+      "accountBalanceAfter": 67473.49
     },
     {
       "id": "tx-1793979456550-p27ca",
@@ -1425,7 +1521,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T15:36:00.000Z",
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Transferencia provincial",
       "createdAt": "2026-11-06T15:37:36.550Z",
-      "updatedAt": "2026-11-06T15:37:36.540Z"
+      "updatedAt": "2026-11-06T15:37:36.540Z",
+      "accountBalanceBefore": 21375.63,
+      "accountBalanceAfter": 21361.63
     },
     {
       "id": "tx-1793979456536-pueyy",
@@ -1445,7 +1543,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T15:36:00.000Z",
       "note": "Transferencia provincial",
       "createdAt": "2026-11-06T15:37:36.536Z",
-      "updatedAt": "2026-11-09T22:35:22.616Z"
+      "updatedAt": "2026-11-09T22:35:22.616Z",
+      "accountBalanceBefore": 21844.63,
+      "accountBalanceAfter": 21375.63,
+      "toAccountBalanceBefore": 35597.62,
+      "toAccountBalanceAfter": 36066.62
     },
     {
       "id": "tx-1793979286562-narns",
@@ -1461,7 +1563,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T15:34:00.000Z",
       "note": "Compra mantequilla de maní chocolate Joan",
       "createdAt": "2026-11-06T15:34:46.562Z",
-      "updatedAt": "2026-11-06T15:34:46.563Z"
+      "updatedAt": "2026-11-06T15:34:46.563Z",
+      "accountBalanceBefore": 24546.99,
+      "accountBalanceAfter": 21844.63
     },
     {
       "id": "tx-1793979049644-y2ag4",
@@ -1476,7 +1580,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T15:30:00.000Z",
       "note": "Cambio compra 50$ provincial",
       "createdAt": "2026-11-06T15:30:49.644Z",
-      "updatedAt": "2026-11-06T15:31:19.806Z"
+      "updatedAt": "2026-11-06T15:31:19.806Z",
+      "accountBalanceBefore": 1422.78,
+      "accountBalanceAfter": 1357.78
     },
     {
       "id": "tx-1793934737423-392cr",
@@ -1491,7 +1597,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T03:11:00.000Z",
       "note": "Compra forro s23 ultra leo",
       "createdAt": "2026-11-06T03:12:17.423Z",
-      "updatedAt": "2026-11-06T03:12:17.424Z"
+      "updatedAt": "2026-11-06T03:12:17.424Z",
+      "accountBalanceBefore": 1425.28,
+      "accountBalanceAfter": 1422.78
     },
     {
       "id": "tx-1793934709614-sus5x",
@@ -1506,7 +1614,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T03:11:00.000Z",
       "note": "Compra forro Roberto Vultur",
       "createdAt": "2026-11-06T03:11:49.614Z",
-      "updatedAt": "2026-11-06T03:11:49.615Z"
+      "updatedAt": "2026-11-06T03:11:49.615Z",
+      "accountBalanceBefore": 1431.83,
+      "accountBalanceAfter": 1425.28
     },
     {
       "id": "tx-1793934639025-l948j",
@@ -1521,7 +1631,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T03:09:00.000Z",
       "note": "Compra mouse Anmary Cinex",
       "createdAt": "2026-11-06T03:10:39.026Z",
-      "updatedAt": "2026-11-06T15:28:15.851Z"
+      "updatedAt": "2026-11-06T15:28:15.851Z",
+      "accountBalanceBefore": 1442.83,
+      "accountBalanceAfter": 1431.83
     },
     {
       "id": "tx-1793934553120-vsbjl",
@@ -1537,7 +1649,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T03:08:00.000Z",
       "note": "Perro feria de ciencias",
       "createdAt": "2026-11-06T03:09:13.121Z",
-      "updatedAt": "2026-11-06T03:09:13.121Z"
+      "updatedAt": "2026-11-06T03:09:13.121Z",
+      "accountBalanceBefore": 37835.62,
+      "accountBalanceAfter": 35597.62
     },
     {
       "id": "tx-1793934488237-dq60r",
@@ -1553,7 +1667,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-06T03:07:00.000Z",
       "note": "Recarga Movistar",
       "createdAt": "2026-11-06T03:08:08.237Z",
-      "updatedAt": "2026-11-09T05:36:02.100Z"
+      "updatedAt": "2026-11-09T05:36:02.100Z",
+      "accountBalanceBefore": 25446.99,
+      "accountBalanceAfter": 24546.99
     },
     {
       "id": "tx-1793978969946-swhj7",
@@ -1569,7 +1685,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-05T15:29:00.000Z",
       "note": "Complemento software Samsung A50",
       "createdAt": "2026-11-06T15:29:29.946Z",
-      "updatedAt": "2026-11-06T15:29:29.946Z"
+      "updatedAt": "2026-11-06T15:29:29.946Z",
+      "accountBalanceBefore": 7.15,
+      "accountBalanceAfter": 1957.15
     },
     {
       "id": "tx-1793978942685-ek940",
@@ -1585,7 +1703,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-05T15:27:00.000Z",
       "note": "Software Samsung A50",
       "createdAt": "2026-11-06T15:29:02.685Z",
-      "updatedAt": "2026-11-06T15:29:02.686Z"
+      "updatedAt": "2026-11-06T15:29:02.686Z",
+      "accountBalanceBefore": 30835.62,
+      "accountBalanceAfter": 37835.62
     },
     {
       "id": "tx-1793806408107-3z0im",
@@ -1601,7 +1721,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T19:24:00.000Z",
       "note": "Compra 110$ digitales intervención 98253.90 bs+ 491.27bs",
       "createdAt": "2026-11-04T15:33:28.107Z",
-      "updatedAt": "2026-11-04T19:46:17.460Z"
+      "updatedAt": "2026-11-04T19:46:17.460Z",
+      "accountBalanceBefore": 100820.83,
+      "accountBalanceAfter": 2075.66
     },
     {
       "id": "tx-1793806208268-lfg3a",
@@ -1617,7 +1739,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T19:24:00.000Z",
       "note": "Transferencia 100.000bs Tesoro",
       "createdAt": "2026-11-04T15:30:08.268Z",
-      "updatedAt": "2026-11-04T19:44:07.161Z"
+      "updatedAt": "2026-11-04T19:44:07.161Z",
+      "accountBalanceBefore": 31135.62,
+      "accountBalanceAfter": 30835.62
     },
     {
       "id": "tx-1793806162788-rr1gz",
@@ -1637,7 +1761,11 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T19:24:00.000Z",
       "note": "Transferencia para compra de banco",
       "createdAt": "2026-11-04T15:29:22.788Z",
-      "updatedAt": "2026-11-04T19:44:02.555Z"
+      "updatedAt": "2026-11-04T19:44:02.555Z",
+      "accountBalanceBefore": 131135.62,
+      "accountBalanceAfter": 31135.62,
+      "toAccountBalanceBefore": 820.83,
+      "toAccountBalanceAfter": 100820.83
     },
     {
       "id": "tx-1793806099179-5piay",
@@ -1653,7 +1781,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T19:24:00.000Z",
       "note": "Cambio venta 101usdt para compra banco",
       "createdAt": "2026-11-04T15:28:19.179Z",
-      "updatedAt": "2026-11-04T19:44:02.555Z"
+      "updatedAt": "2026-11-04T19:44:02.555Z",
+      "accountBalanceBefore": 29489.04,
+      "accountBalanceAfter": 131135.62
     },
     {
       "id": "tx-1793806004304-k4yu6",
@@ -1668,7 +1798,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T19:24:00.000Z",
       "note": "Cambio para compra de banco",
       "createdAt": "2026-11-04T15:26:44.304Z",
-      "updatedAt": "2026-11-04T19:44:02.555Z"
+      "updatedAt": "2026-11-04T19:44:02.555Z",
+      "accountBalanceBefore": 1543.83,
+      "accountBalanceAfter": 1442.83
     },
     {
       "id": "tx-1793807122804-6swqa",
@@ -1683,7 +1815,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T17:00:00.000Z",
       "note": "Venta Router Mercusys Mx60",
       "createdAt": "2026-11-04T15:45:22.804Z",
-      "updatedAt": "2026-11-06T15:28:15.851Z"
+      "updatedAt": "2026-11-06T15:28:15.851Z",
+      "accountBalanceBefore": 1505.83,
+      "accountBalanceAfter": 1543.83
     },
     {
       "id": "tx-1793807065002-3iwif",
@@ -1698,7 +1832,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T00:00:00.000Z",
       "note": "Prestamo chuy 20usdt",
       "createdAt": "2026-11-04T15:44:25.002Z",
-      "updatedAt": "2026-11-09T22:08:53.189Z"
+      "updatedAt": "2026-11-09T22:08:53.189Z",
+      "accountBalanceBefore": 1525.83,
+      "accountBalanceAfter": 1505.83
     },
     {
       "id": "tx-1793806954118-04b2y",
@@ -1713,7 +1849,9 @@ export const SEED_DATABASE: DatabaseSchema = {
       "date": "2026-11-04T00:00:00.000Z",
       "note": "Interes mes de Octubre Willy 300$",
       "createdAt": "2026-11-04T15:42:34.118Z",
-      "updatedAt": "2026-11-04T15:42:34.119Z"
+      "updatedAt": "2026-11-04T15:42:34.119Z",
+      "accountBalanceBefore": 1495.83,
+      "accountBalanceAfter": 1525.83
     }
   ],
   "debts": [
