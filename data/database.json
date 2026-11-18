@@ -1,24 +1,17 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-16T20:58:17.222Z",
+  "lastUpdated": "2026-11-18T20:26:34.591Z",
   "accounts": [
     {
+      "id": "acc-1",
       "name": "Banco de Venezuela",
       "type": "bank_ves",
       "currency": "VES",
-      "initialBalance": 5252.87,
-      "digitalUsdBalance": 0.18,
-      "initialDigitalUsdBalance": 0.18,
-      "physicalUsdBalance": 0,
-      "initialPhysicalUsdBalance": 0,
-      "color": "#B91C1C",
-      "icon": "Building2",
-      "bankCode": "0102",
-      "id": "acc-1",
       "currentBalance": 300548.26,
-      "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-12T21:03:42.712Z"
+      "updatedAt": "2026-11-18T20:26:34.094Z",
+      "digitalUsdBalance": 0,
+      "physicalUsdBalance": 0
     },
     {
       "name": "Banco Provincial (BBVA)",
@@ -2450,103 +2443,6 @@
       "updatedAt": "2026-11-04T13:50:31.419Z"
     }
   ],
-  "deletedItems": [
-    {
-      "id": "test-acc",
-      "type": "account",
-      "deletedAt": "2026-11-02T10:45:00Z"
-    },
-    {
-      "id": "debt-1793743275428-jniif",
-      "type": "debt",
-      "deletedAt": "2026-11-03T22:01:30.197Z"
-    },
-    {
-      "id": "debt-1793653134206-rhenl",
-      "type": "debt",
-      "deletedAt": "2026-11-04T18:30:43.872Z"
-    },
-    {
-      "id": "debt-1793651628751-d6396",
-      "type": "debt",
-      "deletedAt": "2026-11-04T18:31:17.785Z"
-    },
-    {
-      "id": "tx-1793822368796-8ag2u",
-      "type": "transaction",
-      "deletedAt": "2026-11-04T19:59:41.444Z"
-    },
-    {
-      "id": "tx-1793825702738-owfba",
-      "type": "transaction",
-      "deletedAt": "2026-11-04T20:55:46.232Z"
-    },
-    {
-      "id": "tx-1793825702726-h26xx",
-      "type": "transaction",
-      "deletedAt": "2026-11-04T20:56:00.080Z"
-    },
-    {
-      "id": "acc-user-1793822555088-binance",
-      "type": "account",
-      "deletedAt": "2026-11-06T03:12:44.261Z"
-    },
-    {
-      "id": "acc-user-1793822555088-cash",
-      "type": "account",
-      "deletedAt": "2026-11-06T03:12:46.217Z"
-    },
-    {
-      "id": "acc-user-1793822555088-bdv",
-      "type": "account",
-      "deletedAt": "2026-11-06T03:18:11.465Z"
-    },
-    {
-      "id": "acc-user-1793822555088-provincial",
-      "type": "account",
-      "deletedAt": "2026-11-06T03:18:14.435Z"
-    },
-    {
-      "id": "tx-1793972983420-61zft",
-      "type": "transaction",
-      "deletedAt": "2026-11-06T13:50:15.316Z"
-    },
-    {
-      "id": "tx-1793972983436-gi182",
-      "type": "transaction",
-      "deletedAt": "2026-11-06T13:50:19.754Z"
-    },
-    {
-      "id": "tx-1793972942354-vd2rq",
-      "type": "transaction",
-      "deletedAt": "2026-11-06T13:50:22.642Z"
-    },
-    {
-      "id": "tx-1794264249879-faypl",
-      "type": "transaction",
-      "deletedAt": "2026-11-10T15:53:13.854Z"
-    },
-    {
-      "id": "debt-1794250639819-v5x7h",
-      "type": "debt",
-      "deletedAt": "2026-11-10T15:58:01.970Z"
-    },
-    {
-      "id": "tx-debt-1794326142868",
-      "type": "transaction",
-      "deletedAt": "2026-11-10T17:38:29.733Z"
-    },
-    {
-      "id": "cat-custom-1794366669743",
-      "type": "category",
-      "deletedAt": "2026-11-11T03:11:56.180Z"
-    },
-    {
-      "id": "cat-custom-1794366647669",
-      "type": "category",
-      "deletedAt": "2026-11-12T14:58:54.132Z"
-    }
-  ],
-  "auditLogs": [],
-  "todos": []
+  "todos": [],
+  "auditLogs": []
 }
