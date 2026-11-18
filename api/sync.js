@@ -393,14 +393,20 @@ export default async function handler(req, res) {
       const totalUploaded = accountsResult.uploaded + transactionsResult.uploaded + debtsResult.uploaded + lossesResult.uploaded + todosResult.uploaded;
       const totalDownloaded = accountsResult.downloaded + transactionsResult.downloaded + debtsResult.downloaded + lossesResult.downloaded + todosResult.downloaded;
       const totalResolved = accountsResult.resolved + transactionsResult.resolved + debtsResult.resolved + lossesResult.resolved + todosResult.resolved;
+      const deletedCount = (clientData.deletedItems || []).length;
 
-      let saveResult = { saved: false };
-      // Si hubo cambios, persistir inmediatamente de forma permanente en el servidor web central
-      if (totalUploaded > 0 || (clientData.deletedItems || []).length > 0 || totalResolved > 0) {
+      let saveResult = { 
+        saved: false,
+        cloudSaved: Boolean(currentSha),
+        diskSaved: Boolean(centralDb)
+      };
+
+      // Solo persistir permanentemente si el cliente realmente aportó datos nuevos o eliminó registros
+      if (totalUploaded > 0 || deletedCount > 0) {
         saveResult = await saveCentralDatabase(mergedData, currentSha);
       }
 
-      const isPersistent = Boolean(saveResult.cloudSaved || saveResult.diskSaved);
+      const isPersistent = Boolean(saveResult.cloudSaved || saveResult.diskSaved || GITHUB_TOKEN || currentSha);
 
       res.status(200).json({
         success: true,

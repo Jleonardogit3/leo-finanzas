@@ -218,20 +218,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed?.uid && parsed?.username) {
-          // Si el usuario ya inició sesión y fue verificado hoy en este dispositivo, mantener sesión activa
-          if (BiometricService.isDeviceUnlockedToday(parsed.username)) {
-            return parsed;
-          }
-          // Si es un nuevo día, solicitar inicio de sesión una sola vez por día
-          return null;
+          // Mantener la sesión activa del usuario autenticado sin forzar cierres de sesión
+          BiometricService.markDeviceUnlockedToday(parsed.username);
+          sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+          sessionStorage.removeItem('finanzas_vzla_session_locked');
+          return parsed;
         }
       }
-      // Si no hay sesión explícita, comprobar si hay un último usuario activo que fue desbloqueado hoy
+      // Si no hay sesión explícita, comprobar si hay un último usuario activo en este dispositivo
       const lastUser = BiometricService.getLastActiveUser();
       if (lastUser) {
         const allUsers = StorageService.getRegisteredUsers();
         const matched = allUsers.find(u => u.username.toLowerCase() === lastUser.toLowerCase());
-        if (matched && BiometricService.isDeviceUnlockedToday(matched.username)) {
+        if (matched) {
           const restored: AppUser = {
             uid: matched.uid,
             username: matched.username,
@@ -240,6 +239,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             loginAt: new Date().toISOString()
           };
           localStorage.setItem('finanzas_vzla_auth_session', JSON.stringify(restored));
+          BiometricService.markDeviceUnlockedToday(matched.username);
+          sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
+          sessionStorage.removeItem('finanzas_vzla_session_locked');
           return restored;
         }
       }
@@ -252,6 +254,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Biometric & Security Lock States
   const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
     try {
+      // Si la pestaña actual ya fue desbloqueada durante esta sesión, nunca bloquear
+      const sessionUnlocked = sessionStorage.getItem('finanzas_vzla_unlocked_session');
+      if (sessionUnlocked === 'true') return false;
+
       const cached = localStorage.getItem('finanzas_vzla_auth_session');
       const lastUsername = BiometricService.getLastActiveUser();
       let targetUser = '';
@@ -267,12 +273,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      const sessionUnlocked = sessionStorage.getItem('finanzas_vzla_unlocked_session');
-      if (sessionUnlocked === 'true') return false;
-
       const wasLocked = sessionStorage.getItem('finanzas_vzla_session_locked');
       if (wasLocked === 'true') return true;
 
+      // Solo bloquear si el usuario enroló biométricos explícitamente y habilitó auto-bloqueo
       if (targetUser && BiometricService.isEnrolled(targetUser) && BiometricService.isAutoLockEnabled()) {
         return true;
       }
@@ -294,15 +298,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!user) return;
 
     const handleVisibilityChange = () => {
-      // Si el usuario ya inició sesión y está verificado hoy en este dispositivo, NUNCA bloquear automáticamente
-      if (BiometricService.isDeviceUnlockedToday(user.username)) {
+      // Si la sesión actual en esta pestaña ya está activa y desbloqueada, no bloquear en segundo plano
+      if (
+        sessionStorage.getItem('finanzas_vzla_unlocked_session') === 'true' ||
+        BiometricService.isDeviceUnlockedToday(user.username)
+      ) {
         sessionStorage.removeItem('finanzas_vzla_session_locked');
         sessionStorage.setItem('finanzas_vzla_unlocked_session', 'true');
         return;
       }
 
+      // Solo bloquear si el usuario enroló biométricos explícitamente y habilitó auto-bloqueo
       if (document.visibilityState === 'hidden') {
-        if (BiometricService.isAutoLockEnabled()) {
+        if (BiometricService.isEnrolled(user.username) && BiometricService.isAutoLockEnabled()) {
           sessionStorage.setItem('finanzas_vzla_session_locked', 'true');
           setIsAppLocked(true);
         }
@@ -314,13 +322,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const handlePageHide = () => {
-      // Si el usuario ya inició sesión y está verificado hoy en este dispositivo, NO bloquear
-      if (BiometricService.isDeviceUnlockedToday(user.username)) {
+      if (
+        sessionStorage.getItem('finanzas_vzla_unlocked_session') === 'true' ||
+        BiometricService.isDeviceUnlockedToday(user.username)
+      ) {
         sessionStorage.removeItem('finanzas_vzla_session_locked');
         return;
       }
 
-      if (BiometricService.isAutoLockEnabled()) {
+      if (BiometricService.isEnrolled(user.username) && BiometricService.isAutoLockEnabled()) {
         sessionStorage.setItem('finanzas_vzla_session_locked', 'true');
       }
     };
@@ -392,16 +402,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const localData = StorageService.getAllData(activeUid);
       const result = await SyncService.syncWithLocalServer(localData, customUrl);
       if (result.success && result.mergedData) {
-        StorageService.applyMergedData(result.mergedData, activeUid);
-        setAccounts(StorageService.getAccounts(activeUid));
-        setTransactions(StorageService.getTransactions(activeUid));
-        setCategories(StorageService.getCategories(activeUid));
-        setPortfolioAssets(StorageService.getPortfolioAssets(activeUid));
-        setGoals(StorageService.getGoals(activeUid));
-        setDebts(StorageService.getDebts(activeUid));
-        setLosses(StorageService.getLosses(activeUid));
-        setTodos(StorageService.getTodos(activeUid));
-        setAuditLogs(StorageService.getAuditLogs(activeUid));
+        const stats = result.stats || { uploaded: 0, downloaded: 0, resolved: 0 };
+        const hasIncomingChanges = (stats.downloaded > 0) || (stats.uploaded > 0);
+
+        // Solo sobrescribir almacenamiento local y disparar re-render de React si hubo cambios
+        if (hasIncomingChanges) {
+          StorageService.applyMergedData(result.mergedData, activeUid);
+          setAccounts(StorageService.getAccounts(activeUid));
+          setTransactions(StorageService.getTransactions(activeUid));
+          setCategories(StorageService.getCategories(activeUid));
+          setPortfolioAssets(StorageService.getPortfolioAssets(activeUid));
+          setGoals(StorageService.getGoals(activeUid));
+          setDebts(StorageService.getDebts(activeUid));
+          setLosses(StorageService.getLosses(activeUid));
+          setTodos(StorageService.getTodos(activeUid));
+          setAuditLogs(StorageService.getAuditLogs(activeUid));
+        }
+
         if (result.serverTimestamp) {
           setLastSyncTime(result.serverTimestamp);
         }
@@ -854,18 +871,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(interval);
   }, []);
 
-  // Sincronización multi-dispositivo en vivo: cada 12 segundos mientras la pantalla esté activa
-  useEffect(() => {
-    const liveMultiDeviceSync = () => {
-      if (document.visibilityState === 'visible' && navigator.onLine && !isSyncingRef.current) {
-        syncWithServer(undefined, { silent: true }).catch(() => {});
-      }
-    };
-
-    // Consultar cada 12 segundos para actualizar de inmediato cambios hechos desde otros dispositivos
-    const interval = setInterval(liveMultiDeviceSync, 12 * 1000);
-    return () => clearInterval(interval);
+  const lastAutoSyncTimeRef = useRef<number>(0);
+  const runThrottledAutoSync = useCallback(() => {
+    const now = Date.now();
+    // Limitar sincronizaciones automáticas pasivas a no más de una cada 30 segundos
+    if (now - lastAutoSyncTimeRef.current < 30 * 1000) {
+      return;
+    }
+    if (document.visibilityState === 'visible' && navigator.onLine && !isSyncingRef.current) {
+      lastAutoSyncTimeRef.current = now;
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+    }
   }, [syncWithServer]);
+
+  // Sincronización multi-dispositivo en vivo: cada 90 segundos de forma pasiva y suave
+  useEffect(() => {
+    const interval = setInterval(runThrottledAutoSync, 90 * 1000);
+    return () => clearInterval(interval);
+  }, [runThrottledAutoSync]);
 
   // Escuchar difusiones instantáneas entre pestañas del mismo dispositivo
   useEffect(() => {
@@ -884,16 +907,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [broadcastSyncChannel, user?.uid]);
 
-  // Sincronización automática exhaustiva:
-  // Se ejecuta SIEMPRE que la página o app se abra tras un cierre en cualquier dispositivo
+  // Sincronización automática suave:
+  // Se ejecuta al volver de segundo plano o reactivar pantalla, respetando el throttle de 30s
   useEffect(() => {
-    // 1. Sincronizar inmediatamente al montar/abrir la página (Cold start o recarga)
-    syncWithServer(undefined, { silent: true }).catch(() => {});
+    // 1. Sincronizar al montar/abrir la página (Cold start o recarga)
+    runThrottledAutoSync();
 
     // 2. Al volver de segundo plano, reactivar pantalla o cambiar de pestaña
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
-        syncWithServer(undefined, { silent: true }).catch(() => {});
+        runThrottledAutoSync();
       } else if (document.visibilityState === 'hidden') {
         try {
           localStorage.setItem('finanzas_vzla_last_closed_at', new Date().toISOString());
@@ -903,12 +926,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Al dispararse el evento estándar HTML5 'pageshow' (apertura, BFCache o PWA resume)
     const handlePageShow = () => {
-      syncWithServer(undefined, { silent: true }).catch(() => {});
+      runThrottledAutoSync();
     };
 
     // 4. Al recuperar conexión de red
     const handleOnline = () => {
-      syncWithServer(undefined, { silent: true }).catch(() => {});
+      runThrottledAutoSync();
     };
 
     // 5. Al cerrar o pausar la página
@@ -933,7 +956,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('pagehide', handlePageClose);
       window.removeEventListener('beforeunload', handlePageClose);
     };
-  }, [syncWithServer]);
+  }, [runThrottledAutoSync]);
 
   // Cuando el usuario inicia sesión o desbloquea la app, sincronizar de inmediato
   useEffect(() => {

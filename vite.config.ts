@@ -103,7 +103,7 @@ export default defineConfig({
     react(),
     localSyncDevPlugin(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'mask-icon.svg', 'icons/*.png', 'logos/*.png', 'logos/*.jpg'],
       manifest: {
         id: '/',
