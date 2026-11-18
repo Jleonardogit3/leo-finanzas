@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   RefreshCw, 
@@ -9,11 +9,13 @@ import {
   Check, 
   ShieldCheck, 
   Download, 
+  Upload,
   ArrowUpDown, 
   Globe, 
   QrCode,
   Cloud,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SyncService } from '../../services/syncService';
@@ -25,9 +27,11 @@ export const SyncModal: React.FC = () => {
     setIsSyncModalOpen, 
     isSyncing, 
     lastSyncTime, 
-    syncWithServer 
+    syncWithServer,
+    importBackupData
   } = useApp();
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [isCheckingServer, setIsCheckingServer] = useState(false);
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
@@ -87,6 +91,38 @@ export const SyncModal: React.FC = () => {
   const handleExportBackup = () => {
     const allData = StorageService.getAllData();
     SyncService.exportBackupJson(allData);
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const raw = event.target?.result as string;
+        const parsed = JSON.parse(raw);
+        const ok = importBackupData(parsed);
+        if (ok) {
+          setSyncFeedback({
+            type: 'success',
+            message: '¡Copia de seguridad importada con éxito! Todos los movimientos y saldos se actualizaron.'
+          });
+        } else {
+          setSyncFeedback({
+            type: 'error',
+            message: 'El archivo JSON no tiene un formato válido de base de datos.'
+          });
+        }
+      } catch (err: any) {
+        setSyncFeedback({
+          type: 'error',
+          message: 'Error al leer el archivo JSON: ' + (err?.message || 'formato inválido')
+        });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   if (!isSyncModalOpen) return null;
@@ -284,24 +320,42 @@ export const SyncModal: React.FC = () => {
             )}
           </div>
 
-          {/* Respaldo Manual Local */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex items-center justify-between gap-3">
+          {/* Respaldo Manual Local y Migración Directa */}
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="min-w-0">
               <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-blue-500" />
-                Copia de Seguridad
+                Copia de Seguridad y Migración
               </span>
               <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                Descarga un archivo JSON con todos tus movimientos, deudas y cuentas.
+                Pasa tus datos al instante entre móvil y PC sin depender de la nube.
               </p>
             </div>
-            <button
-              onClick={handleExportBackup}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors flex items-center gap-1.5 flex-shrink-0"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Exportar JSON</span>
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleExportBackup}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors flex items-center gap-1.5"
+                title="Descarga el archivo con los datos más recientes de este dispositivo"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-500" />
+                <span>Exportar JSON</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center gap-1.5 shadow-xs"
+                title="Carga los datos actualizados desde otro equipo"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Importar JSON</span>
+              </button>
+              <input 
+                ref={fileInputRef} 
+                type="file" 
+                accept=".json" 
+                className="hidden" 
+                onChange={handleFileImport} 
+              />
+            </div>
           </div>
 
         </div>

@@ -3,8 +3,7 @@ import path from 'path';
 
 const GITHUB_REPO = process.env.GITHUB_REPO || 'Jleonardogit3/leo-finanzas';
 const GITHUB_BRANCH = process.env.GITHUB_SYNC_BRANCH || 'data-sync';
-const _k = [103,104,112,95,66,118,108,118,109,115,97,89,77,117,57,99,106,107,49,77,73,83,77,117,101,120,51,54,57,87,113,121,118,86,48,83,111,77,82,110];
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || String.fromCharCode(..._k);
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 
 /**
  * Obtiene la base de datos central permanente desde la nube (GitHub branch data-sync)
@@ -59,17 +58,22 @@ async function fetchCentralDatabase() {
  * Guarda la base de datos fusionada de forma permanente en la nube y en disco local
  */
 async function saveCentralDatabase(mergedData, currentSha) {
+  let diskSaved = false;
+  let cloudSaved = false;
+  let cloudError = null;
+
   // 1. Guardar en disco local si el entorno lo permite (desarrollo local / servidor dedicado)
   try {
     const dbPath = path.join(process.cwd(), 'data', 'database.json');
     const tempFile = `${dbPath}.tmp`;
     fs.writeFileSync(tempFile, JSON.stringify(mergedData, null, 2), 'utf8');
     fs.renameSync(tempFile, dbPath);
-  } catch {
+    diskSaved = true;
+  } catch (err) {
     // Entornos de solo lectura como Vercel serverless ignoran escrituras a disco
   }
 
-  // 2. Persistir permanentemente en la nube de forma centralizada
+  // 2. Persistir permanentemente en la nube de forma centralizada (GitHub API)
   if (GITHUB_TOKEN) {
     try {
       let targetSha = currentSha;
@@ -81,23 +85,27 @@ async function saveCentralDatabase(mergedData, currentSha) {
           {
             headers: {
               'Authorization': `Bearer ${GITHUB_TOKEN}`,
-              'User-Agent': 'FinanzasVzlaCentralSync'
+              'User-Agent': 'FinanzasVzlaCentralSync',
+              'Accept': 'application/vnd.github.v3+json'
             }
           }
         );
         if (checkRes.ok) {
           const info = await checkRes.json();
           targetSha = info.sha;
+        } else {
+          cloudError = `GitHub auth/read error (${checkRes.status}): ${checkRes.statusText}`;
         }
       }
 
       if (targetSha) {
-        await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/data/database.json`, {
+        const putRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/data/database.json`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${GITHUB_TOKEN}`,
             'User-Agent': 'FinanzasVzlaCentralSync',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github.v3+json'
           },
           body: JSON.stringify({
             message: `sync: update central cloud database [${new Date().toISOString()}]`,
@@ -106,11 +114,28 @@ async function saveCentralDatabase(mergedData, currentSha) {
             branch: GITHUB_BRANCH
           })
         });
+
+        if (putRes.ok) {
+          cloudSaved = true;
+        } else {
+          const errBody = await putRes.text();
+          cloudError = `GitHub write error (${putRes.status}): ${errBody}`;
+        }
       }
     } catch (err) {
+      cloudError = err.message;
       console.warn('[SyncAPI] Error updating cloud storage:', err.message);
     }
+  } else {
+    cloudError = 'GITHUB_TOKEN no configurado en Vercel';
   }
+
+  return {
+    saved: diskSaved || cloudSaved,
+    diskSaved,
+    cloudSaved,
+    cloudError
+  };
 }
 
 /**
@@ -369,15 +394,23 @@ export default async function handler(req, res) {
       const totalDownloaded = accountsResult.downloaded + transactionsResult.downloaded + debtsResult.downloaded + lossesResult.downloaded + todosResult.downloaded;
       const totalResolved = accountsResult.resolved + transactionsResult.resolved + debtsResult.resolved + lossesResult.resolved + todosResult.resolved;
 
+      let saveResult = { saved: false };
       // Si hubo cambios, persistir inmediatamente de forma permanente en el servidor web central
       if (totalUploaded > 0 || (clientData.deletedItems || []).length > 0 || totalResolved > 0) {
-        await saveCentralDatabase(mergedData, currentSha);
+        saveResult = await saveCentralDatabase(mergedData, currentSha);
       }
+
+      const isPersistent = Boolean(saveResult.cloudSaved || saveResult.diskSaved);
 
       res.status(200).json({
         success: true,
+        persistent: isPersistent,
+        storageSource: saveResult.cloudSaved ? 'cloud' : (saveResult.diskSaved ? 'disk' : 'memory_ephemeral'),
         serverTimestamp: nowIso,
-        message: '¡Sincronización completada con éxito con el servidor web central!',
+        message: isPersistent 
+          ? '¡Sincronización completada con éxito con el servidor web central!' 
+          : '⚠️ Datos sincronizados en este momento, pero NO guardados en la nube permanente. Requiere configurar GITHUB_TOKEN en Vercel.',
+        warning: !isPersistent ? (saveResult.cloudError || 'Sin almacenamiento permanente en la nube configurado en Vercel') : undefined,
         stats: {
           uploaded: totalUploaded,
           downloaded: totalDownloaded,

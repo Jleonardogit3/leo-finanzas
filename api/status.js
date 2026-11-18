@@ -13,11 +13,15 @@ export default async function handler(req, res) {
     return;
   }
 
+  const hasCloudStorage = Boolean(process.env.GITHUB_TOKEN);
+
   res.status(200).json({
     online: true,
     service: 'Finanzas Vzla Sync API',
     version: 1,
     cloudDeployed: true,
+    hasCloudStorage,
+    storageType: hasCloudStorage ? 'github_cloud' : 'disk_readonly',
     serverTime: new Date().toISOString()
   });
 }

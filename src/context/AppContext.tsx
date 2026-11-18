@@ -118,6 +118,7 @@ interface AppContextType {
   isSyncModalOpen: boolean;
   setIsSyncModalOpen: (open: boolean) => void;
   syncWithServer: (customUrl?: string, options?: { silent?: boolean; overrideUserId?: string | null }) => Promise<SyncResult>;
+  importBackupData: (data: any) => boolean;
 
   // Actions
   addTransaction: (tx: Transaction) => void;
@@ -431,6 +432,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           syncWithServer(undefined, { silent: true }).catch(() => {});
         }, 300);
       }
+    }
+  }, [user?.uid]);
+
+  const importBackupData = useCallback((backupData: any): boolean => {
+    try {
+      const activeUid = userRef.current?.uid ?? user?.uid;
+      const payload = backupData?.data || backupData;
+      if (!payload || typeof payload !== 'object') {
+        return false;
+      }
+      StorageService.applyMergedData(payload, activeUid);
+      reloadDataForUser(activeUid);
+      triggerBackgroundSync(100, activeUid);
+      return true;
+    } catch (e) {
+      console.error('Error importing backup data:', e);
+      return false;
     }
   }, [user?.uid]);
 
@@ -1632,7 +1650,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lastSyncTime,
         isSyncModalOpen,
         setIsSyncModalOpen,
-        syncWithServer
+        syncWithServer,
+        importBackupData
       }}
     >
       {children}
