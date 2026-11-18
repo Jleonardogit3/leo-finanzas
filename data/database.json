@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-18T20:26:34.591Z",
+  "lastUpdated": "2026-11-18T20:28:45.556Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -105,13 +105,13 @@
       "color": "#10B981",
       "icon": "Banknote",
       "id": "acc-7",
-      "currentBalance": 1649,
+      "currentBalance": 1651.22,
       "digitalUsdBalance": 0,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-12T21:02:26.359Z"
+      "updatedAt": "2026-11-13T15:13:10.008Z"
     }
   ],
   "transactions": [
@@ -217,8 +217,8 @@
       "createdAt": "2026-11-12T20:59:22.897Z",
       "accountBalanceBefore": 1444.2,
       "accountBalanceAfter": 1044.2,
-      "toAccountBalanceBefore": 1249,
-      "toAccountBalanceAfter": 1649,
+      "toAccountBalanceBefore": 1251.22,
+      "toAccountBalanceAfter": 1651.22,
       "updatedAt": "2026-11-12T20:59:22.898Z"
     },
     {
@@ -238,6 +238,29 @@
       "accountBalanceBefore": 308465.27,
       "accountBalanceAfter": 305965.27,
       "updatedAt": "2026-11-12T20:50:57.567Z"
+    },
+    {
+      "id": "tx-1794506296720-z8a0b",
+      "type": "transfer",
+      "accountId": "acc-1",
+      "toAccountId": "acc-7",
+      "subFund": "ves",
+      "amount": 20253.12,
+      "currency": "VES",
+      "appliedRate": 911.6243,
+      "destinationAmount": 22.22,
+      "categoryId": "cat-cambio-divisas",
+      "categoryName": "Compra de Divisas (BCV)",
+      "categoryIcon": "ArrowLeftRight",
+      "categoryColor": "#3B82F6",
+      "date": "2026-11-12T19:49:00.000Z",
+      "note": "Compra de divisas BCV: $20.00 USD @ 1003.63 Bs/$ hacia Efectivo ($)",
+      "createdAt": "2026-11-12T17:58:16.720Z",
+      "accountBalanceBefore": 328718.39,
+      "accountBalanceAfter": 308465.27,
+      "toAccountBalanceBefore": 1229,
+      "toAccountBalanceAfter": 1251.22,
+      "updatedAt": "2026-11-13T15:13:10.008Z"
     },
     {
       "id": "tx-1794516836952-2ct45",
@@ -271,8 +294,8 @@
       "date": "2026-11-12T17:48:00.000Z",
       "note": "Condominio septiembre local",
       "createdAt": "2026-11-12T20:48:49.881Z",
-      "accountBalanceBefore": 329611.21,
-      "accountBalanceAfter": 308465.27,
+      "accountBalanceBefore": 349864.33,
+      "accountBalanceAfter": 328718.39,
       "updatedAt": "2026-11-12T20:48:49.882Z"
     },
     {
@@ -289,8 +312,8 @@
       "date": "2026-11-12T17:47:00.000Z",
       "note": "Mantequilla de mani",
       "createdAt": "2026-11-12T20:47:42.429Z",
-      "accountBalanceBefore": 335961.33,
-      "accountBalanceAfter": 329611.21,
+      "accountBalanceBefore": 356214.45,
+      "accountBalanceAfter": 349864.33,
       "updatedAt": "2026-11-12T20:47:42.430Z"
     },
     {
@@ -307,8 +330,8 @@
       "date": "2026-11-12T17:45:00.000Z",
       "note": "Préstamo: Préstamo retiro de zapatos",
       "createdAt": "2026-11-12T20:46:22.475Z",
-      "accountBalanceBefore": 365961.33,
-      "accountBalanceAfter": 335961.33,
+      "accountBalanceBefore": 386214.45,
+      "accountBalanceAfter": 356214.45,
       "updatedAt": "2026-11-12T20:46:22.476Z"
     },
     {
@@ -325,8 +348,8 @@
       "date": "2026-11-12T15:11:00.000Z",
       "note": "Complemento compra casa",
       "createdAt": "2026-11-12T15:16:02.927Z",
-      "accountBalanceBefore": 395961.33,
-      "accountBalanceAfter": 365961.33,
+      "accountBalanceBefore": 416214.45,
+      "accountBalanceAfter": 386214.45,
       "updatedAt": "2026-11-12T15:16:02.927Z"
     },
     {
@@ -343,8 +366,8 @@
       "date": "2026-11-12T15:09:00.000Z",
       "note": "Recarga Movistar",
       "createdAt": "2026-11-12T15:10:12.850Z",
-      "accountBalanceBefore": 396961.33,
-      "accountBalanceAfter": 395961.33,
+      "accountBalanceBefore": 417214.45,
+      "accountBalanceAfter": 416214.45,
       "updatedAt": "2026-11-12T15:10:12.850Z"
     },
     {
@@ -360,8 +383,8 @@
       "categoryColor": "#64748B",
       "date": "2026-11-12T13:09:00.000Z",
       "createdAt": "2026-11-12T15:09:20.793Z",
-      "accountBalanceBefore": 397205.33,
-      "accountBalanceAfter": 396961.33,
+      "accountBalanceBefore": 417458.45,
+      "accountBalanceAfter": 417214.45,
       "updatedAt": "2026-11-12T15:09:39.850Z"
     },
     {
@@ -420,8 +443,8 @@
       "createdAt": "2026-11-12T14:53:38.618Z",
       "accountBalanceBefore": 148878.92,
       "accountBalanceAfter": 100878.92,
-      "toAccountBalanceBefore": 349205.33,
-      "toAccountBalanceAfter": 397205.33,
+      "toAccountBalanceBefore": 369458.45,
+      "toAccountBalanceAfter": 417458.45,
       "updatedAt": "2026-11-12T14:53:38.619Z"
     },
     {
@@ -438,8 +461,8 @@
       "date": "2026-11-11T23:07:00.000Z",
       "note": "Cashea pintura casa",
       "createdAt": "2026-11-12T15:08:50.831Z",
-      "accountBalanceBefore": 355399.44,
-      "accountBalanceAfter": 349205.33,
+      "accountBalanceBefore": 375652.56,
+      "accountBalanceAfter": 369458.45,
       "updatedAt": "2026-11-12T15:08:50.831Z"
     },
     {
@@ -456,8 +479,8 @@
       "date": "2026-11-11T23:06:00.000Z",
       "note": "Cashea zapatos Mama",
       "createdAt": "2026-11-12T15:07:18.776Z",
-      "accountBalanceBefore": 370420.39,
-      "accountBalanceAfter": 355399.44,
+      "accountBalanceBefore": 390673.51,
+      "accountBalanceAfter": 375652.56,
       "updatedAt": "2026-11-12T15:07:18.777Z"
     },
     {
@@ -473,8 +496,8 @@
       "categoryColor": "#64748B",
       "date": "2026-11-11T22:05:00.000Z",
       "createdAt": "2026-11-12T15:05:57.932Z",
-      "accountBalanceBefore": 371138.39,
-      "accountBalanceAfter": 370420.39,
+      "accountBalanceBefore": 391391.51,
+      "accountBalanceAfter": 390673.51,
       "updatedAt": "2026-11-12T15:06:10.390Z"
     },
     {
@@ -491,8 +514,8 @@
       "date": "2026-11-11T21:03:00.000Z",
       "note": "Mercado casa Suraki y Sujer",
       "createdAt": "2026-11-12T15:04:06.690Z",
-      "accountBalanceBefore": 418082.7,
-      "accountBalanceAfter": 371138.39,
+      "accountBalanceBefore": 438335.82,
+      "accountBalanceAfter": 391391.51,
       "updatedAt": "2026-11-12T15:05:08.123Z"
     },
     {
@@ -511,8 +534,8 @@
       "createdAt": "2026-11-12T21:02:26.358Z",
       "accountBalanceBefore": 1454.2,
       "accountBalanceAfter": 1444.2,
-      "toAccountBalanceBefore": 1239,
-      "toAccountBalanceAfter": 1249,
+      "toAccountBalanceBefore": 1219,
+      "toAccountBalanceAfter": 1229,
       "updatedAt": "2026-11-12T21:02:26.359Z"
     },
     {
@@ -529,32 +552,9 @@
       "date": "2026-11-11T20:00:00.000Z",
       "note": "Retiro baterias MiniUps Zoom",
       "createdAt": "2026-11-12T15:01:58.839Z",
-      "accountBalanceBefore": 419751.31,
-      "accountBalanceAfter": 418082.7,
-      "updatedAt": "2026-11-12T15:01:58.839Z"
-    },
-    {
-      "id": "tx-1794506296720-z8a0b",
-      "type": "transfer",
-      "accountId": "acc-1",
-      "toAccountId": "acc-7",
-      "subFund": "ves",
-      "amount": 20253.12,
-      "currency": "VES",
-      "appliedRate": 1012.656,
-      "destinationAmount": 20,
-      "categoryId": "cat-cambio-divisas",
-      "categoryName": "Compra de Divisas (BCV)",
-      "categoryIcon": "ArrowLeftRight",
-      "categoryColor": "#3B82F6",
-      "date": "2026-11-11T17:53:00.000Z",
-      "note": "Compra de divisas BCV: $20.00 USD @ 1003.63 Bs/$ hacia Efectivo ($)",
-      "createdAt": "2026-11-12T17:58:16.720Z",
       "accountBalanceBefore": 440004.43,
-      "accountBalanceAfter": 419751.31,
-      "toAccountBalanceBefore": 1219,
-      "toAccountBalanceAfter": 1239,
-      "updatedAt": "2026-11-12T18:01:33.647Z"
+      "accountBalanceAfter": 438335.82,
+      "updatedAt": "2026-11-12T15:01:58.839Z"
     },
     {
       "id": "tx-1794495627335-7xgr5",
@@ -574,6 +574,24 @@
       "updatedAt": "2026-11-12T15:00:45.872Z"
     },
     {
+      "id": "tx-1794581479296-8jrnv",
+      "type": "expense",
+      "accountId": "acc-1",
+      "subFund": "ves",
+      "amount": 90161.75,
+      "currency": "VES",
+      "categoryId": "cat-personal",
+      "categoryName": "Personal",
+      "categoryIcon": "User",
+      "categoryColor": "#EC4899",
+      "date": "2026-11-11T14:59:00.000Z",
+      "note": "San Vultur",
+      "createdAt": "2026-11-13T14:51:19.296Z",
+      "accountBalanceBefore": 530410.18,
+      "accountBalanceAfter": 440248.43,
+      "updatedAt": "2026-11-13T15:09:49.988Z"
+    },
+    {
       "id": "tx-1794495594149-7e14p",
       "type": "income",
       "accountId": "acc-1",
@@ -587,8 +605,8 @@
       "date": "2026-11-11T14:58:00.000Z",
       "note": "Bono Corresponsabilidad Vultur",
       "createdAt": "2026-11-12T14:59:54.150Z",
-      "accountBalanceBefore": 22418.43,
-      "accountBalanceAfter": 440248.43,
+      "accountBalanceBefore": 112580.18,
+      "accountBalanceAfter": 530410.18,
       "updatedAt": "2026-11-12T14:59:54.150Z"
     },
     {
@@ -646,8 +664,8 @@
       "date": "2026-11-10T23:10:00.000Z",
       "note": "Pasaje gym",
       "createdAt": "2026-11-11T03:10:24.353Z",
-      "accountBalanceBefore": 22662.43,
-      "accountBalanceAfter": 22418.43,
+      "accountBalanceBefore": 112824.18,
+      "accountBalanceAfter": 112580.18,
       "updatedAt": "2026-11-11T03:10:24.354Z"
     },
     {
@@ -663,8 +681,8 @@
       "categoryColor": "#10B981",
       "date": "2026-11-10T21:11:00.000Z",
       "createdAt": "2026-11-11T03:12:14.491Z",
-      "accountBalanceBefore": 22517.78,
-      "accountBalanceAfter": 22662.43,
+      "accountBalanceBefore": 112679.53,
+      "accountBalanceAfter": 112824.18,
       "updatedAt": "2026-11-12T14:59:02.014Z"
     },
     {
@@ -706,8 +724,8 @@
       "note": "Pasajes Mama",
       "createdAt": "2026-11-10T15:57:11.119Z",
       "updatedAt": "2026-11-10T16:15:28.728Z",
-      "accountBalanceBefore": 23017.78,
-      "accountBalanceAfter": 22517.78
+      "accountBalanceBefore": 113179.53,
+      "accountBalanceAfter": 112679.53
     },
     {
       "id": "tx-1794326216462-iwwrv",
@@ -747,8 +765,8 @@
       "updatedAt": "2026-11-10T15:56:56.450Z",
       "accountBalanceBefore": 99627.21,
       "accountBalanceAfter": 97627.21,
-      "toAccountBalanceBefore": 21017.78,
-      "toAccountBalanceAfter": 23017.78
+      "toAccountBalanceBefore": 111179.53,
+      "toAccountBalanceAfter": 113179.53
     },
     {
       "id": "tx-1794326321507-rtkwm",
@@ -1163,8 +1181,8 @@
       "note": "Recarga ridery",
       "createdAt": "2026-11-09T18:02:52.263Z",
       "updatedAt": "2026-11-09T18:03:11.993Z",
-      "accountBalanceBefore": 23261.63,
-      "accountBalanceAfter": 21017.78
+      "accountBalanceBefore": 113423.38,
+      "accountBalanceAfter": 111179.53
     },
     {
       "id": "tx-1794247307132-dwsnz",
@@ -1181,8 +1199,8 @@
       "note": "Recarga Movistar",
       "createdAt": "2026-11-09T18:01:47.132Z",
       "updatedAt": "2026-11-09T18:01:47.133Z",
-      "accountBalanceBefore": 24161.63,
-      "accountBalanceAfter": 23261.63
+      "accountBalanceBefore": 114323.38,
+      "accountBalanceAfter": 113423.38
     },
     {
       "id": "tx-1794247257070-3zx3k",
@@ -1223,8 +1241,8 @@
       "updatedAt": "2026-11-09T18:00:57.058Z",
       "accountBalanceBefore": 3782.49,
       "accountBalanceAfter": 82.49,
-      "toAccountBalanceBefore": 20461.63,
-      "toAccountBalanceAfter": 24161.63
+      "toAccountBalanceBefore": 110623.38,
+      "toAccountBalanceAfter": 114323.38
     },
     {
       "id": "tx-1794263581762-1bdxn",
@@ -1277,8 +1295,8 @@
       "note": "Recarga Movistar",
       "createdAt": "2026-11-09T17:58:39.646Z",
       "updatedAt": "2026-11-09T17:58:39.646Z",
-      "accountBalanceBefore": 21361.63,
-      "accountBalanceAfter": 20461.63
+      "accountBalanceBefore": 111523.38,
+      "accountBalanceAfter": 110623.38
     },
     {
       "id": "tx-1794250071829-4jpqt",
@@ -1497,8 +1515,8 @@
       "note": "Comisión transferencia / Pago móvil (0,30% • Mín. Bs. 14,00) - Transferencia provincial",
       "createdAt": "2026-11-06T15:37:36.550Z",
       "updatedAt": "2026-11-06T15:37:36.540Z",
-      "accountBalanceBefore": 21375.63,
-      "accountBalanceAfter": 21361.63
+      "accountBalanceBefore": 111537.38,
+      "accountBalanceAfter": 111523.38
     },
     {
       "id": "tx-1793979456536-pueyy",
@@ -1519,8 +1537,8 @@
       "note": "Transferencia provincial",
       "createdAt": "2026-11-06T15:37:36.536Z",
       "updatedAt": "2026-11-09T22:35:22.616Z",
-      "accountBalanceBefore": 21844.63,
-      "accountBalanceAfter": 21375.63,
+      "accountBalanceBefore": 112006.38,
+      "accountBalanceAfter": 111537.38,
       "toAccountBalanceBefore": 35597.62,
       "toAccountBalanceAfter": 36066.62
     },
@@ -1539,8 +1557,8 @@
       "note": "Compra mantequilla de maní chocolate Joan",
       "createdAt": "2026-11-06T15:34:46.562Z",
       "updatedAt": "2026-11-06T15:34:46.563Z",
-      "accountBalanceBefore": 24546.99,
-      "accountBalanceAfter": 21844.63
+      "accountBalanceBefore": 114708.74,
+      "accountBalanceAfter": 112006.38
     },
     {
       "id": "tx-1793979049644-y2ag4",
@@ -1643,8 +1661,8 @@
       "note": "Recarga Movistar",
       "createdAt": "2026-11-06T03:08:08.237Z",
       "updatedAt": "2026-11-09T05:36:02.100Z",
-      "accountBalanceBefore": 25446.99,
-      "accountBalanceAfter": 24546.99
+      "accountBalanceBefore": 115608.74,
+      "accountBalanceAfter": 114708.74
     },
     {
       "id": "tx-1793978969946-swhj7",
