@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-18T20:31:06.711Z",
+  "lastUpdated": "2026-11-22T15:49:51.153Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -1067,6 +1067,25 @@
       "toAccountBalanceAfter": 273.7
     },
     {
+      "id": "tx-debt-1794326142868",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 8022,
+      "currency": "VES",
+      "appliedRate": 899.2705,
+      "categoryId": "cat-pago-deuda",
+      "categoryName": "Pago de Deuda: Yogurt Mercantil",
+      "categoryIcon": "CreditCard",
+      "categoryColor": "#EF4444",
+      "date": "2026-11-09T19:32:00.000Z",
+      "note": "Pago realizado por deuda propia: Prestamo Cumpleaños Laura (8.022,00 Bs (Tasa BCV 899.2705 Bs/$)) - Pago prestamo yogurt",
+      "createdAt": "2026-11-10T15:55:42.868Z",
+      "updatedAt": "2026-11-10T15:55:42.868Z",
+      "accountBalanceBefore": 10999.7,
+      "accountBalanceAfter": 2977.7
+    },
+    {
       "id": "tx-debt-1794326039861",
       "type": "expense",
       "accountId": "acc-7",
@@ -1236,8 +1255,8 @@
       "note": "Cervezas Cumpleaños Laura",
       "createdAt": "2026-11-09T22:10:11.011Z",
       "updatedAt": "2026-11-09T22:10:11.012Z",
-      "accountBalanceBefore": 10607.7,
-      "accountBalanceAfter": 2977.7
+      "accountBalanceBefore": 18629.7,
+      "accountBalanceAfter": 10999.7
     },
     {
       "id": "tx-1794262155981-4bmki",
@@ -1254,8 +1273,8 @@
       "note": "Préstamo yogurt mercantil",
       "createdAt": "2026-11-09T22:09:15.981Z",
       "updatedAt": "2026-11-09T22:09:15.982Z",
-      "accountBalanceBefore": 2607.7,
-      "accountBalanceAfter": 10607.7
+      "accountBalanceBefore": 10629.7,
+      "accountBalanceAfter": 18629.7
     },
     {
       "id": "tx-1794250120370-w2qen",
@@ -1385,8 +1404,8 @@
       "note": "Cambio en mercantil de USDT",
       "createdAt": "2026-11-09T22:33:01.763Z",
       "updatedAt": "2026-11-09T22:37:40.447Z",
-      "accountBalanceBefore": -2646.08,
-      "accountBalanceAfter": 2607.7
+      "accountBalanceBefore": 5375.92,
+      "accountBalanceAfter": 10629.7
     },
     {
       "id": "tx-1794262085517-cswh3",
@@ -1403,8 +1422,8 @@
       "note": "Pago reembolso envío baterías mini UPS",
       "createdAt": "2026-11-09T22:08:05.517Z",
       "updatedAt": "2026-11-09T22:08:05.518Z",
-      "accountBalanceBefore": -4306.08,
-      "accountBalanceAfter": -2646.08
+      "accountBalanceBefore": 3715.92,
+      "accountBalanceAfter": 5375.92
     },
     {
       "id": "tx-1794247119646-dldv2",
@@ -1569,8 +1588,8 @@
       "note": "Compra mercado casa",
       "createdAt": "2026-11-06T16:18:41.473Z",
       "updatedAt": "2026-11-09T17:49:28.775Z",
-      "accountBalanceBefore": 47193.92,
-      "accountBalanceAfter": -4306.08
+      "accountBalanceBefore": 55215.92,
+      "accountBalanceAfter": 3715.92
     },
     {
       "id": "tx-1793981864588-zedta",
@@ -1587,8 +1606,8 @@
       "note": "Cambio compra 50$ binance",
       "createdAt": "2026-11-06T16:17:44.589Z",
       "updatedAt": "2026-11-06T16:17:44.589Z",
-      "accountBalanceBefore": 36066.62,
-      "accountBalanceAfter": 47193.92
+      "accountBalanceBefore": 44088.62,
+      "accountBalanceAfter": 55215.92
     },
     {
       "id": "tx-1793979604909-7r95w",
@@ -1665,8 +1684,8 @@
       "updatedAt": "2026-11-09T22:35:22.616Z",
       "accountBalanceBefore": 111516.38,
       "accountBalanceAfter": 111047.38,
-      "toAccountBalanceBefore": 35597.62,
-      "toAccountBalanceAfter": 36066.62
+      "toAccountBalanceBefore": 43619.62,
+      "toAccountBalanceAfter": 44088.62
     },
     {
       "id": "tx-1793979286562-narns",
@@ -1769,8 +1788,8 @@
       "note": "Perro feria de ciencias",
       "createdAt": "2026-11-06T03:09:13.121Z",
       "updatedAt": "2026-11-06T03:09:13.121Z",
-      "accountBalanceBefore": 37835.62,
-      "accountBalanceAfter": 35597.62
+      "accountBalanceBefore": 45857.62,
+      "accountBalanceAfter": 43619.62
     },
     {
       "id": "tx-1793934488237-dq60r",
@@ -1823,8 +1842,8 @@
       "note": "Software Samsung A50",
       "createdAt": "2026-11-06T15:29:02.685Z",
       "updatedAt": "2026-11-06T15:29:02.686Z",
-      "accountBalanceBefore": 30835.62,
-      "accountBalanceAfter": 37835.62
+      "accountBalanceBefore": 38857.62,
+      "accountBalanceAfter": 45857.62
     },
     {
       "id": "tx-1793806408107-3z0im",
@@ -1859,8 +1878,8 @@
       "note": "Transferencia 100.000bs Tesoro",
       "createdAt": "2026-11-04T15:30:08.268Z",
       "updatedAt": "2026-11-04T19:44:07.161Z",
-      "accountBalanceBefore": 31135.62,
-      "accountBalanceAfter": 30835.62
+      "accountBalanceBefore": 39157.62,
+      "accountBalanceAfter": 38857.62
     },
     {
       "id": "tx-1793806162788-rr1gz",
@@ -1881,8 +1900,8 @@
       "note": "Transferencia para compra de banco",
       "createdAt": "2026-11-04T15:29:22.788Z",
       "updatedAt": "2026-11-04T19:44:02.555Z",
-      "accountBalanceBefore": 131135.62,
-      "accountBalanceAfter": 31135.62,
+      "accountBalanceBefore": 139157.62,
+      "accountBalanceAfter": 39157.62,
       "toAccountBalanceBefore": 820.83,
       "toAccountBalanceAfter": 100820.83
     },
@@ -1901,8 +1920,8 @@
       "note": "Cambio venta 101usdt para compra banco",
       "createdAt": "2026-11-04T15:28:19.179Z",
       "updatedAt": "2026-11-04T19:44:02.555Z",
-      "accountBalanceBefore": 29489.04,
-      "accountBalanceAfter": 131135.62
+      "accountBalanceBefore": 37511.04,
+      "accountBalanceAfter": 139157.62
     },
     {
       "id": "tx-1793806004304-k4yu6",
