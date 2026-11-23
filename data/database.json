@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-23T20:43:54.290Z",
+  "lastUpdated": "2026-11-23T20:44:11.780Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -91,13 +91,13 @@
       "color": "#F59E0B",
       "icon": "Coins",
       "id": "acc-6",
-      "currentBalance": 1636.67,
+      "currentBalance": 1636.75,
       "digitalUsdBalance": 0,
       "initialDigitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:43:53.922Z"
+      "updatedAt": "2026-11-23T20:44:11.299Z"
     },
     {
       "name": "Efectivo ($)",
@@ -148,8 +148,8 @@
       "date": "2026-11-23T20:37:00.000Z",
       "note": "Compra audifonos KQZ",
       "createdAt": "2026-11-23T20:38:38.193Z",
-      "accountBalanceBefore": 1648.67,
-      "accountBalanceAfter": 1636.67,
+      "accountBalanceBefore": 1648.75,
+      "accountBalanceAfter": 1636.75,
       "updatedAt": "2026-11-23T20:38:38.193Z"
     },
     {
@@ -255,8 +255,8 @@
       "date": "2026-11-18T04:14:00.000Z",
       "note": "Actualización cuentas",
       "createdAt": "2026-11-18T04:15:03.691Z",
-      "accountBalanceBefore": 1019.2,
-      "accountBalanceAfter": 1648.67,
+      "accountBalanceBefore": 1019.28,
+      "accountBalanceAfter": 1648.75,
       "updatedAt": "2026-11-18T04:15:03.692Z"
     },
     {
@@ -307,8 +307,8 @@
       "date": "2026-11-12T20:51:00.000Z",
       "note": "Reparación iPhone 13 corneta Jesús Flores",
       "createdAt": "2026-11-12T20:52:13.498Z",
-      "accountBalanceBefore": 1044.2,
-      "accountBalanceAfter": 1019.2,
+      "accountBalanceBefore": 1044.28,
+      "accountBalanceAfter": 1019.28,
       "updatedAt": "2026-11-12T20:52:13.498Z"
     },
     {
@@ -324,8 +324,8 @@
       "date": "2026-11-12T20:51:00.000Z",
       "note": "Compra router casa",
       "createdAt": "2026-11-12T20:51:44.144Z",
-      "accountBalanceBefore": 1074.2,
-      "accountBalanceAfter": 1044.2,
+      "accountBalanceBefore": 1074.28,
+      "accountBalanceAfter": 1044.28,
       "updatedAt": "2026-11-12T20:51:44.145Z"
     },
     {
@@ -341,8 +341,8 @@
       "date": "2026-11-12T20:01:00.000Z",
       "note": "Pago cable y forro Roberto",
       "createdAt": "2026-11-12T21:01:30.320Z",
-      "accountBalanceBefore": 1059.2,
-      "accountBalanceAfter": 1074.2,
+      "accountBalanceBefore": 1059.28,
+      "accountBalanceAfter": 1074.28,
       "updatedAt": "2026-11-12T21:01:30.320Z"
     },
     {
@@ -358,8 +358,8 @@
       "date": "2026-11-12T19:59:00.000Z",
       "note": "Abono Joan",
       "createdAt": "2026-11-12T21:00:22.019Z",
-      "accountBalanceBefore": 1044.2,
-      "accountBalanceAfter": 1059.2,
+      "accountBalanceBefore": 1044.28,
+      "accountBalanceAfter": 1059.28,
       "updatedAt": "2026-11-12T21:00:22.021Z"
     },
     {
@@ -376,8 +376,8 @@
       "date": "2026-11-12T19:58:00.000Z",
       "note": "Cambio USDT a efectivo Gabriel",
       "createdAt": "2026-11-12T20:59:22.897Z",
-      "accountBalanceBefore": 1444.2,
-      "accountBalanceAfter": 1044.2,
+      "accountBalanceBefore": 1444.28,
+      "accountBalanceAfter": 1044.28,
       "toAccountBalanceBefore": 1249,
       "toAccountBalanceAfter": 1649,
       "updatedAt": "2026-11-12T20:59:22.898Z"
@@ -693,8 +693,8 @@
       "date": "2026-11-11T21:01:00.000Z",
       "note": "Cambio 10usdt a $ anggela",
       "createdAt": "2026-11-12T21:02:26.358Z",
-      "accountBalanceBefore": 1454.2,
-      "accountBalanceAfter": 1444.2,
+      "accountBalanceBefore": 1454.28,
+      "accountBalanceAfter": 1444.28,
       "toAccountBalanceBefore": 1216.78,
       "toAccountBalanceAfter": 1226.78,
       "updatedAt": "2026-11-12T21:02:26.359Z"
@@ -805,8 +805,8 @@
       "date": "2026-11-11T01:05:00.000Z",
       "note": "Venta P2P Binance: $140 USD @ 1071.7404 Bs/$ hacia Banco Provincial (BBVA)",
       "createdAt": "2026-11-11T03:07:07.099Z",
-      "accountBalanceBefore": 1594.2,
-      "accountBalanceAfter": 1454.2,
+      "accountBalanceBefore": 1594.28,
+      "accountBalanceAfter": 1454.28,
       "toAccountBalanceBefore": 12346.91,
       "toAccountBalanceAfter": 162390.57,
       "updatedAt": "2026-11-11T03:07:07.100Z"
@@ -965,8 +965,8 @@
       "note": "Cambio Compra Provincial 100$",
       "createdAt": "2026-11-10T15:14:28.413Z",
       "updatedAt": "2026-11-10T15:14:28.413Z",
-      "accountBalanceBefore": 1694.2,
-      "accountBalanceAfter": 1594.2,
+      "accountBalanceBefore": 1694.28,
+      "accountBalanceAfter": 1594.28,
       "toAccountBalanceBefore": 2288.45,
       "toAccountBalanceAfter": 107675.28
     },
@@ -1213,8 +1213,8 @@
       "note": "Pago Claude Papa",
       "createdAt": "2026-11-09T18:51:25.592Z",
       "updatedAt": "2026-11-09T18:51:25.592Z",
-      "accountBalanceBefore": 1714.4,
-      "accountBalanceAfter": 1694.2
+      "accountBalanceBefore": 1714.48,
+      "accountBalanceAfter": 1694.28
     },
     {
       "id": "tx-1794250254276-rgd16",
@@ -1230,8 +1230,8 @@
       "note": "Venta USDT para comprar $ Provincial",
       "createdAt": "2026-11-09T18:50:54.276Z",
       "updatedAt": "2026-11-09T18:50:54.277Z",
-      "accountBalanceBefore": 1784.4,
-      "accountBalanceAfter": 1714.4
+      "accountBalanceBefore": 1784.48,
+      "accountBalanceAfter": 1714.48
     },
     {
       "id": "tx-1794263983976-bvcgt",
@@ -1325,8 +1325,8 @@
       "note": "Pago Samir cumpleaños Laura",
       "createdAt": "2026-11-09T18:48:40.370Z",
       "updatedAt": "2026-11-09T18:48:40.370Z",
-      "accountBalanceBefore": 1782.9,
-      "accountBalanceAfter": 1784.4
+      "accountBalanceBefore": 1782.98,
+      "accountBalanceAfter": 1784.48
     },
     {
       "id": "tx-1794247457208-ottzb",
@@ -1492,8 +1492,8 @@
       "note": "Compra Bateria Laptop Dell Andrea",
       "createdAt": "2026-11-09T18:47:51.829Z",
       "updatedAt": "2026-11-09T18:49:42.327Z",
-      "accountBalanceBefore": 1841.9,
-      "accountBalanceAfter": 1782.9
+      "accountBalanceBefore": 1841.98,
+      "accountBalanceAfter": 1782.98
     },
     {
       "id": "tx-1794250040601-tyxs1",
@@ -1509,8 +1509,8 @@
       "note": "Compra 2 Baterias Mini Ups",
       "createdAt": "2026-11-09T18:47:20.602Z",
       "updatedAt": "2026-11-09T18:47:20.602Z",
-      "accountBalanceBefore": 1857.9,
-      "accountBalanceAfter": 1841.9
+      "accountBalanceBefore": 1857.98,
+      "accountBalanceAfter": 1841.98
     },
     {
       "id": "tx-1794249972227-h7maz",
@@ -1550,8 +1550,8 @@
       "updatedAt": "2026-11-09T18:46:12.208Z",
       "accountBalanceBefore": 968.49,
       "accountBalanceAfter": 446.99,
-      "toAccountBalanceBefore": 1357.78,
-      "toAccountBalanceAfter": 1857.9
+      "toAccountBalanceBefore": 1357.86,
+      "toAccountBalanceAfter": 1857.98
     },
     {
       "id": "tx-debt-1793982029017",
@@ -1754,8 +1754,8 @@
       "note": "Cambio compra 50$ provincial",
       "createdAt": "2026-11-06T15:30:49.644Z",
       "updatedAt": "2026-11-06T15:31:19.806Z",
-      "accountBalanceBefore": 1422.78,
-      "accountBalanceAfter": 1357.78
+      "accountBalanceBefore": 1422.86,
+      "accountBalanceAfter": 1357.86
     },
     {
       "id": "tx-1793934737423-392cr",
@@ -1771,8 +1771,8 @@
       "note": "Compra forro s23 ultra leo",
       "createdAt": "2026-11-06T03:12:17.423Z",
       "updatedAt": "2026-11-06T03:12:17.424Z",
-      "accountBalanceBefore": 1425.28,
-      "accountBalanceAfter": 1422.78
+      "accountBalanceBefore": 1425.36,
+      "accountBalanceAfter": 1422.86
     },
     {
       "id": "tx-1793934709614-sus5x",
@@ -1788,8 +1788,8 @@
       "note": "Compra forro Roberto Vultur",
       "createdAt": "2026-11-06T03:11:49.614Z",
       "updatedAt": "2026-11-06T03:11:49.615Z",
-      "accountBalanceBefore": 1431.83,
-      "accountBalanceAfter": 1425.28
+      "accountBalanceBefore": 1431.91,
+      "accountBalanceAfter": 1425.36
     },
     {
       "id": "tx-1793934639025-l948j",
@@ -1805,8 +1805,8 @@
       "note": "Compra mouse Anmary Cinex",
       "createdAt": "2026-11-06T03:10:39.026Z",
       "updatedAt": "2026-11-06T15:28:15.851Z",
-      "accountBalanceBefore": 1442.83,
-      "accountBalanceAfter": 1431.83
+      "accountBalanceBefore": 1442.91,
+      "accountBalanceAfter": 1431.91
     },
     {
       "id": "tx-1793934553120-vsbjl",
@@ -1972,8 +1972,8 @@
       "note": "Cambio para compra de banco",
       "createdAt": "2026-11-04T15:26:44.304Z",
       "updatedAt": "2026-11-04T19:44:02.555Z",
-      "accountBalanceBefore": 1543.83,
-      "accountBalanceAfter": 1442.83
+      "accountBalanceBefore": 1543.91,
+      "accountBalanceAfter": 1442.91
     },
     {
       "id": "tx-1793807122804-6swqa",
@@ -1989,8 +1989,8 @@
       "note": "Venta Router Mercusys Mx60",
       "createdAt": "2026-11-04T15:45:22.804Z",
       "updatedAt": "2026-11-06T15:28:15.851Z",
-      "accountBalanceBefore": 1505.83,
-      "accountBalanceAfter": 1543.83
+      "accountBalanceBefore": 1505.91,
+      "accountBalanceAfter": 1543.91
     },
     {
       "id": "tx-1793807065002-3iwif",
@@ -2006,8 +2006,8 @@
       "note": "Prestamo chuy 20usdt",
       "createdAt": "2026-11-04T15:44:25.002Z",
       "updatedAt": "2026-11-09T22:08:53.189Z",
-      "accountBalanceBefore": 1525.83,
-      "accountBalanceAfter": 1505.83
+      "accountBalanceBefore": 1525.91,
+      "accountBalanceAfter": 1505.91
     },
     {
       "id": "tx-1793806954118-04b2y",
@@ -2023,8 +2023,8 @@
       "note": "Interes mes de Octubre Willy 300$",
       "createdAt": "2026-11-04T15:42:34.118Z",
       "updatedAt": "2026-11-04T15:42:34.119Z",
-      "accountBalanceBefore": 1495.83,
-      "accountBalanceAfter": 1525.83
+      "accountBalanceBefore": 1495.91,
+      "accountBalanceAfter": 1525.91
     }
   ],
   "debts": [
