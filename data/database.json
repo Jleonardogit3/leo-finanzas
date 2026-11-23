@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-23T20:53:34.566Z",
+  "lastUpdated": "2026-11-23T21:00:06.557Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -9,7 +9,7 @@
       "type": "bank_ves",
       "currency": "VES",
       "currentBalance": 1335.43,
-      "updatedAt": "2026-11-23T20:53:34.231Z",
+      "updatedAt": "2026-11-23T21:00:05.903Z",
       "digitalUsdBalance": 0,
       "physicalUsdBalance": 0,
       "initialDigitalUsdBalance": 0,
@@ -28,9 +28,9 @@
       "icon": "Landmark",
       "bankCode": "0108",
       "id": "acc-2",
-      "currentBalance": 50235.56,
+      "currentBalance": 30759.49,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:53:34.231Z"
+      "updatedAt": "2026-11-23T21:00:05.903Z"
     },
     {
       "name": "Banco Mercantil",
@@ -47,7 +47,7 @@
       "id": "acc-3",
       "currentBalance": 38.31,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:53:34.231Z"
+      "updatedAt": "2026-11-23T21:00:05.903Z"
     },
     {
       "name": "Banco Nacional de Crédito (BNC)",
@@ -64,7 +64,7 @@
       "id": "acc-4",
       "currentBalance": 273.7,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:53:34.231Z"
+      "updatedAt": "2026-11-23T21:00:05.903Z"
     },
     {
       "name": "Banco del Tesoro",
@@ -81,7 +81,7 @@
       "id": "acc-5",
       "currentBalance": 647.66,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:53:34.231Z"
+      "updatedAt": "2026-11-23T21:00:05.903Z"
     },
     {
       "name": "Binance ($)",
@@ -97,7 +97,7 @@
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:53:34.231Z"
+      "updatedAt": "2026-11-23T21:00:05.903Z"
     },
     {
       "name": "Efectivo ($)",
@@ -113,7 +113,7 @@
       "physicalUsdBalance": 0,
       "initialPhysicalUsdBalance": 0,
       "createdAt": "1970-01-01T00:00:00.000Z",
-      "updatedAt": "2026-11-23T20:53:34.231Z"
+      "updatedAt": "2026-11-23T21:00:05.903Z"
     }
   ],
   "transactions": [
@@ -151,6 +151,24 @@
       "accountBalanceBefore": 1648.75,
       "accountBalanceAfter": 1636.75,
       "updatedAt": "2026-11-23T20:38:38.193Z"
+    },
+    {
+      "id": "tx-1795467605902-cryq8",
+      "type": "expense",
+      "accountId": "acc-2",
+      "subFund": "ves",
+      "amount": 19476.07,
+      "currency": "VES",
+      "categoryId": "cat-entretenimiento",
+      "categoryName": "Entretenimiento",
+      "categoryIcon": "Gamepad2",
+      "categoryColor": "#06B6D4",
+      "date": "2026-11-20T20:53:00.000Z",
+      "note": "Uñas y salida Okii Andrea",
+      "createdAt": "2026-11-23T21:00:05.902Z",
+      "accountBalanceBefore": 50235.56,
+      "accountBalanceAfter": 30759.49,
+      "updatedAt": "2026-11-23T21:00:05.902Z"
     },
     {
       "id": "tx-1795467214230-49zrl",
