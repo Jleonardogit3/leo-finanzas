@@ -55,11 +55,37 @@ function localSyncDevPlugin(): Plugin {
             try {
               const { readDatabase } = require('./server/syncServer.cjs');
               const db = readDatabase();
+              const txList = db.transactions || [];
+              const newestTx = txList[0];
+              const revision = [
+                db.lastUpdated || 'init',
+                (db.accounts || []).length,
+                txList.length,
+                (db.debts || []).length,
+                (db.losses || []).length,
+                (db.todos || []).length,
+                (db.deletedItems || []).length,
+                newestTx ? `${newestTx.id}:${newestTx.updatedAt || newestTx.createdAt || ''}` : 'none',
+                db.rates?.lastUpdated || ''
+              ].join('|');
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({
+                online: true,
                 success: true,
-                serverTimestamp: new Date().toISOString(),
-                data: db
+                service: 'Finanzas Venezuela Servidor Web Central',
+                status: 'ready',
+                storageSource: 'disk',
+                lastUpdated: db.lastUpdated || null,
+                revision,
+                rates: db.rates || null,
+                historicalRates: db.historicalRates || {},
+                totalRecords: {
+                  accounts: (db.accounts || []).length,
+                  transactions: txList.length,
+                  debts: (db.debts || []).length,
+                  losses: (db.losses || []).length,
+                  todos: (db.todos || []).length
+                }
               }));
               return;
             } catch (e) {
@@ -149,7 +175,12 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
+          {
+            urlPattern: /\/api\/.*/i,
+            handler: 'NetworkOnly'
+          },
           {
             urlPattern: /^https:\/\/ve\.dolarapi\.com\/v1\/.*/i,
             handler: 'NetworkFirst',

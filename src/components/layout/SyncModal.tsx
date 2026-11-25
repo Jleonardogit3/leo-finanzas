@@ -23,9 +23,11 @@ import { StorageService } from '../../services/storageService';
 
 export const SyncModal: React.FC = () => {
   const { 
+    user,
     isSyncModalOpen, 
     setIsSyncModalOpen, 
-    isSyncing, 
+    isSyncing,
+    hasPendingSync, 
     lastSyncTime, 
     syncWithServer,
     importBackupData
@@ -89,7 +91,7 @@ export const SyncModal: React.FC = () => {
   };
 
   const handleExportBackup = () => {
-    const allData = StorageService.getAllData();
+    const allData = StorageService.getAllData(user?.uid);
     SyncService.exportBackupJson(allData);
   };
 
@@ -363,8 +365,8 @@ export const SyncModal: React.FC = () => {
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850/60 flex items-center justify-between text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-            Sincronización Permanente Activa
+            <span className={`w-2 h-2 rounded-full inline-block animate-pulse ${hasPendingSync ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+            {hasPendingSync ? 'Cambios offline en cola (se subirán automáticamente al conectar)' : 'Sincronización Automática Activa'}
           </span>
           <button
             onClick={() => setIsSyncModalOpen(false)}

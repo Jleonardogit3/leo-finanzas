@@ -29,6 +29,20 @@ const DEFAULT_RATES: ExchangeRates = {
 
 export class RatesService {
   /**
+   * Obtiene la fecha local actual o de un Date/string en formato YYYY-MM-DD sin desfases UTC
+   */
+  static getLocalDateString(dateInput?: string | Date): string {
+    const d = dateInput
+      ? (dateInput instanceof Date ? dateInput : new Date(dateInput))
+      : new Date();
+    if (isNaN(d.getTime())) {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /**
    * Loads exchange rates from local cache or defaults
    */
   static getCachedRates(): ExchangeRates {
@@ -62,11 +76,16 @@ export class RatesService {
     }
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       const response = await fetch('https://ve.dolarapi.com/v1/dolares', {
+        cache: 'no-store',
         headers: {
           'Accept': 'application/json'
-        }
+        },
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`DolarApi responded with status: ${response.status}`);
@@ -86,6 +105,9 @@ export class RatesService {
           }
           if (item.fuente === 'paralelo' && typeof item.promedio === 'number' && item.promedio > 0) {
             usdtRate = item.promedio;
+            if (item.fechaActualizacion && new Date(item.fechaActualizacion).getTime() > new Date(updateTime).getTime()) {
+              updateTime = item.fechaActualizacion;
+            }
           }
         }
       }
@@ -101,7 +123,7 @@ export class RatesService {
       };
 
       localStorage.setItem(RATES_STORAGE_KEY, JSON.stringify(updatedRates));
-      this.saveRateForDate(new Date().toISOString().slice(0, 10), updatedRates.bcv, updatedRates.usdt);
+      this.saveRateForDate(this.getLocalDateString(), updatedRates.bcv, updatedRates.usdt);
       return updatedRates;
     } catch (error) {
       console.warn('Network offline or DolarApi unreachable, using cached rates:', error);
@@ -123,8 +145,83 @@ export class RatesService {
     };
 
     localStorage.setItem(RATES_OVERRIDE_KEY, JSON.stringify(manualRates));
-    this.saveRateForDate(new Date().toISOString().slice(0, 10), manualRates.bcv, manualRates.usdt);
+    this.saveRateForDate(this.getLocalDateString(), manualRates.bcv, manualRates.usdt);
     return manualRates;
+  }
+
+  /**
+   * Sincroniza las tasas recibidas desde el servidor central y el historial por fechas
+   */
+  static applySyncedRates(
+    serverRates?: ExchangeRates | null,
+    serverHistoricalRates?: Record<string, { bcv: number; usdt: number }> | null
+  ): { rates: ExchangeRates; changed: boolean } {
+    let changed = false;
+
+    if (serverHistoricalRates && typeof serverHistoricalRates === 'object') {
+      try {
+        const storedRaw = localStorage.getItem(HISTORICAL_RATES_KEY);
+        const existingCustom: Record<string, { bcv: number; usdt: number }> = storedRaw ? JSON.parse(storedRaw) : {};
+        let histChanged = false;
+        const mergedHist = { ...existingCustom };
+
+        for (const [dateKey, vals] of Object.entries(serverHistoricalRates)) {
+          if (vals && vals.bcv > 0 && vals.usdt > 0) {
+            const cur = mergedHist[dateKey];
+            if (!cur || cur.bcv !== vals.bcv || cur.usdt !== vals.usdt) {
+              mergedHist[dateKey] = {
+                bcv: Number(Number(vals.bcv).toFixed(4)),
+                usdt: Number(Number(vals.usdt).toFixed(4))
+              };
+              histChanged = true;
+            }
+          }
+        }
+        if (histChanged) {
+          localStorage.setItem(HISTORICAL_RATES_KEY, JSON.stringify(mergedHist));
+        }
+      } catch {}
+    }
+
+    const current = this.getCachedRates();
+    if (!serverRates || !serverRates.bcv || !serverRates.usdt) {
+      return { rates: current, changed: false };
+    }
+
+    const serverTime = new Date(serverRates.lastUpdated || 0).getTime();
+    const localTime = new Date(current.lastUpdated || 0).getTime();
+
+    const shouldAdoptServer =
+      (serverRates.isManualOverride && !current.isManualOverride && serverTime >= localTime) ||
+      (serverRates.isManualOverride && current.isManualOverride && serverTime > localTime) ||
+      (!current.isManualOverride && !serverRates.isManualOverride && (
+        serverTime > localTime ||
+        (Math.abs(serverTime - localTime) < 60000 && (current.bcv !== serverRates.bcv || current.usdt !== serverRates.usdt) && serverTime >= localTime)
+      ));
+
+    if (shouldAdoptServer) {
+      const normalized: ExchangeRates = {
+        bcv: Number(Number(serverRates.bcv).toFixed(4)),
+        usdt: Number(Number(serverRates.usdt).toFixed(4)),
+        lastUpdated: serverRates.lastUpdated || new Date().toISOString(),
+        isManualOverride: Boolean(serverRates.isManualOverride),
+        spreadPercent: serverRates.bcv > 0
+          ? Number((((serverRates.usdt - serverRates.bcv) / serverRates.bcv) * 100).toFixed(2))
+          : (serverRates.spreadPercent || 0)
+      };
+
+      if (normalized.isManualOverride) {
+        localStorage.setItem(RATES_OVERRIDE_KEY, JSON.stringify(normalized));
+      } else {
+        localStorage.removeItem(RATES_OVERRIDE_KEY);
+        localStorage.setItem(RATES_STORAGE_KEY, JSON.stringify(normalized));
+      }
+      this.saveRateForDate(this.getLocalDateString(), normalized.bcv, normalized.usdt);
+      changed = current.bcv !== normalized.bcv || current.usdt !== normalized.usdt || current.isManualOverride !== normalized.isManualOverride;
+      return { rates: normalized, changed };
+    }
+
+    return { rates: current, changed: false };
   }
 
   /**
@@ -165,10 +262,10 @@ export class RatesService {
     debts?: any[]
   ): { bcv: number; usdt: number; isHistorical: boolean; rateDate: string } {
     const targetDateStr = typeof dateInput === 'string'
-      ? dateInput.slice(0, 10)
-      : (dateInput instanceof Date && !isNaN(dateInput.getTime()) ? dateInput.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+      ? (/^\d{4}-\d{2}-\d{2}/.test(dateInput) ? dateInput.slice(0, 10) : this.getLocalDateString(dateInput))
+      : this.getLocalDateString(dateInput);
     
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = this.getLocalDateString();
     const cachedLive = this.getCachedRates();
 
     if (targetDateStr === todayStr) {

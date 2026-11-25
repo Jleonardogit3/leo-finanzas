@@ -24,6 +24,11 @@ export interface Account {
   currency: Currency;
   initialBalance: number;
   currentBalance: number;
+  // Base histórica antes de aplicar las transacciones cronológicas (permite sincronización exacta multi-dispositivo)
+  balanceBaseVes?: number;
+  balanceBaseDigitalUsd?: number;
+  balanceBasePhysicalUsd?: number;
+  balanceBaseUpdatedAt?: string;
   // Campos para cuentas bancarias (menos Binance): $ Digitales y $ Físicos
   digitalUsdBalance?: number;
   initialDigitalUsdBalance?: number;
@@ -233,11 +238,13 @@ export interface SyncStats {
 
 export interface SyncResult {
   success: boolean;
+  persistent?: boolean;
   isOffline?: boolean;
   message: string;
   serverTimestamp?: string;
   stats?: SyncStats;
   mergedData?: any;
+  localApplied?: boolean;
 }
 
 export type ActivityEntityType = 

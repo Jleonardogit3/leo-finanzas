@@ -5,14 +5,19 @@ import {
   PortfolioAsset, 
   FinancialGoal, 
   Debt, 
-  Loss, 
+  Loss,
+  TodoItem,
+  AuditLogEntry,
+  ExchangeRates,
   DeletedItem, 
   SyncResult 
 } from '../types';
 
 const SYNC_SERVER_URL_KEY = 'finanzas_vzla_sync_server_url';
 const LAST_SYNC_TIME_KEY = 'finanzas_vzla_last_sync_time';
+const LAST_SERVER_SIG_KEY = 'finanzas_vzla_last_server_sig';
 const DELETED_ITEMS_KEY = 'finanzas_vzla_deleted_items';
+const DIRTY_REV_KEY = 'finanzas_vzla_dirty_sync_rev';
 
 export class SyncService {
   /**
@@ -49,6 +54,56 @@ export class SyncService {
     localStorage.setItem(LAST_SYNC_TIME_KEY, isoString);
   }
 
+  static getLastServerSignature(): string | null {
+    try {
+      return localStorage.getItem(LAST_SERVER_SIG_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  static setLastServerSignature(signature: string): void {
+    if (!signature) return;
+    try {
+      localStorage.setItem(LAST_SERVER_SIG_KEY, signature);
+    } catch {}
+  }
+
+  /**
+   * Cola persistente de cambios locales sin subir (offline -> online)
+   */
+  static getDirtyRevision(): number {
+    try {
+      const raw = localStorage.getItem(DIRTY_REV_KEY);
+      return raw ? (parseInt(raw, 10) || 0) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  static markDirty(): number {
+    const next = this.getDirtyRevision() + 1;
+    try {
+      localStorage.setItem(DIRTY_REV_KEY, String(next));
+    } catch {}
+    return next;
+  }
+
+  static clearDirtyIfRevisionMatches(expectedRev: number): boolean {
+    const current = this.getDirtyRevision();
+    if (current === expectedRev) {
+      try {
+        localStorage.setItem(DIRTY_REV_KEY, '0');
+      } catch {}
+      return true;
+    }
+    return false;
+  }
+
+  static hasPendingChanges(): boolean {
+    return this.getDirtyRevision() > 0 || this.getDeletedItems().length > 0;
+  }
+
   /**
    * Registra un elemento eliminado para evitar que resucite en sincronización
    */
@@ -62,6 +117,7 @@ export class SyncService {
       ];
       // Guardar máximo últimos 500 registros de eliminación
       localStorage.setItem(DELETED_ITEMS_KEY, JSON.stringify(updated.slice(-500)));
+      this.markDirty();
     } catch (e) {
       console.warn('Error recording deletion tombstone', e);
     }
@@ -76,23 +132,41 @@ export class SyncService {
     }
   }
 
+  static clearSyncedDeletedItems(syncedSnapshot: DeletedItem[]): void {
+    try {
+      const syncedMap = new Map(syncedSnapshot.map(d => [d.id, d.deletedAt]));
+      const remaining = this.getDeletedItems().filter(item => {
+        const syncedAt = syncedMap.get(item.id);
+        return !syncedAt || item.deletedAt !== syncedAt;
+      });
+      if (remaining.length === 0) {
+        localStorage.removeItem(DELETED_ITEMS_KEY);
+      } else {
+        localStorage.setItem(DELETED_ITEMS_KEY, JSON.stringify(remaining));
+      }
+    } catch {
+      localStorage.removeItem(DELETED_ITEMS_KEY);
+    }
+  }
+
   static clearDeletedItems(): void {
     localStorage.removeItem(DELETED_ITEMS_KEY);
   }
 
   /**
-   * Comprueba si el servidor local está disponible en la red
+   * Comprueba si el servidor está disponible en la red
    */
   static async pingServer(customUrl?: string): Promise<{ online: boolean; serverInfo?: any }> {
     const baseUrl = customUrl || this.getSyncServerUrl();
-    const endpoint = `${baseUrl}/api/status`;
+    const endpoint = `${baseUrl}/api/status?t=${Date.now()}`;
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 segundos de timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const res = await fetch(endpoint, {
         method: 'GET',
+        cache: 'no-store',
         headers: { 'Accept': 'application/json' },
         signal: controller.signal
       });
@@ -111,7 +185,50 @@ export class SyncService {
   }
 
   /**
-   * Ejecuta la sincronización bidireccional completa con el servidor local
+   * Consulta ligera (solo lectura) para detectar si el servidor tiene datos más recientes
+   * sin provocar escrituras en GitHub
+   */
+  static async checkServerState(customUrl?: string): Promise<{
+    online: boolean;
+    revision?: string;
+    lastUpdated?: string | null;
+    rates?: ExchangeRates | null;
+    historicalRates?: Record<string, { bcv: number; usdt: number }>;
+  }> {
+    const baseUrl = customUrl || this.getSyncServerUrl();
+    const endpoint = `${baseUrl}/api/sync?t=${Date.now()}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5500);
+
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          online: true,
+          revision: data.revision,
+          lastUpdated: data.lastUpdated,
+          rates: data.rates || null,
+          historicalRates: data.historicalRates
+        };
+      }
+    } catch {
+      // Offline o error temporal
+    }
+
+    return { online: false };
+  }
+
+  /**
+   * Ejecuta la sincronización bidireccional completa con el servidor web central
    */
   static async syncWithLocalServer(localData: {
     accounts: Account[];
@@ -121,12 +238,16 @@ export class SyncService {
     goals: FinancialGoal[];
     debts: Debt[];
     losses: Loss[];
-  }, customServerUrl?: string): Promise<SyncResult> {
+    todos?: TodoItem[];
+    auditLogs?: AuditLogEntry[];
+    rates?: ExchangeRates;
+    historicalRates?: Record<string, { bcv: number; usdt: number }>;
+  }, customServerUrl?: string): Promise<SyncResult & { revision?: string }> {
     const baseUrl = customServerUrl || this.getSyncServerUrl();
     const endpoint = `${baseUrl}/api/sync`;
 
     // Preparar payload con timestamps de modificación y registros eliminados
-    const deletedItems = this.getDeletedItems();
+    const deletedItemsSnapshot = this.getDeletedItems();
     const payload = {
       accounts: localData.accounts.map(a => ({
         ...a,
@@ -156,17 +277,25 @@ export class SyncService {
         ...l,
         updatedAt: l.updatedAt || l.createdAt || '1970-01-01T00:00:00.000Z'
       })),
-      deletedItems,
+      todos: (localData.todos || []).map(td => ({
+        ...td,
+        updatedAt: td.updatedAt || td.createdAt || '1970-01-01T00:00:00.000Z'
+      })),
+      auditLogs: localData.auditLogs || [],
+      rates: localData.rates,
+      historicalRates: localData.historicalRates,
+      deletedItems: deletedItemsSnapshot,
       clientTimestamp: new Date().toISOString()
     };
 
     const trySyncEndpoint = async (targetEndpoint: string) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos timeout para respuesta rápida
+      const timeoutId = setTimeout(() => controller.abort(), 14000);
 
       try {
         const res = await fetch(targetEndpoint, {
           method: 'POST',
+          cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -177,27 +306,29 @@ export class SyncService {
 
         clearTimeout(timeoutId);
 
-        if (!res.ok) {
-          throw new Error(`Error en servidor (${res.status}): ${res.statusText}`);
+        const responseData = await res.json().catch(() => ({}));
+        if (!res.ok || !responseData.success) {
+          throw new Error(responseData.error || responseData.message || `Error en servidor (${res.status}): ${res.statusText}`);
         }
 
-        const responseData = await res.json();
-        if (!responseData.success) {
-          throw new Error(responseData.error || 'Respuesta fallida de sincronización');
-        }
-
-        // Marcar fecha de última sincronización
         const serverTimestamp = responseData.serverTimestamp || new Date().toISOString();
         this.setLastSyncTime(serverTimestamp);
+        if (responseData.revision) {
+          this.setLastServerSignature(responseData.revision);
+        }
 
-        // Limpiar tumbas de eliminación antiguas
-        this.clearDeletedItems();
+        const isPersistent = responseData.persistent !== false;
+        if (isPersistent) {
+          this.clearSyncedDeletedItems(deletedItemsSnapshot);
+        }
 
         return {
           success: true,
+          persistent: isPersistent,
           isOffline: false,
-          message: '¡Sincronización completada con éxito! Se mantuvo la versión más reciente por fecha de cada registro.',
+          message: responseData.message || '¡Sincronización completada con éxito! Se mantuvo la versión más reciente por fecha de cada registro.',
           serverTimestamp,
+          revision: responseData.revision,
           stats: responseData.stats,
           mergedData: responseData.mergedData
         };
@@ -210,12 +341,13 @@ export class SyncService {
       return await trySyncEndpoint(endpoint);
     } catch (primaryErr: any) {
       console.warn('SyncService warning (servidor fuera de alcance o dispositivo sin red):', primaryErr.message);
-      const isNetError = !navigator.onLine || primaryErr.name === 'AbortError' || String(primaryErr).includes('fetch') || String(primaryErr).includes('Network');
+      const isNetError = !navigator.onLine || primaryErr.name === 'AbortError' || String(primaryErr).includes('fetch') || String(primaryErr).includes('Network') || String(primaryErr).includes('Failed to fetch');
       return {
         success: false,
+        persistent: false,
         isOffline: isNetError,
         message: isNetError 
-          ? 'No se pudo conectar con el servidor de sincronización. Comprueba la conexión.' 
+          ? 'Sin conexión estable. Tus cambios permanecen guardados localmente para subirse automáticamente.' 
           : (primaryErr.message || 'Error de comunicación durante la sincronización')
       };
     }

@@ -17,6 +17,13 @@ export const RatesModal: React.FC = () => {
   const [usdtInput, setUsdtInput] = useState<string>(rates.usdt.toString());
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (isRatesModalOpen) {
+      setBcvInput(rates.bcv.toString());
+      setUsdtInput(rates.usdt.toString());
+    }
+  }, [isRatesModalOpen, rates.bcv, rates.usdt]);
+
   if (!isRatesModalOpen) return null;
 
   const handleSaveManual = (e: React.FormEvent) => {

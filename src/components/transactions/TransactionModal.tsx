@@ -240,21 +240,21 @@ export const TransactionModal: React.FC = () => {
     ? 'USD' 
     : (destAccount?.currency || 'USD');
 
-  // Calculate dual conversion previews
+  // Calculate dual conversion previews using rates of the selected date
   const previewUsdBcv = currency === 'VES' 
-    ? (rates.bcv > 0 ? (currentAmount / rates.bcv).toFixed(2) : '0.00')
+    ? (dateRates.bcv > 0 ? (currentAmount / dateRates.bcv).toFixed(2) : '0.00')
     : currentAmount.toFixed(2);
 
   const previewUsdUsdt = currency === 'VES' 
-    ? (rates.usdt > 0 ? (currentAmount / rates.usdt).toFixed(2) : '0.00')
+    ? (dateRates.usdt > 0 ? (currentAmount / dateRates.usdt).toFixed(2) : '0.00')
     : currentAmount.toFixed(2);
 
   const previewVesBcv = currency === 'USD' 
-    ? (currentAmount * rates.bcv).toFixed(2) 
+    ? (currentAmount * dateRates.bcv).toFixed(2) 
     : currentAmount.toFixed(2);
 
   const previewVesUsdt = currency === 'USD' 
-    ? (currentAmount * rates.usdt).toFixed(2) 
+    ? (currentAmount * dateRates.usdt).toFixed(2) 
     : currentAmount.toFixed(2);
 
   // Check if transfer is from electronic USD in supported bank to Binance
@@ -509,6 +509,9 @@ export const TransactionModal: React.FC = () => {
     );
 
     if (editingTransaction) {
+      const resolvedRate = type === 'transfer'
+        ? effectiveRate
+        : (finalTxCurrency === 'VES' ? (parseFloat(customRate) || dateRates.usdt) : editingTransaction.appliedRate);
       const updatedTx: Transaction = {
         ...editingTransaction,
         type,
@@ -518,7 +521,7 @@ export const TransactionModal: React.FC = () => {
         toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
         amount: finalTxAmount,
         currency: finalTxCurrency,
-        appliedRate: type === 'transfer' ? effectiveRate : undefined,
+        appliedRate: resolvedRate,
         destinationAmount: type === 'transfer' ? finalDestAmount : undefined,
         categoryId: finalCategoryId,
         categoryName: finalCategoryName,
@@ -530,6 +533,9 @@ export const TransactionModal: React.FC = () => {
       };
       updateTransaction(updatedTx);
     } else {
+      const resolvedRate = type === 'transfer'
+        ? effectiveRate
+        : (finalTxCurrency === 'VES' ? (parseFloat(customRate) || dateRates.usdt) : undefined);
       const newTx: Transaction = {
         id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         type,
@@ -539,7 +545,7 @@ export const TransactionModal: React.FC = () => {
         toSubFund: (destAccount?.type === 'bank_ves' && type === 'transfer') ? toSubFund : undefined,
         amount: finalTxAmount,
         currency: finalTxCurrency,
-        appliedRate: type === 'transfer' ? effectiveRate : undefined,
+        appliedRate: resolvedRate,
         destinationAmount: type === 'transfer' ? finalDestAmount : undefined,
         categoryId: finalCategoryId,
         categoryName: finalCategoryName,
@@ -547,7 +553,8 @@ export const TransactionModal: React.FC = () => {
         categoryColor: finalCategoryColor,
         date: safeToISO(date),
         note: finalNote,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       addTransaction(newTx);
 
@@ -808,13 +815,13 @@ export const TransactionModal: React.FC = () => {
             {currentAmount > 0 && (
               <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-700/60 grid grid-cols-2 gap-2 text-[11px]">
                 <div className="bg-white/80 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800">
-                  <span className="text-slate-600 dark:text-slate-400 block">Tasa BCV ({rates.bcv} Bs):</span>
+                  <span className="text-slate-600 dark:text-slate-400 block">Tasa BCV ({dateRates.bcv} Bs):</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
                     {currency === 'USD' ? `${previewVesBcv} Bs` : `$${previewUsdBcv} USD`}
                   </span>
                 </div>
                 <div className="bg-white/80 dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800">
-                  <span className="text-slate-600 dark:text-slate-400 block">Tasa USDT ({rates.usdt} Bs):</span>
+                  <span className="text-slate-600 dark:text-slate-400 block">Tasa USDT ({dateRates.usdt} Bs):</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
                     {currency === 'USD' ? `${previewVesUsdt} Bs` : `$${previewUsdUsdt} USD`}
                   </span>

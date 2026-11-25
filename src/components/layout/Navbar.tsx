@@ -43,6 +43,7 @@ export const Navbar: React.FC = () => {
     setIsPwaModalOpen,
     triggerInstall,
     isSyncing,
+    hasPendingSync,
     setIsSyncModalOpen,
     syncWithServer,
     setCurrentView,
@@ -170,12 +171,14 @@ export const Navbar: React.FC = () => {
               className={`relative p-1.5 rounded-xl border active:scale-95 transition-all ${
                 syncFeedbackMessage 
                   ? 'bg-emerald-500 text-white border-emerald-500' 
+                  : hasPendingSync
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300 border-amber-300 dark:border-amber-700/70'
                   : 'bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700/80'
               }`}
-              title="Sincronizar ahora con el servidor"
+              title={hasPendingSync ? 'Cambios guardados localmente listos para subir' : 'Sincronizar ahora con el servidor'}
             >
-              <ArrowUpDown className={`w-4 h-4 ${isSyncing ? 'animate-spin' : syncFeedbackMessage ? 'text-white' : 'text-emerald-500'}`} />
-              <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${isOnline ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+              <ArrowUpDown className={`w-4 h-4 ${isSyncing ? 'animate-spin' : syncFeedbackMessage ? 'text-white' : hasPendingSync ? 'text-amber-500' : 'text-emerald-500'}`} />
+              <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${!isOnline || hasPendingSync ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
             </button>
 
             {/* Theme Toggle */}
@@ -319,13 +322,15 @@ export const Navbar: React.FC = () => {
                     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                     : syncFeedbackMessage
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                    : hasPendingSync
+                    ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700/70 shadow-sm'
                     : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700/80 shadow-sm'
                 }`}
-                title="Sincronizar datos con el servidor local / red"
+                title={hasPendingSync ? 'Hay cambios guardados offline pendientes por subir' : 'Sincronizar datos con el servidor central'}
               >
-                <ArrowUpDown className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : syncFeedbackMessage ? 'text-white' : 'text-emerald-500'}`} />
+                <ArrowUpDown className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : syncFeedbackMessage ? 'text-white' : hasPendingSync ? 'text-amber-500' : 'text-emerald-500'}`} />
                 <span className="hidden sm:inline">
-                  {isSyncing ? 'Sincronizando...' : syncFeedbackMessage || 'Sincronizar'}
+                  {isSyncing ? 'Sincronizando...' : syncFeedbackMessage || (hasPendingSync ? 'Pendiente subir' : 'Sincronizar')}
                 </span>
               </button>
 

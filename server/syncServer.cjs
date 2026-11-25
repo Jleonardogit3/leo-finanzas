@@ -77,6 +77,7 @@ function saveDatabase(data) {
  */
 function mergeCollections(serverList = [], clientList = [], deletedItemsMap = new Map()) {
   const itemMap = new Map();
+  const clientIds = new Set();
   let uploaded = 0;
   let downloaded = 0;
   let resolved = 0;
@@ -98,11 +99,14 @@ function mergeCollections(serverList = [], clientList = [], deletedItemsMap = ne
   // 2. Evaluar items del cliente
   for (const cItem of clientList) {
     if (!cItem || !cItem.id) continue;
+    clientIds.add(cItem.id);
 
     // Verificar si fue eliminado
     const deletionTime = deletedItemsMap.get(cItem.id);
     const clientUpdateTime = new Date(cItem.updatedAt || cItem.createdAt || 0).getTime();
     if (deletionTime && deletionTime >= clientUpdateTime) {
+      downloaded++;
+      resolved++;
       continue; // Item eliminado
     }
 
@@ -134,6 +138,12 @@ function mergeCollections(serverList = [], clientList = [], deletedItemsMap = ne
           resolved++;
         }
       }
+    }
+  }
+
+  for (const [id] of itemMap) {
+    if (!clientIds.has(id)) {
+      downloaded++;
     }
   }
 

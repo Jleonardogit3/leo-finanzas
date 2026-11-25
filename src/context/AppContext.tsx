@@ -114,6 +114,7 @@ interface AppContextType {
 
   // Sincronización Local & Offline-First (Última modificación por fecha)
   isSyncing: boolean;
+  hasPendingSync: boolean;
   lastSyncTime: string | null;
   isSyncModalOpen: boolean;
   setIsSyncModalOpen: (open: boolean) => void;
@@ -358,6 +359,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sincronización Local / Offline
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hasPendingSync, setHasPendingSync] = useState<boolean>(() => SyncService.hasPendingChanges());
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => SyncService.getLastSyncTime());
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isInitialSetupModalOpen, setIsInitialSetupModalOpen] = useState(() => !StorageService.isInitialSetupDone());
@@ -370,6 +372,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isSyncingRef = useRef(false);
   const pendingSyncRef = useRef(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryAttemptsRef = useRef<number>(0);
+  const lastRatesFetchRef = useRef<number>(0);
+
+  const computeSyncDigest = (d: any): string => {
+    try {
+      return JSON.stringify({
+        accounts: d?.accounts || [],
+        transactions: d?.transactions || [],
+        debts: d?.debts || [],
+        losses: d?.losses || [],
+        categories: d?.categories || [],
+        portfolioAssets: d?.portfolioAssets || [],
+        goals: d?.goals || [],
+        todos: d?.todos || []
+      });
+    } catch {
+      return String(Date.now());
+    }
+  };
 
   const reloadDataForUser = (targetUserId?: string | null) => {
     setAccounts(StorageService.getAccounts(targetUserId));
@@ -381,6 +403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLosses(StorageService.getLosses(targetUserId));
     setTodos(StorageService.getTodos(targetUserId));
     setAuditLogs(StorageService.getAuditLogs(targetUserId));
+    setHasPendingSync(SyncService.hasPendingChanges());
   };
 
   // Sincronización con el servidor local / nube multi-dispositivo
@@ -393,20 +416,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Sincronización en curso' };
     }
 
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
     isSyncingRef.current = true;
     setIsSyncing(true);
+    const startDirtyRev = SyncService.getDirtyRevision();
+
     try {
       const activeUid = options?.overrideUserId !== undefined 
         ? options.overrideUserId 
         : (userRef.current?.uid ?? user?.uid);
       const localData = StorageService.getAllData(activeUid);
+      const localDigestBefore = computeSyncDigest(localData);
+
       const result = await SyncService.syncWithLocalServer(localData, customUrl);
       if (result.success && result.mergedData) {
         const stats = result.stats || { uploaded: 0, downloaded: 0, resolved: 0 };
-        const hasIncomingChanges = (stats.downloaded > 0) || (stats.uploaded > 0);
+        const mergedDigest = computeSyncDigest(result.mergedData);
+        const dataChanged =
+          localDigestBefore !== mergedDigest ||
+          (stats.downloaded || 0) > 0 ||
+          (stats.uploaded || 0) > 0 ||
+          (stats.resolved || 0) > 0;
 
-        // Solo sobrescribir almacenamiento local y disparar re-render de React si hubo cambios
-        if (hasIncomingChanges) {
+        let localApplied = false;
+        if (dataChanged) {
           StorageService.applyMergedData(result.mergedData, activeUid);
           setAccounts(StorageService.getAccounts(activeUid));
           setTransactions(StorageService.getTransactions(activeUid));
@@ -417,10 +454,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setLosses(StorageService.getLosses(activeUid));
           setTodos(StorageService.getTodos(activeUid));
           setAuditLogs(StorageService.getAuditLogs(activeUid));
+          localApplied = true;
+        } else if (result.mergedData.rates || result.mergedData.historicalRates) {
+          const syncedRates = RatesService.applySyncedRates(
+            result.mergedData.rates,
+            result.mergedData.historicalRates
+          );
+          if (syncedRates.changed) {
+            setRates(syncedRates.rates);
+            setDebts(StorageService.getDebts(activeUid));
+          }
+        }
+
+        // Sincronizar estado de tasas aunque ya se haya aplicado el payload
+        if (result.mergedData.rates || result.mergedData.historicalRates) {
+          const syncedRates = RatesService.getCachedRates();
+          setRates(syncedRates);
         }
 
         if (result.serverTimestamp) {
           setLastSyncTime(result.serverTimestamp);
+        }
+
+        if (result.persistent !== false) {
+          SyncService.clearDirtyIfRevisionMatches(startDirtyRev);
+          retryAttemptsRef.current = 0;
+        }
+
+        const stillDirty = SyncService.hasPendingChanges();
+        setHasPendingSync(stillDirty);
+        if (stillDirty && result.persistent !== false) {
+          pendingSyncRef.current = true;
         }
 
         const hasConfigured = 
@@ -430,12 +494,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           StorageService.markInitialSetupDone();
           setIsInitialSetupModalOpen(false);
         }
+
+        return { ...result, localApplied };
       }
+
+      // Error de red o servidor no persistente: programar reintento automático si hay datos pendientes
+      setHasPendingSync(SyncService.hasPendingChanges());
+      if (navigator.onLine && (SyncService.hasPendingChanges() || !customUrl)) {
+        const delays = [3000, 8000, 15000, 30000];
+        const waitMs = delays[Math.min(retryAttemptsRef.current, delays.length - 1)];
+        retryAttemptsRef.current += 1;
+        retryTimeoutRef.current = setTimeout(() => {
+          if (navigator.onLine && SyncService.hasPendingChanges()) {
+            syncWithServer(undefined, { silent: true }).catch(() => {});
+          }
+        }, waitMs);
+      }
+
       return result;
     } catch (e: any) {
       if (!options?.silent) {
         console.warn('Sync failed:', e);
       }
+      setHasPendingSync(SyncService.hasPendingChanges());
       return {
         success: false,
         message: e.message || 'Error durante la sincronización'
@@ -477,8 +558,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   }, []);
 
-  // Gatillo de sincronización en segundo plano inmediato (multi-dispositivo)
-  const triggerBackgroundSync = useCallback((delayMs: number = 50, overrideUserId?: string | null) => {
+  // Gatillo de sincronización en segundo plano inmediato (multi-dispositivo + cola offline persistente)
+  const triggerBackgroundSync = useCallback((delayMs: number = 80, overrideUserId?: string | null) => {
+    // Marcar cola sucia de forma persistente antes de intentar subir (protege cambios offline aunque se cierre la app)
+    SyncService.markDirty();
+    setHasPendingSync(true);
+
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
@@ -486,9 +571,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Notificar inmediatamente a las demás pestañas abiertas en este dispositivo
     broadcastSyncChannel?.postMessage({ type: 'DATA_CHANGED', timestamp: Date.now() });
 
-    syncTimeoutRef.current = setTimeout(() => {
-      syncWithServer(undefined, { silent: true, overrideUserId }).catch(() => {});
-    }, delayMs);
+    if (navigator.onLine) {
+      syncTimeoutRef.current = setTimeout(() => {
+        syncWithServer(undefined, { silent: true, overrideUserId }).catch(() => {});
+      }, delayMs);
+    }
   }, [syncWithServer, broadcastSyncChannel]);
 
   const login = (usernameInput: string, passwordInput: string): { success: boolean; message?: string } => {
@@ -857,38 +944,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => unsubscribe();
   }, []);
 
-  // Fetch exchange rates on mount and every 10 minutes
-  const refreshRates = async () => {
+  // Fetch exchange rates on mount and every 2 minutes
+  const refreshRates = useCallback(async () => {
+    lastRatesFetchRef.current = Date.now();
     const latest = await RatesService.fetchLatestRates();
     setRates(latest);
     // Sincronizar montos actualizados en Bs de deudas indexadas a tasa BCV
-    setDebts(StorageService.getDebts(user?.uid));
-  };
+    const activeUid = userRef.current?.uid ?? user?.uid;
+    setDebts(StorageService.getDebts(activeUid));
+  }, [user?.uid]);
 
   useEffect(() => {
     refreshRates();
-    const interval = setInterval(refreshRates, 10 * 60 * 1000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        refreshRates();
+      }
+    }, 2 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshRates]);
 
-  const lastAutoSyncTimeRef = useRef<number>(0);
-  const runThrottledAutoSync = useCallback(() => {
-    const now = Date.now();
-    // Limitar sincronizaciones automáticas pasivas a no más de una cada 30 segundos
-    if (now - lastAutoSyncTimeRef.current < 30 * 1000) {
+  const lastCheckTimeRef = useRef<number>(0);
+
+  // Verificación inteligente y automática multi-dispositivo (0 commits si no hay cambios)
+  const checkAndSyncIfNeeded = useCallback(async (opts?: { forcePost?: boolean }) => {
+    if (!navigator.onLine || isSyncingRef.current) return;
+
+    // Si las tasas tienen más de 2 minutos de antigüedad, actualizarlas silenciosamente
+    if (Date.now() - lastRatesFetchRef.current > 2 * 60 * 1000) {
+      refreshRates().catch(() => {});
+    }
+
+    // Si hay cambios locales pendientes (creados offline o aún en cola), subir de inmediato sin esperar
+    if (opts?.forcePost || SyncService.hasPendingChanges()) {
+      await syncWithServer(undefined, { silent: true });
       return;
     }
-    if (document.visibilityState === 'visible' && navigator.onLine && !isSyncingRef.current) {
-      lastAutoSyncTimeRef.current = now;
-      syncWithServer(undefined, { silent: true }).catch(() => {});
-    }
-  }, [syncWithServer]);
 
-  // Sincronización multi-dispositivo en vivo: cada 90 segundos de forma pasiva y suave
+    const now = Date.now();
+    if (now - lastCheckTimeRef.current < 4000) {
+      return;
+    }
+    lastCheckTimeRef.current = now;
+
+    // Consulta ligera GET para detectar si otro dispositivo subió algo nuevo o actualizó tasas
+    const serverState = await SyncService.checkServerState();
+    if (!serverState.online) return;
+
+    // Mantener tasas y mapa histórico alineados con el servidor central
+    if (serverState.rates || serverState.historicalRates) {
+      const synced = RatesService.applySyncedRates(serverState.rates, serverState.historicalRates);
+      if (synced.changed) {
+        setRates(synced.rates);
+        const activeUid = userRef.current?.uid ?? user?.uid;
+        setDebts(StorageService.getDebts(activeUid));
+      }
+    }
+
+    const lastKnownSig = SyncService.getLastServerSignature();
+    if (!lastKnownSig || (serverState.revision && serverState.revision !== lastKnownSig)) {
+      await syncWithServer(undefined, { silent: true });
+    }
+  }, [syncWithServer, refreshRates, user?.uid]);
+
+  // Sondeo ligero automático cada 15 segundos mientras la pestaña esté activa y con internet
   useEffect(() => {
-    const interval = setInterval(runThrottledAutoSync, 90 * 1000);
+    const interval = setInterval(() => {
+      if (navigator.onLine && (document.visibilityState === 'visible' || SyncService.hasPendingChanges())) {
+        checkAndSyncIfNeeded().catch(() => {});
+      }
+    }, 15 * 1000);
     return () => clearInterval(interval);
-  }, [runThrottledAutoSync]);
+  }, [checkAndSyncIfNeeded]);
 
   // Escuchar difusiones instantáneas entre pestañas del mismo dispositivo
   useEffect(() => {
@@ -907,16 +1034,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [broadcastSyncChannel, user?.uid]);
 
-  // Sincronización automática suave:
-  // Se ejecuta al volver de segundo plano o reactivar pantalla, respetando el throttle de 30s
+  // Sincronización automática inmediata al iniciar, recuperar conexión o volver a la app
   useEffect(() => {
-    // 1. Sincronizar al montar/abrir la página (Cold start o recarga)
-    runThrottledAutoSync();
+    // 1. Sincronización completa al montar la app (Cold start o recarga)
+    if (navigator.onLine) {
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+    }
 
     // 2. Al volver de segundo plano, reactivar pantalla o cambiar de pestaña
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
-        runThrottledAutoSync();
+        checkAndSyncIfNeeded().catch(() => {});
       } else if (document.visibilityState === 'hidden') {
         try {
           localStorage.setItem('finanzas_vzla_last_closed_at', new Date().toISOString());
@@ -926,12 +1054,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Al dispararse el evento estándar HTML5 'pageshow' (apertura, BFCache o PWA resume)
     const handlePageShow = () => {
-      runThrottledAutoSync();
+      checkAndSyncIfNeeded().catch(() => {});
     };
 
-    // 4. Al recuperar conexión de red
-    const handleOnline = () => {
-      runThrottledAutoSync();
+    // 4. Al recuperar conexión (Wi-Fi o Datos Móviles): subir todo lo guardado offline al instante
+    const handleReconnect = () => {
+      retryAttemptsRef.current = 0;
+      refreshRates().catch(() => {});
+      syncWithServer(undefined, { silent: true }).catch(() => {});
+      // Reintento de confirmación tras 3s por si la red móvil aún está negociando DNS/TLS
+      setTimeout(() => {
+        if (navigator.onLine && (SyncService.hasPendingChanges() || !SyncService.getLastServerSignature())) {
+          syncWithServer(undefined, { silent: true }).catch(() => {});
+        }
+      }, 3000);
     };
 
     // 5. Al cerrar o pausar la página
@@ -943,7 +1079,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     window.addEventListener('focus', handleVisibilityOrFocus);
     window.addEventListener('pageshow', handlePageShow);
-    window.addEventListener('online', handleOnline);
+    window.addEventListener('online', handleReconnect);
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
     window.addEventListener('pagehide', handlePageClose);
     window.addEventListener('beforeunload', handlePageClose);
@@ -951,12 +1087,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       window.removeEventListener('focus', handleVisibilityOrFocus);
       window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('online', handleReconnect);
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('pagehide', handlePageClose);
       window.removeEventListener('beforeunload', handlePageClose);
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
-  }, [runThrottledAutoSync]);
+  }, [syncWithServer, checkAndSyncIfNeeded, refreshRates]);
 
   // Cuando el usuario inicia sesión o desbloquea la app, sincronizar de inmediato
   useEffect(() => {
@@ -1081,7 +1220,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDebts(result.updatedDebts);
     setAccounts(result.updatedAccounts);
     if (payment.receivedInAccountId) {
-      setTransactions(StorageService.getTransactions());
+      setTransactions(StorageService.getTransactions(user?.uid));
     }
     triggerBackgroundSync();
   };
@@ -1092,7 +1231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLosses(result.updatedLosses);
     setAccounts(result.updatedAccounts);
     if (deductFromAccount && loss.affectedAccountId) {
-      setTransactions(StorageService.getTransactions());
+      setTransactions(StorageService.getTransactions(user?.uid));
     }
     triggerBackgroundSync();
   };
@@ -1115,7 +1254,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLosses(result.updatedLosses);
     setAccounts(result.updatedAccounts);
     if (recoveryData.receivedInAccountId) {
-      setTransactions(StorageService.getTransactions());
+      setTransactions(StorageService.getTransactions(user?.uid));
     }
     triggerBackgroundSync();
   };
@@ -1167,7 +1306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         case 'transaction': {
           const updatedAccs = StorageService.deleteTransaction(item.entityId, user?.uid);
           setAccounts(updatedAccs);
-          setTransactions(StorageService.getTransactions());
+          setTransactions(StorageService.getTransactions(user?.uid));
           result = { success: true, message: 'Movimiento eliminado y saldo restaurado correctamente.' };
           break;
         }
@@ -1196,7 +1335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         case 'account_adjustment': {
           const updatedAccs = StorageService.revertAccountAdjustment(item.entityId, user?.uid);
           setAccounts(updatedAccs);
-          setAuditLogs(StorageService.getAuditLogs());
+          setAuditLogs(StorageService.getAuditLogs(user?.uid));
           result = { success: true, message: 'Ajuste de cuenta revertido al estado previo.' };
           break;
         }
@@ -1285,11 +1424,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setManualRates = (bcv: number, usdt: number) => {
     const updated = RatesService.setManualRates(bcv, usdt);
     setRates(updated);
+    setDebts(StorageService.getDebts(user?.uid));
+    triggerBackgroundSync();
   };
 
   const clearManualRates = () => {
     RatesService.clearManualOverride();
     refreshRates();
+    triggerBackgroundSync();
   };
 
   // Financial Calculations
@@ -1670,6 +1812,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsPwaModalOpen,
         triggerInstall,
         isSyncing,
+        hasPendingSync,
         lastSyncTime,
         isSyncModalOpen,
         setIsSyncModalOpen,

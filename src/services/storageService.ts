@@ -422,6 +422,13 @@ export class StorageService {
     const key = this.getKey(ACCOUNTS_STORAGE_KEY, userId);
     const accounts = this.getAccounts(userId);
     const idx = accounts.findIndex(a => a.id === account.id);
+    const nowIso = new Date().toISOString();
+    const txs = this.getTransactions(userId);
+    const deltas = this.computeTransactionDeltas(txs);
+    const baseVes = Number(((account.currentBalance ?? 0) - (deltas[`${account.id}_ves`] || 0)).toFixed(2));
+    const baseDig = Number(((account.digitalUsdBalance ?? 0) - (deltas[`${account.id}_digital_usd`] || 0)).toFixed(2));
+    const basePhy = Number(((account.physicalUsdBalance ?? 0) - (deltas[`${account.id}_physical_usd`] || 0)).toFixed(2));
+
     let updated: Account[];
     if (idx >= 0) {
       const oldAcc = accounts[idx];
@@ -433,7 +440,7 @@ export class StorageService {
       if (isBalanceChanged) {
         this.saveAuditLog({
           id: `audit-acc-${Date.now()}`,
-          timestamp: new Date().toISOString(),
+          timestamp: nowIso,
           entityType: 'account_adjustment',
           action: 'adjustment',
           title: `Ajuste de saldo: ${account.name}`,
@@ -447,12 +454,27 @@ export class StorageService {
       }
 
       updated = [...accounts];
-      updated[idx] = { ...account, updatedAt: new Date().toISOString() };
+      updated[idx] = {
+        ...account,
+        balanceBaseVes: isBalanceChanged || account.balanceBaseVes === undefined ? baseVes : account.balanceBaseVes,
+        balanceBaseDigitalUsd: isBalanceChanged || account.balanceBaseDigitalUsd === undefined ? baseDig : account.balanceBaseDigitalUsd,
+        balanceBasePhysicalUsd: isBalanceChanged || account.balanceBasePhysicalUsd === undefined ? basePhy : account.balanceBasePhysicalUsd,
+        balanceBaseUpdatedAt: isBalanceChanged ? nowIso : (account.balanceBaseUpdatedAt || oldAcc.balanceBaseUpdatedAt || oldAcc.updatedAt || nowIso),
+        updatedAt: nowIso
+      };
     } else {
-      updated = [...accounts, { ...account, updatedAt: new Date().toISOString() }];
+      const newAcc: Account = {
+        ...account,
+        balanceBaseVes: baseVes,
+        balanceBaseDigitalUsd: baseDig,
+        balanceBasePhysicalUsd: basePhy,
+        balanceBaseUpdatedAt: nowIso,
+        updatedAt: nowIso
+      };
+      updated = [...accounts, newAcc];
       this.saveAuditLog({
         id: `audit-acc-new-${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso,
         entityType: 'account_adjustment',
         action: 'create',
         title: `Nueva cuenta creada: ${account.name}`,
@@ -461,7 +483,7 @@ export class StorageService {
         amount: account.currentBalance,
         currency: account.currency,
         snapshotBefore: null,
-        snapshotAfter: account
+        snapshotAfter: newAcc
       }, userId);
     }
     localStorage.setItem(key, JSON.stringify(updated));
@@ -518,6 +540,9 @@ export class StorageService {
   static batchSaveAccounts(accountsList: Account[], userId?: string | null): void {
     const key = this.getKey(ACCOUNTS_STORAGE_KEY, userId);
     const oldAccounts = this.getAccounts(userId);
+    const nowIso = new Date().toISOString();
+    const deltas = this.computeTransactionDeltas(this.getTransactions(userId));
+
     const hasAnyChange = oldAccounts.some(oldAcc => {
       const newAcc = accountsList.find(a => a.id === oldAcc.id);
       if (!newAcc) return false;
@@ -526,23 +551,43 @@ export class StorageService {
         (oldAcc.physicalUsdBalance || 0) !== (newAcc.physicalUsdBalance || 0);
     });
 
+    const normalizedList = accountsList.map(acc => {
+      const oldAcc = oldAccounts.find(a => a.id === acc.id);
+      const isChanged = !oldAcc ||
+        oldAcc.currentBalance !== acc.currentBalance ||
+        (oldAcc.digitalUsdBalance || 0) !== (acc.digitalUsdBalance || 0) ||
+        (oldAcc.physicalUsdBalance || 0) !== (acc.physicalUsdBalance || 0);
+
+      if (isChanged || acc.balanceBaseVes === undefined) {
+        return {
+          ...acc,
+          balanceBaseVes: Number(((acc.currentBalance ?? 0) - (deltas[`${acc.id}_ves`] || 0)).toFixed(2)),
+          balanceBaseDigitalUsd: Number(((acc.digitalUsdBalance ?? 0) - (deltas[`${acc.id}_digital_usd`] || 0)).toFixed(2)),
+          balanceBasePhysicalUsd: Number(((acc.physicalUsdBalance ?? 0) - (deltas[`${acc.id}_physical_usd`] || 0)).toFixed(2)),
+          balanceBaseUpdatedAt: isChanged ? nowIso : (acc.balanceBaseUpdatedAt || acc.createdAt || '1970-01-01T00:00:00.000Z'),
+          updatedAt: isChanged ? nowIso : acc.updatedAt
+        };
+      }
+      return acc;
+    });
+
     if (hasAnyChange && oldAccounts.length > 0) {
       this.saveAuditLog({
         id: `audit-batch-acc-${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso,
         entityType: 'account_adjustment',
         action: 'adjustment',
         title: 'Ajuste general de saldos de cuentas',
         details: 'Modificación de saldos o fondos en configuración de cuentas',
         entityId: 'all-accounts',
         snapshotBefore: oldAccounts,
-        snapshotAfter: accountsList
+        snapshotAfter: normalizedList
       }, userId);
     }
 
-    localStorage.setItem(key, JSON.stringify(accountsList));
+    localStorage.setItem(key, JSON.stringify(normalizedList));
     if (ENABLE_FIRESTORE && userId) {
-      accountsList.forEach(acc => {
+      normalizedList.forEach(acc => {
         try {
           const accRef = doc(db, `users/${userId}/accounts`, acc.id);
           setDoc(accRef, acc, { merge: true });
@@ -567,7 +612,9 @@ export class StorageService {
         const timeB = new Date(b.date || b.createdAt || 0).getTime();
         const timeA = new Date(a.date || a.createdAt || 0).getTime();
         if (timeB !== timeA) return timeB - timeA;
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        const createdDiff = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        if (createdDiff !== 0) return createdDiff;
+        return (b.id || '').localeCompare(a.id || '');
       });
     } catch {
       return [];
@@ -575,19 +622,10 @@ export class StorageService {
   }
 
   /**
-   * Calcula los balances base de cada cuenta y subfondo antes del inicio del historial
+   * Calcula la suma de deltas aplicados por una lista de transacciones en cada cuenta y subfondo
    */
-  static computeBaseBalances(
-    transactions: Transaction[],
-    accounts: Account[]
-  ): Record<string, number> {
+  static computeTransactionDeltas(transactions: Transaction[]): Record<string, number> {
     const totalDeltas: Record<string, number> = {};
-    for (const acc of accounts) {
-      totalDeltas[`${acc.id}_ves`] = 0;
-      totalDeltas[`${acc.id}_digital_usd`] = 0;
-      totalDeltas[`${acc.id}_physical_usd`] = 0;
-    }
-
     for (const tx of transactions) {
       const origSub = tx.subFund || 'ves';
       const destSub = tx.toSubFund || 'ves';
@@ -601,12 +639,30 @@ export class StorageService {
         totalDeltas[destKey] = (totalDeltas[destKey] || 0) + incoming;
       }
     }
+    return totalDeltas;
+  }
+
+  /**
+   * Calcula los balances base de cada cuenta y subfondo antes del inicio del historial.
+   * Si la cuenta ya posee un balanceBase guardado (ajustado manualmente o inicializado), lo preserva.
+   */
+  static computeBaseBalances(
+    transactions: Transaction[],
+    accounts: Account[]
+  ): Record<string, number> {
+    const totalDeltas = this.computeTransactionDeltas(transactions);
 
     const baseBalances: Record<string, number> = {};
     for (const acc of accounts) {
-      baseBalances[`${acc.id}_ves`] = Number(((acc.currentBalance ?? 0) - (totalDeltas[`${acc.id}_ves`] || 0)).toFixed(2));
-      baseBalances[`${acc.id}_digital_usd`] = Number(((acc.digitalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_digital_usd`] || 0)).toFixed(2));
-      baseBalances[`${acc.id}_physical_usd`] = Number(((acc.physicalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_physical_usd`] || 0)).toFixed(2));
+      baseBalances[`${acc.id}_ves`] = acc.balanceBaseVes !== undefined
+        ? acc.balanceBaseVes
+        : Number(((acc.currentBalance ?? 0) - (totalDeltas[`${acc.id}_ves`] || 0)).toFixed(2));
+      baseBalances[`${acc.id}_digital_usd`] = acc.balanceBaseDigitalUsd !== undefined
+        ? acc.balanceBaseDigitalUsd
+        : Number(((acc.digitalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_digital_usd`] || 0)).toFixed(2));
+      baseBalances[`${acc.id}_physical_usd`] = acc.balanceBasePhysicalUsd !== undefined
+        ? acc.balanceBasePhysicalUsd
+        : Number(((acc.physicalUsdBalance ?? 0) - (totalDeltas[`${acc.id}_physical_usd`] || 0)).toFixed(2));
     }
 
     return baseBalances;
@@ -614,7 +670,7 @@ export class StorageService {
 
   /**
    * Reconcilia la cadena cronológica completa de balances de más antiguo a más reciente.
-   * Si se proporcionan baseBalances, inicia desde allí; de lo contrario calcula la base de las cuentas.
+   * Preserva balanceBase* sin alterar el balanceBaseUpdatedAt ni updatedAt de cuentas no modificadas.
    */
   static reconcileChronologicalBalances(
     transactions: Transaction[],
@@ -625,7 +681,9 @@ export class StorageService {
       const timeA = new Date(a.date || a.createdAt || 0).getTime();
       const timeB = new Date(b.date || b.createdAt || 0).getTime();
       if (timeA !== timeB) return timeA - timeB;
-      return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      const createdDiff = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return (a.id || '').localeCompare(b.id || '');
     });
 
     const base = customBaseBalances || this.computeBaseBalances(transactions, accounts);
@@ -663,17 +721,35 @@ export class StorageService {
       });
     }
 
+    const nowIso = new Date().toISOString();
     const updatedAccounts = accounts.map(acc => {
+      const bVes = base[`${acc.id}_ves`];
+      const bDig = base[`${acc.id}_digital_usd`];
+      const bPhy = base[`${acc.id}_physical_usd`];
+
       const updatedVes = runningBalances[`${acc.id}_ves`];
       const updatedDig = runningBalances[`${acc.id}_digital_usd`];
       const updatedPhy = runningBalances[`${acc.id}_physical_usd`];
 
+      const finalVes = updatedVes !== undefined ? updatedVes : acc.currentBalance;
+      const finalDig = updatedDig !== undefined ? updatedDig : acc.digitalUsdBalance;
+      const finalPhy = updatedPhy !== undefined ? updatedPhy : acc.physicalUsdBalance;
+
+      const balanceChanged =
+        finalVes !== acc.currentBalance ||
+        finalDig !== acc.digitalUsdBalance ||
+        finalPhy !== acc.physicalUsdBalance;
+
       return {
         ...acc,
-        currentBalance: updatedVes !== undefined ? updatedVes : acc.currentBalance,
-        digitalUsdBalance: updatedDig !== undefined ? updatedDig : acc.digitalUsdBalance,
-        physicalUsdBalance: updatedPhy !== undefined ? updatedPhy : acc.physicalUsdBalance,
-        updatedAt: new Date().toISOString()
+        currentBalance: finalVes,
+        digitalUsdBalance: finalDig,
+        physicalUsdBalance: finalPhy,
+        balanceBaseVes: bVes !== undefined ? bVes : acc.balanceBaseVes,
+        balanceBaseDigitalUsd: bDig !== undefined ? bDig : acc.balanceBaseDigitalUsd,
+        balanceBasePhysicalUsd: bPhy !== undefined ? bPhy : acc.balanceBasePhysicalUsd,
+        balanceBaseUpdatedAt: acc.balanceBaseUpdatedAt || acc.updatedAt || acc.createdAt || '1970-01-01T00:00:00.000Z',
+        updatedAt: balanceChanged ? nowIso : acc.updatedAt
       };
     });
 
@@ -681,7 +757,9 @@ export class StorageService {
       const timeB = new Date(b.date || b.createdAt || 0).getTime();
       const timeA = new Date(a.date || a.createdAt || 0).getTime();
       if (timeB !== timeA) return timeB - timeA;
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      const createdDiff = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      if (createdDiff !== 0) return createdDiff;
+      return (b.id || '').localeCompare(a.id || '');
     });
 
     return { transactions: sortedDesc, accounts: updatedAccounts };
@@ -690,10 +768,16 @@ export class StorageService {
   static addTransaction(tx: Transaction, userId?: string | null): { updatedAccounts: Account[], transaction: Transaction } {
     const transactions = this.getTransactions(userId);
     const accounts = this.getAccounts(userId);
+    const nowIso = new Date().toISOString();
+    const txWithTimestamps: Transaction = {
+      ...tx,
+      createdAt: tx.createdAt || nowIso,
+      updatedAt: tx.updatedAt || nowIso
+    };
 
     // Calcular balances base antes de insertar el nuevo movimiento
     const baseBalances = this.computeBaseBalances(transactions, accounts);
-    const newTxList = [tx, ...transactions];
+    const newTxList = [txWithTimestamps, ...transactions];
 
     // Reconciliar cronológicamente toda la línea de tiempo a partir de los balances base
     const { transactions: reconciledTxs, accounts: updatedAccounts } = this.reconcileChronologicalBalances(
@@ -702,7 +786,7 @@ export class StorageService {
       baseBalances
     );
 
-    const savedTx = reconciledTxs.find(t => t.id === tx.id) || tx;
+    const savedTx = reconciledTxs.find(t => t.id === txWithTimestamps.id) || txWithTimestamps;
 
     localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(reconciledTxs));
     localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
@@ -1265,37 +1349,7 @@ export class StorageService {
     let updatedTransactions = this.getTransactions(userId);
 
     if (paymentToDelete.receivedInAccountId) {
-      const isPayable = currentDebt.debtType === 'payable';
-      const delta = isPayable ? paymentToDelete.amount : -paymentToDelete.amount;
-
-      updatedAccounts = updatedAccounts.map(acc => {
-        if (acc.id === paymentToDelete.receivedInAccountId) {
-          let cur = acc.currentBalance;
-          let dig = acc.digitalUsdBalance ?? 0;
-          let phy = acc.physicalUsdBalance ?? 0;
-
-          if (paymentToDelete.receivedInSubFund === 'digital_usd') {
-            dig = Number((dig + delta).toFixed(2));
-          } else if (paymentToDelete.receivedInSubFund === 'physical_usd') {
-            phy = Number((phy + delta).toFixed(2));
-          } else {
-            cur = Number((cur + delta).toFixed(2));
-          }
-
-          return {
-            ...acc,
-            currentBalance: cur,
-            digitalUsdBalance: dig,
-            physicalUsdBalance: phy,
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return acc;
-      });
-
-      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
-
-      // Remove matching transaction if exists
+      // Remove matching transaction first and reconcile chronologically if found
       const txIndex = updatedTransactions.findIndex(t => 
         (t.id === paymentToDelete.id) ||
         (t.accountId === paymentToDelete.receivedInAccountId && 
@@ -1306,19 +1360,49 @@ export class StorageService {
       if (txIndex >= 0) {
         const removedTx = updatedTransactions[txIndex];
         SyncService.recordDeletion(removedTx.id, 'transaction');
-        updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        const baseBalances = this.computeBaseBalances(updatedTransactions, updatedAccounts);
+        const filteredTxs = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        const reconciled = this.reconcileChronologicalBalances(filteredTxs, updatedAccounts, baseBalances);
+        updatedTransactions = reconciled.transactions;
+        updatedAccounts = reconciled.accounts;
+        localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
         localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-        if (ENABLE_FIRESTORE && userId) {
-          try {
-            deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
-          } catch (e) {
-            console.warn('Delete transaction offline queued', e);
-          }
-        }
-      }
+      } else {
+        const isPayable = currentDebt.debtType === 'payable';
+        const delta = isPayable ? paymentToDelete.amount : -paymentToDelete.amount;
+        const deltas = this.computeTransactionDeltas(updatedTransactions);
+        const nowIso = new Date().toISOString();
 
-      if (ENABLE_FIRESTORE && userId) {
-        this.batchSaveAccounts(updatedAccounts, userId);
+        updatedAccounts = updatedAccounts.map(acc => {
+          if (acc.id === paymentToDelete.receivedInAccountId) {
+            let cur = acc.currentBalance;
+            let dig = acc.digitalUsdBalance ?? 0;
+            let phy = acc.physicalUsdBalance ?? 0;
+
+            if (paymentToDelete.receivedInSubFund === 'digital_usd') {
+              dig = Number((dig + delta).toFixed(2));
+            } else if (paymentToDelete.receivedInSubFund === 'physical_usd') {
+              phy = Number((phy + delta).toFixed(2));
+            } else {
+              cur = Number((cur + delta).toFixed(2));
+            }
+
+            return {
+              ...acc,
+              currentBalance: cur,
+              digitalUsdBalance: dig,
+              physicalUsdBalance: phy,
+              balanceBaseVes: Number((cur - (deltas[`${acc.id}_ves`] || 0)).toFixed(2)),
+              balanceBaseDigitalUsd: Number((dig - (deltas[`${acc.id}_digital_usd`] || 0)).toFixed(2)),
+              balanceBasePhysicalUsd: Number((phy - (deltas[`${acc.id}_physical_usd`] || 0)).toFixed(2)),
+              balanceBaseUpdatedAt: nowIso,
+              updatedAt: nowIso
+            };
+          }
+          return acc;
+        });
+
+        localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
       }
     }
 
@@ -1337,67 +1421,79 @@ export class StorageService {
     debtId: string,
     userId?: string | null
   ): { updatedDebts: Debt[], updatedAccounts: Account[], updatedTransactions: Transaction[] } {
-    const debts = this.getDebts();
+    const debts = this.getDebts(userId);
     const targetDebt = debts.find(d => d.id === debtId);
-    let updatedAccounts = this.getAccounts();
-    let updatedTransactions = this.getTransactions();
+    let updatedAccounts = this.getAccounts(userId);
+    let updatedTransactions = this.getTransactions(userId);
 
     if (!targetDebt) {
       return { updatedDebts: debts, updatedAccounts, updatedTransactions };
     }
 
     if (targetDebt.payments && targetDebt.payments.length > 0) {
+      const baseBalances = this.computeBaseBalances(updatedTransactions, updatedAccounts);
+      const removedTxIds = new Set<string>();
+      const unlinkedPayments: DebtPayment[] = [];
+
       for (const p of targetDebt.payments) {
         if (p.receivedInAccountId) {
+          const match = updatedTransactions.find(t =>
+            !removedTxIds.has(t.id) && (
+              (t.id === p.id) ||
+              (t.accountId === p.receivedInAccountId &&
+               t.amount === p.amount &&
+               (t.categoryId === 'cat-cobro-deuda' || t.categoryId === 'cat-pago-deuda' || t.id.startsWith('tx-debt-')))
+            )
+          );
+          if (match) {
+            removedTxIds.add(match.id);
+            SyncService.recordDeletion(match.id, 'transaction');
+          } else {
+            unlinkedPayments.push(p);
+          }
+        }
+      }
+
+      if (removedTxIds.size > 0) {
+        const remainingTxs = updatedTransactions.filter(t => !removedTxIds.has(t.id));
+        const reconciled = this.reconcileChronologicalBalances(remainingTxs, updatedAccounts, baseBalances);
+        updatedTransactions = reconciled.transactions;
+        updatedAccounts = reconciled.accounts;
+      }
+
+      if (unlinkedPayments.length > 0) {
+        const nowIso = new Date().toISOString();
+        const deltas = this.computeTransactionDeltas(updatedTransactions);
+        for (const p of unlinkedPayments) {
           const isPayable = targetDebt.debtType === 'payable';
           const delta = isPayable ? p.amount : -p.amount;
-
           updatedAccounts = updatedAccounts.map(acc => {
             if (acc.id === p.receivedInAccountId) {
               let cur = acc.currentBalance;
               let dig = acc.digitalUsdBalance ?? 0;
               let phy = acc.physicalUsdBalance ?? 0;
-
-              if (p.receivedInSubFund === 'digital_usd') {
-                dig = Number((dig + delta).toFixed(2));
-              } else if (p.receivedInSubFund === 'physical_usd') {
-                phy = Number((phy + delta).toFixed(2));
-              } else {
-                cur = Number((cur + delta).toFixed(2));
-              }
-
+              if (p.receivedInSubFund === 'digital_usd') dig = Number((dig + delta).toFixed(2));
+              else if (p.receivedInSubFund === 'physical_usd') phy = Number((phy + delta).toFixed(2));
+              else cur = Number((cur + delta).toFixed(2));
               return {
                 ...acc,
                 currentBalance: cur,
                 digitalUsdBalance: dig,
                 physicalUsdBalance: phy,
-                updatedAt: new Date().toISOString()
+                balanceBaseVes: Number((cur - (deltas[`${acc.id}_ves`] || 0)).toFixed(2)),
+                balanceBaseDigitalUsd: Number((dig - (deltas[`${acc.id}_digital_usd`] || 0)).toFixed(2)),
+                balanceBasePhysicalUsd: Number((phy - (deltas[`${acc.id}_physical_usd`] || 0)).toFixed(2)),
+                balanceBaseUpdatedAt: nowIso,
+                updatedAt: nowIso
               };
             }
             return acc;
           });
-
-          const txIdx = updatedTransactions.findIndex(t => 
-            (t.id === p.id) ||
-            (t.accountId === p.receivedInAccountId && 
-             t.amount === p.amount && 
-             (t.categoryId === 'cat-cobro-deuda' || t.categoryId === 'cat-pago-deuda' || t.id.startsWith('tx-debt-')))
-          );
-          if (txIdx >= 0) {
-            const removedTx = updatedTransactions[txIdx];
-            SyncService.recordDeletion(removedTx.id, 'transaction');
-            updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIdx);
-            if (ENABLE_FIRESTORE && userId) {
-              try { deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id)); } catch (e) {}
-            }
-          }
         }
       }
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(updatedAccounts));
-      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(updatedTransactions));
-      if (ENABLE_FIRESTORE && userId) {
-        this.batchSaveAccounts(updatedAccounts, userId);
-      }
+
+      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
+      localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
     }
 
     const updatedDebts = this.deleteDebt(debtId, userId);
@@ -1660,34 +1756,6 @@ export class StorageService {
     let updatedTransactions = this.getTransactions(userId);
 
     if (recoveryToDelete.receivedInAccountId) {
-      updatedAccounts = updatedAccounts.map(acc => {
-        if (acc.id === recoveryToDelete.receivedInAccountId) {
-          let cur = acc.currentBalance;
-          let dig = acc.digitalUsdBalance ?? 0;
-          let phy = acc.physicalUsdBalance ?? 0;
-
-          if (recoveryToDelete.receivedInSubFund === 'digital_usd') {
-            dig = Number((dig - recoveryToDelete.amount).toFixed(2));
-          } else if (recoveryToDelete.receivedInSubFund === 'physical_usd') {
-            phy = Number((phy - recoveryToDelete.amount).toFixed(2));
-          } else {
-            cur = Number((cur - recoveryToDelete.amount).toFixed(2));
-          }
-
-          return {
-            ...acc,
-            currentBalance: cur,
-            digitalUsdBalance: dig,
-            physicalUsdBalance: phy,
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return acc;
-      });
-
-      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
-
-      // Remove matching transaction
       const txIndex = updatedTransactions.findIndex(t => 
         (t.id === recoveryToDelete.id) ||
         (t.accountId === recoveryToDelete.receivedInAccountId && 
@@ -1698,19 +1766,42 @@ export class StorageService {
       if (txIndex >= 0) {
         const removedTx = updatedTransactions[txIndex];
         SyncService.recordDeletion(removedTx.id, 'transaction');
-        updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        const baseBalances = this.computeBaseBalances(updatedTransactions, updatedAccounts);
+        const remainingTxs = updatedTransactions.filter((_, idx) => idx !== txIndex);
+        const reconciled = this.reconcileChronologicalBalances(remainingTxs, updatedAccounts, baseBalances);
+        updatedTransactions = reconciled.transactions;
+        updatedAccounts = reconciled.accounts;
+        localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
         localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-        if (ENABLE_FIRESTORE && userId) {
-          try {
-            deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
-          } catch (e) {
-            console.warn('Delete transaction offline queued', e);
-          }
-        }
-      }
+      } else {
+        const nowIso = new Date().toISOString();
+        const deltas = this.computeTransactionDeltas(updatedTransactions);
+        updatedAccounts = updatedAccounts.map(acc => {
+          if (acc.id === recoveryToDelete.receivedInAccountId) {
+            let cur = acc.currentBalance;
+            let dig = acc.digitalUsdBalance ?? 0;
+            let phy = acc.physicalUsdBalance ?? 0;
 
-      if (ENABLE_FIRESTORE && userId) {
-        this.batchSaveAccounts(updatedAccounts, userId);
+            if (recoveryToDelete.receivedInSubFund === 'digital_usd') dig = Number((dig - recoveryToDelete.amount).toFixed(2));
+            else if (recoveryToDelete.receivedInSubFund === 'physical_usd') phy = Number((phy - recoveryToDelete.amount).toFixed(2));
+            else cur = Number((cur - recoveryToDelete.amount).toFixed(2));
+
+            return {
+              ...acc,
+              currentBalance: cur,
+              digitalUsdBalance: dig,
+              physicalUsdBalance: phy,
+              balanceBaseVes: Number((cur - (deltas[`${acc.id}_ves`] || 0)).toFixed(2)),
+              balanceBaseDigitalUsd: Number((dig - (deltas[`${acc.id}_digital_usd`] || 0)).toFixed(2)),
+              balanceBasePhysicalUsd: Number((phy - (deltas[`${acc.id}_physical_usd`] || 0)).toFixed(2)),
+              balanceBaseUpdatedAt: nowIso,
+              updatedAt: nowIso
+            };
+          }
+          return acc;
+        });
+
+        localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
       }
     }
 
@@ -1729,117 +1820,118 @@ export class StorageService {
     lossId: string,
     userId?: string | null
   ): { updatedLosses: Loss[], updatedAccounts: Account[], updatedTransactions: Transaction[], updatedDebts: Debt[] } {
-    const losses = this.getLosses();
+    const losses = this.getLosses(userId);
     const targetLoss = losses.find(l => l.id === lossId);
-    let updatedAccounts = this.getAccounts();
-    let updatedTransactions = this.getTransactions();
-    let updatedDebts = this.getDebts();
+    let updatedAccounts = this.getAccounts(userId);
+    let updatedTransactions = this.getTransactions(userId);
+    let updatedDebts = this.getDebts(userId);
 
     if (!targetLoss) {
       return { updatedLosses: losses, updatedAccounts, updatedTransactions, updatedDebts };
     }
 
-    // 1. If deducted from account, restore funds
+    const baseBalances = this.computeBaseBalances(updatedTransactions, updatedAccounts);
+    const removedTxIds = new Set<string>();
+    let manualAccountAdjustNeeded = false;
+
+    // 1. Check deducted account loss tx
     if (targetLoss.affectedAccountId) {
-      updatedAccounts = updatedAccounts.map(acc => {
-        if (acc.id === targetLoss.affectedAccountId) {
-          let cur = acc.currentBalance;
-          let dig = acc.digitalUsdBalance ?? 0;
-          let phy = acc.physicalUsdBalance ?? 0;
-
-          if (targetLoss.subFund === 'digital_usd') {
-            dig = Number((dig + targetLoss.amount).toFixed(2));
-          } else if (targetLoss.subFund === 'physical_usd') {
-            phy = Number((phy + targetLoss.amount).toFixed(2));
-          } else {
-            cur = Number((cur + targetLoss.amount).toFixed(2));
-          }
-
-          return {
-            ...acc,
-            currentBalance: cur,
-            digitalUsdBalance: dig,
-            physicalUsdBalance: phy,
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return acc;
-      });
-
-      const txIndex = updatedTransactions.findIndex(t => 
-        (t.accountId === targetLoss.affectedAccountId && 
+      const matchLossTx = updatedTransactions.find(t =>
+        (t.accountId === targetLoss.affectedAccountId &&
          t.amount === targetLoss.amount &&
          (t.categoryId === 'cat-perdidas' || t.id.startsWith('tx-loss-')))
       );
-
-      if (txIndex >= 0) {
-        const removedTx = updatedTransactions[txIndex];
-        SyncService.recordDeletion(removedTx.id, 'transaction');
-        updatedTransactions = updatedTransactions.filter((_, idx) => idx !== txIndex);
-        localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-        if (ENABLE_FIRESTORE && userId) {
-          try {
-            deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id));
-          } catch (e) {}
-        }
-      }
-
-      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
-      if (userId) {
-        this.batchSaveAccounts(updatedAccounts, userId);
+      if (matchLossTx) {
+        removedTxIds.add(matchLossTx.id);
+        SyncService.recordDeletion(matchLossTx.id, 'transaction');
+      } else {
+        manualAccountAdjustNeeded = true;
       }
     }
 
-    // 2. If it had recoveries that added money to accounts, revert them
+    // 2. Check recoveries txs
+    const unlinkedRecoveries: LossRecovery[] = [];
     if (targetLoss.recoveries && targetLoss.recoveries.length > 0) {
       for (const rec of targetLoss.recoveries) {
         if (rec.receivedInAccountId) {
-          updatedAccounts = updatedAccounts.map(acc => {
-            if (acc.id === rec.receivedInAccountId) {
-              let cur = acc.currentBalance;
-              let dig = acc.digitalUsdBalance ?? 0;
-              let phy = acc.physicalUsdBalance ?? 0;
-
-              if (rec.receivedInSubFund === 'digital_usd') {
-                dig = Number((dig - rec.amount).toFixed(2));
-              } else if (rec.receivedInSubFund === 'physical_usd') {
-                phy = Number((phy - rec.amount).toFixed(2));
-              } else {
-                cur = Number((cur - rec.amount).toFixed(2));
-              }
-
-              return {
-                ...acc,
-                currentBalance: cur,
-                digitalUsdBalance: dig,
-                physicalUsdBalance: phy,
-                updatedAt: new Date().toISOString()
-              };
-            }
-            return acc;
-          });
-
-          const recTxIdx = updatedTransactions.findIndex(t => 
-            t.accountId === rec.receivedInAccountId && 
-            t.amount === rec.amount && 
+          const recMatch = updatedTransactions.find(t =>
+            !removedTxIds.has(t.id) &&
+            t.accountId === rec.receivedInAccountId &&
+            t.amount === rec.amount &&
             (t.categoryId === 'cat-recuperacion-perdida' || t.id.startsWith('tx-lossrec-'))
           );
-          if (recTxIdx >= 0) {
-            const removedTx = updatedTransactions[recTxIdx];
-            SyncService.recordDeletion(removedTx.id, 'transaction');
-            updatedTransactions = updatedTransactions.filter((_, idx) => idx !== recTxIdx);
-            if (ENABLE_FIRESTORE && userId) {
-              try { deleteDoc(doc(db, `users/${userId}/transactions`, removedTx.id)); } catch (e) {}
-            }
+          if (recMatch) {
+            removedTxIds.add(recMatch.id);
+            SyncService.recordDeletion(recMatch.id, 'transaction');
+          } else {
+            unlinkedRecoveries.push(rec);
           }
         }
       }
-      localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
-      localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
-      if (userId) {
-        this.batchSaveAccounts(updatedAccounts, userId);
+    }
+
+    if (removedTxIds.size > 0) {
+      const remainingTxs = updatedTransactions.filter(t => !removedTxIds.has(t.id));
+      const reconciled = this.reconcileChronologicalBalances(remainingTxs, updatedAccounts, baseBalances);
+      updatedTransactions = reconciled.transactions;
+      updatedAccounts = reconciled.accounts;
+    }
+
+    if (manualAccountAdjustNeeded || unlinkedRecoveries.length > 0) {
+      const nowIso = new Date().toISOString();
+      const deltas = this.computeTransactionDeltas(updatedTransactions);
+      if (manualAccountAdjustNeeded && targetLoss.affectedAccountId) {
+        updatedAccounts = updatedAccounts.map(acc => {
+          if (acc.id === targetLoss.affectedAccountId) {
+            let cur = acc.currentBalance;
+            let dig = acc.digitalUsdBalance ?? 0;
+            let phy = acc.physicalUsdBalance ?? 0;
+            if (targetLoss.subFund === 'digital_usd') dig = Number((dig + targetLoss.amount).toFixed(2));
+            else if (targetLoss.subFund === 'physical_usd') phy = Number((phy + targetLoss.amount).toFixed(2));
+            else cur = Number((cur + targetLoss.amount).toFixed(2));
+            return {
+              ...acc,
+              currentBalance: cur,
+              digitalUsdBalance: dig,
+              physicalUsdBalance: phy,
+              balanceBaseVes: Number((cur - (deltas[`${acc.id}_ves`] || 0)).toFixed(2)),
+              balanceBaseDigitalUsd: Number((dig - (deltas[`${acc.id}_digital_usd`] || 0)).toFixed(2)),
+              balanceBasePhysicalUsd: Number((phy - (deltas[`${acc.id}_physical_usd`] || 0)).toFixed(2)),
+              balanceBaseUpdatedAt: nowIso,
+              updatedAt: nowIso
+            };
+          }
+          return acc;
+        });
+      }
+      for (const rec of unlinkedRecoveries) {
+        updatedAccounts = updatedAccounts.map(acc => {
+          if (acc.id === rec.receivedInAccountId) {
+            let cur = acc.currentBalance;
+            let dig = acc.digitalUsdBalance ?? 0;
+            let phy = acc.physicalUsdBalance ?? 0;
+            if (rec.receivedInSubFund === 'digital_usd') dig = Number((dig - rec.amount).toFixed(2));
+            else if (rec.receivedInSubFund === 'physical_usd') phy = Number((phy - rec.amount).toFixed(2));
+            else cur = Number((cur - rec.amount).toFixed(2));
+            return {
+              ...acc,
+              currentBalance: cur,
+              digitalUsdBalance: dig,
+              physicalUsdBalance: phy,
+              balanceBaseVes: Number((cur - (deltas[`${acc.id}_ves`] || 0)).toFixed(2)),
+              balanceBaseDigitalUsd: Number((dig - (deltas[`${acc.id}_digital_usd`] || 0)).toFixed(2)),
+              balanceBasePhysicalUsd: Number((phy - (deltas[`${acc.id}_physical_usd`] || 0)).toFixed(2)),
+              balanceBaseUpdatedAt: nowIso,
+              updatedAt: nowIso
+            };
+          }
+          return acc;
+        });
       }
     }
+
+    localStorage.setItem(this.getKey(ACCOUNTS_STORAGE_KEY, userId), JSON.stringify(updatedAccounts));
+    localStorage.setItem(this.getKey(TRANSACTIONS_STORAGE_KEY, userId), JSON.stringify(updatedTransactions));
 
     // 3. If linked to an uncollectible debt, restore debt status
     if (targetLoss.linkedDebtId) {
@@ -2026,7 +2118,9 @@ export class StorageService {
       debts: this.getDebts(userId),
       losses: this.getLosses(userId),
       todos: this.getTodos(userId),
-      auditLogs: this.getAuditLogs(userId)
+      auditLogs: this.getAuditLogs(userId),
+      rates: RatesService.getCachedRates(),
+      historicalRates: RatesService.getHistoricalRatesMap()
     };
   }
 
@@ -2043,6 +2137,9 @@ export class StorageService {
     losses?: Loss[];
     todos?: TodoItem[];
     auditLogs?: AuditLogEntry[];
+    deletedItems?: any[];
+    rates?: any;
+    historicalRates?: Record<string, { bcv: number; usdt: number }>;
   }, userId?: string | null): void {
     const key = (base: string) => this.getKey(base, userId);
 
@@ -2054,7 +2151,9 @@ export class StorageService {
         const timeB = new Date(b.date || b.createdAt || 0).getTime();
         const timeA = new Date(a.date || a.createdAt || 0).getTime();
         if (timeB !== timeA) return timeB - timeA;
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        const createdDiff = new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        if (createdDiff !== 0) return createdDiff;
+        return (b.id || '').localeCompare(a.id || '');
       });
       localStorage.setItem(key(TRANSACTIONS_STORAGE_KEY), JSON.stringify(sortedTxs));
     }
@@ -2098,6 +2197,9 @@ export class StorageService {
     }
     if (merged.auditLogs) {
       localStorage.setItem(key(AUDIT_LOGS_STORAGE_KEY), JSON.stringify(merged.auditLogs));
+    }
+    if (merged.rates || merged.historicalRates) {
+      RatesService.applySyncedRates(merged.rates, merged.historicalRates);
     }
 
     // Si los datos fusionados contienen cuentas con saldo o transacciones, marcar configuración inicial completada
@@ -2213,14 +2315,14 @@ export class StorageService {
   }
 
   static revertAccountAdjustment(auditId: string, userId?: string | null): Account[] {
-    const logs = this.getAuditLogs();
+    const logs = this.getAuditLogs(userId);
     const logIdx = logs.findIndex(l => l.id === auditId);
-    if (logIdx < 0) return this.getAccounts();
+    if (logIdx < 0) return this.getAccounts(userId);
 
     const log = logs[logIdx];
-    if (!log.snapshotBefore) return this.getAccounts();
+    if (!log.snapshotBefore) return this.getAccounts(userId);
 
-    let updatedAccounts = this.getAccounts();
+    let updatedAccounts = this.getAccounts(userId);
 
     if (Array.isArray(log.snapshotBefore)) {
       updatedAccounts = log.snapshotBefore;
@@ -2240,7 +2342,7 @@ export class StorageService {
       reverted: true,
       revertedAt: new Date().toISOString()
     };
-    localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(logs));
+    localStorage.setItem(this.getKey(AUDIT_LOGS_STORAGE_KEY, userId), JSON.stringify(logs));
 
     return updatedAccounts;
   }
