@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T14:28:29.288Z",
+  "lastUpdated": "2026-11-26T14:29:22.877Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2141,31 +2141,6 @@
       "payments": []
     },
     {
-      "id": "debt-1793753085019-79so3",
-      "debtType": "receivable",
-      "debtorName": "Devolución provincial",
-      "concept": "Compra bolso",
-      "originalAmount": 37,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1004.3248,
-      "remainingAmount": 0,
-      "status": "paid",
-      "createdAt": "2026-11-04T00:44:45.020Z",
-      "updatedAt": "2026-11-06T16:20:29.017Z",
-      "payments": [
-        {
-          "amount": 37,
-          "currency": "USD",
-          "date": "2026-11-06T17:50:00.000Z",
-          "note": "Reembolso provincial",
-          "appliedRate": 1010.4101,
-          "receivedInAccountId": "acc-2",
-          "receivedInSubFund": "digital_usd",
-          "id": "debt-pay-1793982029017"
-        }
-      ]
-    },
-    {
       "id": "debt-1793752830461-wcfsz",
       "debtType": "receivable",
       "debtorName": "García gym",
@@ -2741,6 +2716,11 @@
   ],
   "auditLogs": [],
   "deletedItems": [
+    {
+      "id": "debt-1793753085019-79so3",
+      "type": "debt",
+      "deletedAt": "2026-11-26T14:29:22.499Z"
+    },
     {
       "id": "debt-1794253431344-e4qjb",
       "type": "debt",
