@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T13:29:23.965Z",
+  "lastUpdated": "2026-11-26T13:40:41.521Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2728,6 +2728,17 @@
     }
   ],
   "todos": [
+    {
+      "id": "todo-1795700441149-5g1bu",
+      "title": "Camisa",
+      "category": "purchase",
+      "priority": "medium",
+      "estimatedPrice": 35,
+      "currency": "USD",
+      "status": "pending",
+      "createdAt": "2026-11-26T13:40:41.149Z",
+      "updatedAt": "2026-11-26T13:40:41.149Z"
+    },
     {
       "id": "todo-1795699763574-xxwmd",
       "title": "Moto Tx GS 250",
