@@ -29,6 +29,8 @@ import { useApp } from '../../context/AppContext';
 import { Debt, DebtStatus, DebtType } from '../../types';
 import { RatesService } from '../../services/ratesService';
 
+type DebtStatusTab = 'active' | 'pending' | 'partially_paid' | 'paid' | 'uncollectible' | 'all';
+
 export const DebtsView: React.FC = () => {
   const { 
     debts, 
@@ -50,7 +52,8 @@ export const DebtsView: React.FC = () => {
   } = useApp();
 
   const [typeFilter, setTypeFilter] = useState<'all' | DebtType>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | DebtStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<DebtStatusTab>('active');
+  const [showSettledSection, setShowSettledSection] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -142,23 +145,345 @@ export const DebtsView: React.FC = () => {
     window.open(url, '_blank');
   };
 
-  // Filtered and sorted debts (newest/most recently registered first)
-  const filteredDebts = debts
+  const sortDebtsByPriorityAndDate = (a: Debt, b: Debt) => {
+    const rank = (s: DebtStatus) => (s === 'pending' ? 0 : s === 'partially_paid' ? 1 : s === 'uncollectible' ? 2 : 3);
+    const rankDiff = rank(a.status) - rank(b.status);
+    if (rankDiff !== 0) return rankDiff;
+    const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+    const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+    if (timeB !== timeA) return timeB - timeA;
+    return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+  };
+
+  // Deudas filtradas por tipo (Por Cobrar / Por Pagar) y búsqueda
+  const baseMatchingDebts = debts
     .filter(debt => {
       const isPayable = debt.debtType === 'payable';
       const matchesType = typeFilter === 'all' || (typeFilter === 'payable' ? isPayable : !isPayable);
-      const matchesStatus = statusFilter === 'all' || debt.status === statusFilter;
-      const matchesSearch = debt.debtorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        debt.concept.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (debt.phone && debt.phone.includes(searchQuery));
-      return matchesType && matchesStatus && matchesSearch;
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q ||
+        debt.debtorName.toLowerCase().includes(q) ||
+        debt.concept.toLowerCase().includes(q) ||
+        (debt.phone && debt.phone.includes(q));
+      return matchesType && matchesSearch;
     })
-    .sort((a, b) => {
-      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
-      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
-      if (timeB !== timeA) return timeB - timeA;
-      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
-    });
+    .sort(sortDebtsByPriorityAndDate);
+
+  const activePendingDebts = baseMatchingDebts.filter(
+    d => d.status === 'pending' || d.status === 'partially_paid'
+  );
+  const onlyPendingDebts = baseMatchingDebts.filter(d => d.status === 'pending');
+  const partialDebts = baseMatchingDebts.filter(d => d.status === 'partially_paid');
+  const paidDebts = baseMatchingDebts.filter(d => d.status === 'paid');
+  const uncollectibleDebts = baseMatchingDebts.filter(d => d.status === 'uncollectible');
+  const settledDebts = baseMatchingDebts.filter(d => d.status === 'paid' || d.status === 'uncollectible');
+
+  const renderDebtCard = (debt: Debt) => {
+    const isUSD = debt.currencyType === 'USD_USDT';
+    const isPayable = debt.debtType === 'payable';
+    const isExpanded = expandedDebtId === debt.id;
+    const isPaid = debt.status === 'paid';
+    const isPartial = debt.status === 'partially_paid';
+
+    const bcv = rates.bcv > 0 ? rates.bcv : 1;
+
+    let usdOriginal = debt.peggedUsdAmount || 0;
+    if (!usdOriginal) {
+      usdOriginal = isUSD
+        ? debt.originalAmount
+        : (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv);
+    }
+
+    const paidUsd = (debt.payments || []).reduce((sum, p) => {
+      if (p.currency === 'USD') return sum + p.amount;
+      const pRate = p.appliedRate || bcv;
+      return sum + (p.amount / pRate);
+    }, 0);
+
+    const liveRemainingUsd = isPaid ? 0 : Math.max(0, usdOriginal - paidUsd);
+    const liveRemainingBs = Number((liveRemainingUsd * bcv).toFixed(2));
+    const liveOriginalBs = Number((usdOriginal * bcv).toFixed(2));
+
+    const progressPercent = usdOriginal > 0 
+      ? Math.min(100, Math.round((paidUsd / usdOriginal) * 100))
+      : 0;
+
+    const remainingInBs = liveRemainingBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const remainingInUsd = liveRemainingUsd.toFixed(2);
+    const originalInBs = liveOriginalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const originalInUsd = usdOriginal.toFixed(2);
+
+    return (
+      <div
+        key={debt.id}
+        className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border shadow-sm transition-all flex flex-col justify-between space-y-4 ${
+          isPaid
+            ? 'opacity-85 border-emerald-200/70 dark:border-emerald-900/40 hover:opacity-100'
+            : isPayable 
+            ? 'border-rose-200/80 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-800' 
+            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+        }`}
+      >
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="mb-1.5">
+                {isPayable ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30">
+                    <ArrowUpRight className="w-3 h-3 text-rose-500" />
+                    Yo Debo (Por Pagar)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                    <ArrowDownLeft className="w-3 h-3 text-emerald-500" />
+                    Me Deben (Por Cobrar)
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-black text-slate-900 dark:text-white">
+                  {debt.debtorName}
+                </h4>
+                {debt.phone && (
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1 font-semibold">
+                    <Phone className="w-3 h-3 text-slate-400" />
+                    {debt.phone}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5">
+                {debt.concept}
+              </p>
+            </div>
+
+            <div>
+              {isPaid ? (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  SALDADO
+                </span>
+              ) : debt.status === 'uncollectible' ? (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center gap-1">
+                  <TrendingDown className="w-3 h-3" />
+                  INCOBRABLE
+                </span>
+              ) : isPartial ? (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  ABONADO ({progressPercent}%)
+                </span>
+              ) : (
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border flex items-center gap-1 ${
+                  isPayable
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                }`}>
+                  <AlertCircle className="w-3 h-3" />
+                  PENDIENTE
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className={`mt-4 p-3.5 rounded-2xl border ${
+            isPayable 
+              ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40' 
+              : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'
+          }`}>
+            <div className="flex items-baseline justify-between mb-1">
+              <span className={`text-xs font-semibold ${isPayable ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                {isPaid ? (isPayable ? 'Total Pagado:' : 'Total Cobrado:') : (isPayable ? 'Monto que Debo Pagar:' : 'Por Cobrar:')}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                {isUSD ? 'Base en $ / USDT' : 'Indexada a Tasa $ BCV'}
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <div className={`text-2xl font-black ${
+                isPaid
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : isPayable
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : 'text-slate-900 dark:text-white'
+              }`}>
+                {isPaid
+                  ? (isUSD ? `$${originalInUsd} USD` : `${originalInBs} Bs`)
+                  : (isUSD ? `$${remainingInUsd} USD` : `${remainingInBs} Bs`)}
+              </div>
+              {isPartial && (
+                <span className="text-xs text-slate-600 dark:text-slate-400 line-through">
+                  de {isUSD ? `$${originalInUsd}` : `${originalInBs} Bs`}
+                </span>
+              )}
+            </div>
+
+            <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs">
+              <span className={`text-[11px] font-semibold ${isPayable ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                {isUSD ? '📱 Pago Móvil a Tasa BCV hoy:' : '💵 Base en USD (Protegida de Devaluación):'}
+              </span>
+              <span className={`font-black ${isPayable ? 'text-rose-800 dark:text-rose-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+                {isPaid
+                  ? (isUSD ? `${originalInBs} Bs` : `$${originalInUsd} USD`)
+                  : (isUSD ? `${remainingInBs} Bs` : `$${remainingInUsd} USD`)}
+              </span>
+            </div>
+
+            {!isUSD && (
+              <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                <span>🏛️ Tasa BCV hoy: <strong>{rates.bcv} Bs/$</strong></span>
+                <span>Inicial: {debt.appliedRateAtCreation} Bs/$</span>
+              </div>
+            )}
+          </div>
+
+          {isPartial && (
+            <div className="mt-3 space-y-1">
+              <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
+                <span>Abonado: {isUSD ? `$${(usdOriginal - liveRemainingUsd).toFixed(2)}` : `${((usdOriginal - liveRemainingUsd) * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`}</span>
+                <span className="font-bold">{progressPercent}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    isPayable ? 'bg-gradient-to-r from-amber-500 to-rose-500' : 'bg-gradient-to-r from-blue-500 to-emerald-500'
+                  }`}
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-400">
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              Registrado: {new Date(debt.createdAt).toLocaleDateString('es-VE')}
+            </span>
+            {debt.dueDate && (
+              <span className={`font-semibold flex items-center gap-1 ${
+                new Date(debt.dueDate) < new Date() && !isPaid ? 'text-rose-500' : ''
+              }`}>
+                Vence: {new Date(debt.dueDate).toLocaleDateString('es-VE')}
+              </span>
+            )}
+          </div>
+
+          {debt.notes && (
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-800/40 p-2 rounded-xl italic">
+              "{debt.notes}"
+            </p>
+          )}
+
+          {debt.payments && debt.payments.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => toggleExpand(debt.id)}
+                className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              >
+                <span>Historial de Pagos / Abonos ({debt.payments.length})</span>
+                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {isExpanded && (
+                <div className={`mt-2 space-y-1.5 pl-2 border-l-2 ${
+                  isPayable ? 'border-rose-500/40' : 'border-emerald-500/40'
+                }`}>
+                  {debt.payments.map((p, idx) => (
+                    <div key={p.id || idx} className="text-xs flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
+                      <div>
+                        <span className={`font-bold ${isPayable ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {isPayable ? '-' : '+'}{p.currency === 'USD' ? `$${p.amount.toFixed(2)} USD` : `${p.amount.toLocaleString()} Bs`}
+                        </span>
+                        {p.note && <span className="text-[11px] text-slate-600 dark:text-slate-400 block">{p.note}</span>}
+                      </div>
+                      <span className="text-[10px] text-slate-600 dark:text-slate-400">
+                        {new Date(p.date).toLocaleDateString('es-VE')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleOpenWhatsApp(debt)}
+              className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors"
+              title={isPayable ? "Enviar notificación de saldo por WhatsApp" : "Enviar recordatorio por WhatsApp con tasa BCV del día"}
+            >
+              <MessageCircle className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => handleCopyReminder(debt)}
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors relative"
+              title="Copiar texto para enviar por SMS o chat"
+            >
+              <Copy className="w-4 h-4" />
+              {copiedId === debt.id && (
+                <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] rounded-md font-bold whitespace-nowrap shadow-md">
+                  ¡Copiado!
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => handleEdit(debt)}
+              className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+              title="Editar registro de deuda"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => handleDelete(debt)}
+              className="p-2 rounded-xl text-slate-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+              title="Eliminar registro"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+
+            {!isPaid && !isPayable && debt.status !== 'uncollectible' && (
+              <button
+                onClick={() => handleDeclareAsLoss(debt)}
+                className="p-2 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                title="Declarar como Deuda Incobrable y transferir a Pérdidas"
+              >
+                <TrendingDown className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {!isPaid && (
+            <button
+              onClick={() => handleOpenPayment(debt)}
+              className={`px-3.5 py-1.5 rounded-xl text-white font-bold text-xs shadow-sm flex items-center gap-1.5 active:scale-95 transition-all ${
+                isPayable 
+                  ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' 
+                  : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>{isPayable ? 'Pagar / Abonar' : 'Registrar Cobro'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const singleStatusDebts =
+    statusFilter === 'pending'
+      ? onlyPendingDebts
+      : statusFilter === 'partially_paid'
+      ? partialDebts
+      : statusFilter === 'paid'
+      ? paidDebts
+      : uncollectibleDebts;
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">
@@ -311,27 +636,17 @@ export const DebtsView: React.FC = () => {
       {/* Filters and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         
-        {/* Status Tabs */}
+        {/* Status Tabs (Pendientes primero por defecto, Saldadas aparte) */}
         <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-200/60 dark:bg-slate-800/80 overflow-x-auto text-xs font-semibold">
           <button
-            onClick={() => setStatusFilter('all')}
+            onClick={() => setStatusFilter('active')}
             className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
-              statusFilter === 'all'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Todos
-          </button>
-          <button
-            onClick={() => setStatusFilter('pending')}
-            className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
-              statusFilter === 'pending'
+              statusFilter === 'active'
                 ? 'bg-amber-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Pendientes ({debts.filter(d => (typeFilter === 'all' || (typeFilter === 'payable' ? d.debtType === 'payable' : d.debtType !== 'payable')) && d.status === 'pending').length})
+            Pendientes ({activePendingDebts.length})
           </button>
           <button
             onClick={() => setStatusFilter('partially_paid')}
@@ -341,7 +656,17 @@ export const DebtsView: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Con Abonos ({debts.filter(d => (typeFilter === 'all' || (typeFilter === 'payable' ? d.debtType === 'payable' : d.debtType !== 'payable')) && d.status === 'partially_paid').length})
+            Con Abonos ({partialDebts.length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('pending')}
+            className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
+              statusFilter === 'pending'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Sin Abonos ({onlyPendingDebts.length})
           </button>
           <button
             onClick={() => setStatusFilter('paid')}
@@ -351,7 +676,7 @@ export const DebtsView: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Saldados ({debts.filter(d => (typeFilter === 'all' || (typeFilter === 'payable' ? d.debtType === 'payable' : d.debtType !== 'payable')) && d.status === 'paid').length})
+            Saldados ({paidDebts.length})
           </button>
           <button
             onClick={() => setStatusFilter('uncollectible')}
@@ -361,7 +686,17 @@ export const DebtsView: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Incobrables ({debts.filter(d => (typeFilter === 'all' || (typeFilter === 'payable' ? d.debtType === 'payable' : d.debtType !== 'payable')) && d.status === 'uncollectible').length})
+            Incobrables ({uncollectibleDebts.length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
+              statusFilter === 'all'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Todas ({baseMatchingDebts.length})
           </button>
         </div>
 
@@ -379,335 +714,118 @@ export const DebtsView: React.FC = () => {
 
       </div>
 
-      {/* Debts List */}
-      {filteredDebts.length === 0 ? (
+      {/* Debts List: Pendientes primero por defecto y Saldadas aparte */}
+      {statusFilter === 'active' || statusFilter === 'all' ? (
+        <div className="space-y-6">
+          {/* Bloque 1: Deudas Pendientes */}
+          {activePendingDebts.length === 0 ? (
+            <div className="p-10 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-3">
+                <HandCoins className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {debts.length === 0
+                  ? 'No tienes registros de deudas todavía'
+                  : 'No hay deudas pendientes con los filtros actuales'}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                {debts.length === 0
+                  ? 'Registra tanto el dinero que te deben como las deudas pendientes que tienes con demás personas para llevar un balance financiero exacto.'
+                  : settledDebts.length > 0
+                  ? `Tienes ${settledDebts.length} deuda(s) saldada(s) o cerrada(s) en la sección inferior.`
+                  : 'Prueba cambiando los filtros de tipo o la búsqueda.'}
+              </p>
+              {debts.length === 0 && (
+                <button
+                  onClick={() => setIsDebtModalOpen(true)}
+                  className="mt-4 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all"
+                >
+                  Registrar Primera Deuda
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Deudas Pendientes ({activePendingDebts.length})
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {activePendingDebts.map(renderDebtCard)}
+              </div>
+            </div>
+          )}
+
+          {/* Bloque 2 (Aparte): Deudas Saldadas / Cerradas */}
+          {settledDebts.length > 0 && (
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+              {statusFilter === 'active' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettledSection(prev => !prev)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/40 transition-all text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white block">
+                          Deudas Saldadas y Cerradas ({settledDebts.length})
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {showSettledSection
+                            ? 'Mostrando aparte debajo de las pendientes'
+                            : 'Ocultas al entrar para priorizar tus deudas pendientes'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      <span>{showSettledSection ? 'Ocultar' : 'Ver aparte'}</span>
+                      {showSettledSection ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </span>
+                  </button>
+
+                  {showSettledSection && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in fade-in duration-150">
+                      {settledDebts.map(renderDebtCard)}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Deudas Saldadas y Cerradas ({settledDebts.length})
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {settledDebts.map(renderDebtCard)}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ) : singleStatusDebts.length === 0 ? (
         <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-3">
             <HandCoins className="w-7 h-7" />
           </div>
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            {debts.length === 0 ? 'No tienes registros de deudas todavía' : 'No se encontraron deudas con esos filtros'}
+            No se encontraron deudas con esos filtros
           </h3>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-            {debts.length === 0
-              ? 'Registra tanto el dinero que te deben como las deudas pendientes que tienes con demás personas para llevar un balance financiero exacto.'
-              : 'Prueba cambiando los filtros de tipo, estado o la búsqueda.'}
+            Prueba cambiando los filtros de tipo, estado o la búsqueda.
           </p>
-          {debts.length === 0 && (
-            <button
-              onClick={() => setIsDebtModalOpen(true)}
-              className="mt-4 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all"
-            >
-              Registrar Primera Deuda
-            </button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredDebts.map(debt => {
-            const isUSD = debt.currencyType === 'USD_USDT';
-            const isPayable = debt.debtType === 'payable';
-            const isExpanded = expandedDebtId === debt.id;
-            const isPaid = debt.status === 'paid';
-            const isPartial = debt.status === 'partially_paid';
-
-            const bcv = rates.bcv > 0 ? rates.bcv : 1;
-
-            let usdOriginal = debt.peggedUsdAmount || 0;
-            if (!usdOriginal) {
-              usdOriginal = isUSD
-                ? debt.originalAmount
-                : (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv);
-            }
-
-            const paidUsd = (debt.payments || []).reduce((sum, p) => {
-              if (p.currency === 'USD') return sum + p.amount;
-              const pRate = p.appliedRate || bcv;
-              return sum + (p.amount / pRate);
-            }, 0);
-
-            const liveRemainingUsd = isPaid ? 0 : Math.max(0, usdOriginal - paidUsd);
-            const liveRemainingBs = Number((liveRemainingUsd * bcv).toFixed(2));
-            const liveOriginalBs = Number((usdOriginal * bcv).toFixed(2));
-
-            // Percent paid
-            const progressPercent = usdOriginal > 0 
-              ? Math.min(100, Math.round((paidUsd / usdOriginal) * 100))
-              : 0;
-
-            // Live conversions
-            const remainingInBs = liveRemainingBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const remainingInUsd = liveRemainingUsd.toFixed(2);
-            const originalInBs = liveOriginalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const originalInUsd = usdOriginal.toFixed(2);
-
-            return (
-              <div
-                key={debt.id}
-                className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border shadow-sm transition-all flex flex-col justify-between space-y-4 ${
-                  isPayable 
-                    ? 'border-rose-200/80 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-800' 
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                }`}
-              >
-                <div>
-                  
-                  {/* Top card info: Type Badge, Name, status badge */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      {/* Tipo de Deuda Badge */}
-                      <div className="mb-1.5">
-                        {isPayable ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30">
-                            <ArrowUpRight className="w-3 h-3 text-rose-500" />
-                            Yo Debo (Por Pagar)
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                            <ArrowDownLeft className="w-3 h-3 text-emerald-500" />
-                            Me Deben (Por Cobrar)
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-base font-black text-slate-900 dark:text-white">
-                          {debt.debtorName}
-                        </h4>
-                        {debt.phone && (
-                          <span className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1 font-semibold">
-                            <Phone className="w-3 h-3 text-slate-400" />
-                            {debt.phone}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5">
-                        {debt.concept}
-                      </p>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div>
-                      {isPaid ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          SALDADO
-                        </span>
-                      ) : debt.status === 'uncollectible' ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center gap-1">
-                          <TrendingDown className="w-3 h-3" />
-                          INCOBRABLE
-                        </span>
-                      ) : isPartial ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          ABONADO ({progressPercent}%)
-                        </span>
-                      ) : (
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border flex items-center gap-1 ${
-                          isPayable
-                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                        }`}>
-                          <AlertCircle className="w-3 h-3" />
-                          PENDIENTE
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dual Amount Showcase */}
-                  <div className={`mt-4 p-3.5 rounded-2xl border ${
-                    isPayable 
-                      ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40' 
-                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'
-                  }`}>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <span className={`text-xs font-semibold ${isPayable ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                        {isPayable ? 'Monto que Debo Pagar:' : 'Por Cobrar:'}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                        {isUSD ? 'Base en $ / USDT' : 'Indexada a Tasa $ BCV'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-baseline gap-2">
-                      <div className={`text-2xl font-black ${isPayable ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                        {isUSD ? `$${remainingInUsd} USD` : `${remainingInBs} Bs`}
-                      </div>
-                      {isPartial && (
-                        <span className="text-xs text-slate-600 dark:text-slate-400 line-through">
-                          de {isUSD ? `$${originalInUsd}` : `${originalInBs} Bs`}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Venezuelan Conversion Highlight */}
-                    <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs">
-                      <span className={`text-[11px] font-semibold ${isPayable ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
-                        {isUSD ? '📱 Pago Móvil a Tasa BCV hoy:' : '💵 Base en USD (Protegida de Devaluación):'}
-                      </span>
-                      <span className={`font-black ${isPayable ? 'text-rose-800 dark:text-rose-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
-                        {isUSD ? `${remainingInBs} Bs` : `$${remainingInUsd} USD`}
-                      </span>
-                    </div>
-
-                    {!isUSD && (
-                      <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                        <span>🏛️ Tasa BCV hoy: <strong>{rates.bcv} Bs/$</strong></span>
-                        <span>Inicial: {debt.appliedRateAtCreation} Bs/$</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Progress Bar (if partial or payments) */}
-                  {isPartial && (
-                    <div className="mt-3 space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                        <span>Abonado: {isUSD ? `$${(usdOriginal - liveRemainingUsd).toFixed(2)}` : `${((usdOriginal - liveRemainingUsd) * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`}</span>
-                        <span className="font-bold">{progressPercent}%</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            isPayable ? 'bg-gradient-to-r from-amber-500 to-rose-500' : 'bg-gradient-to-r from-blue-500 to-emerald-500'
-                          }`}
-                          style={{ width: `${progressPercent}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Date details */}
-                  <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Registrado: {new Date(debt.createdAt).toLocaleDateString('es-VE')}
-                    </span>
-                    {debt.dueDate && (
-                      <span className={`font-semibold flex items-center gap-1 ${
-                        new Date(debt.dueDate) < new Date() && !isPaid ? 'text-rose-500' : ''
-                      }`}>
-                        Vence: {new Date(debt.dueDate).toLocaleDateString('es-VE')}
-                      </span>
-                    )}
-                  </div>
-
-                  {debt.notes && (
-                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-100/60 dark:bg-slate-800/40 p-2 rounded-xl italic">
-                      "{debt.notes}"
-                    </p>
-                  )}
-
-                  {/* Payments History Accordion */}
-                  {debt.payments && debt.payments.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <button
-                        onClick={() => toggleExpand(debt.id)}
-                        className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                      >
-                        <span>Historial de Pagos / Abonos ({debt.payments.length})</span>
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-
-                      {isExpanded && (
-                        <div className={`mt-2 space-y-1.5 pl-2 border-l-2 ${
-                          isPayable ? 'border-rose-500/40' : 'border-emerald-500/40'
-                        }`}>
-                          {debt.payments.map((p, idx) => (
-                            <div key={p.id || idx} className="text-xs flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
-                              <div>
-                                <span className={`font-bold ${isPayable ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                                  {isPayable ? '-' : '+'}{p.currency === 'USD' ? `$${p.amount.toFixed(2)} USD` : `${p.amount.toLocaleString()} Bs`}
-                                </span>
-                                {p.note && <span className="text-[11px] text-slate-600 dark:text-slate-400 block">{p.note}</span>}
-                              </div>
-                              <span className="text-[10px] text-slate-600 dark:text-slate-400">
-                                {new Date(p.date).toLocaleDateString('es-VE')}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Card Bottom Actions */}
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                  
-                  {/* Left: WhatsApp & Copy reminder buttons */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleOpenWhatsApp(debt)}
-                      className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors"
-                      title={isPayable ? "Enviar notificación de saldo por WhatsApp" : "Enviar recordatorio por WhatsApp con tasa BCV del día"}
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      onClick={() => handleCopyReminder(debt)}
-                      className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors relative"
-                      title="Copiar texto para enviar por SMS o chat"
-                    >
-                      <Copy className="w-4 h-4" />
-                      {copiedId === debt.id && (
-                        <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] rounded-md font-bold whitespace-nowrap shadow-md">
-                          ¡Copiado!
-                        </span>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleEdit(debt)}
-                      className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
-                      title="Editar registro de deuda"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(debt)}
-                      className="p-2 rounded-xl text-slate-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                      title="Eliminar registro"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-
-                    {/* Declare as loss (Only for receivables) */}
-                    {!isPaid && !isPayable && debt.status !== 'uncollectible' && (
-                      <button
-                        onClick={() => handleDeclareAsLoss(debt)}
-                        className="p-2 rounded-xl text-slate-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                        title="Declarar como Deuda Incobrable y transferir a Pérdidas"
-                      >
-                        <TrendingDown className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Right: Record payment button */}
-                  {!isPaid && (
-                    <button
-                      onClick={() => handleOpenPayment(debt)}
-                      className={`px-3.5 py-1.5 rounded-xl text-white font-bold text-xs shadow-sm flex items-center gap-1.5 active:scale-95 transition-all ${
-                        isPayable 
-                          ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' 
-                          : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
-                      }`}
-                    >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      <span>{isPayable ? 'Pagar / Abonar' : 'Registrar Cobro'}</span>
-                    </button>
-                  )}
-
-                </div>
-
-              </div>
-            );
-          })}
+          {singleStatusDebts.map(renderDebtCard)}
         </div>
       )}
 
