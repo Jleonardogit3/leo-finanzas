@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T13:28:37.793Z",
+  "lastUpdated": "2026-11-26T13:29:02.757Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2728,6 +2728,17 @@
     }
   ],
   "todos": [
+    {
+      "id": "todo-1795699742388-wd75g",
+      "title": "2 Blue Jean",
+      "category": "purchase",
+      "priority": "medium",
+      "estimatedPrice": 60,
+      "currency": "USD",
+      "status": "pending",
+      "createdAt": "2026-11-26T13:29:02.388Z",
+      "updatedAt": "2026-11-26T13:29:02.388Z"
+    },
     {
       "id": "todo-1795699717389-n9gt0",
       "title": "Aire acondicionado portatil",
