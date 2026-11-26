@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T14:26:51.366Z",
+  "lastUpdated": "2026-11-26T14:28:25.252Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2127,23 +2127,6 @@
       "lastCalculatedRate": 911.6243
     },
     {
-      "id": "debt-1794253474226-mzyek",
-      "debtType": "payable",
-      "debtorName": "Gym",
-      "concept": "Gym Noviembre",
-      "originalAmount": 30,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1043.6595,
-      "remainingAmount": 30,
-      "status": "pending",
-      "dueDate": "2026-11-20",
-      "peggedUsdAmount": 30,
-      "lastCalculatedRate": 1043.6595,
-      "createdAt": "2026-11-09T19:44:34.226Z",
-      "updatedAt": "2026-11-09T19:44:34.227Z",
-      "payments": []
-    },
-    {
       "id": "debt-1794253431344-e4qjb",
       "debtType": "payable",
       "debtorName": "Local",
@@ -2785,7 +2768,13 @@
     }
   ],
   "auditLogs": [],
-  "deletedItems": [],
+  "deletedItems": [
+    {
+      "id": "debt-1794253474226-mzyek",
+      "type": "debt",
+      "deletedAt": "2026-11-26T14:28:24.985Z"
+    }
+  ],
   "rates": {
     "bcv": 924.3534,
     "usdt": 1101.406,
