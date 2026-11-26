@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T13:40:41.521Z",
+  "lastUpdated": "2026-11-26T14:26:51.366Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2729,6 +2729,17 @@
   ],
   "todos": [
     {
+      "id": "todo-1795703211041-95hqk",
+      "title": "Bolso",
+      "category": "purchase",
+      "priority": "medium",
+      "estimatedPrice": 40,
+      "currency": "USD",
+      "status": "pending",
+      "createdAt": "2026-11-26T14:26:51.041Z",
+      "updatedAt": "2026-11-26T14:26:51.041Z"
+    },
+    {
       "id": "todo-1795700441149-5g1bu",
       "title": "Camisa",
       "category": "purchase",
@@ -2777,10 +2788,10 @@
   "deletedItems": [],
   "rates": {
     "bcv": 924.3534,
-    "usdt": 1098.8671,
-    "lastUpdated": "2026-11-26T13:01:09.013Z",
+    "usdt": 1101.406,
+    "lastUpdated": "2026-11-26T14:01:26.902Z",
     "isManualOverride": false,
-    "spreadPercent": 18.88
+    "spreadPercent": 19.15
   },
   "historicalRates": {
     "2026-11-03": {
