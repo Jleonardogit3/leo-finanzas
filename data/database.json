@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T13:28:17.683Z",
+  "lastUpdated": "2026-11-26T13:28:37.793Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2727,7 +2727,19 @@
       "updatedAt": "2026-11-04T13:50:31.419Z"
     }
   ],
-  "todos": [],
+  "todos": [
+    {
+      "id": "todo-1795699717389-n9gt0",
+      "title": "Aire acondicionado portatil",
+      "category": "purchase",
+      "priority": "medium",
+      "estimatedPrice": 350,
+      "currency": "USD",
+      "status": "pending",
+      "createdAt": "2026-11-26T13:28:37.389Z",
+      "updatedAt": "2026-11-26T13:28:37.389Z"
+    }
+  ],
   "auditLogs": [],
   "deletedItems": [],
   "rates": {
