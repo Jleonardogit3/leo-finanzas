@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T14:28:25.252Z",
+  "lastUpdated": "2026-11-26T14:28:29.288Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2127,34 +2127,6 @@
       "lastCalculatedRate": 911.6243
     },
     {
-      "id": "debt-1794253431344-e4qjb",
-      "debtType": "payable",
-      "debtorName": "Local",
-      "concept": "Alquiler Local",
-      "originalAmount": 40,
-      "currencyType": "USD_USDT",
-      "appliedRateAtCreation": 1043.6595,
-      "remainingAmount": 0,
-      "status": "paid",
-      "dueDate": "2026-11-10",
-      "peggedUsdAmount": 40,
-      "lastCalculatedRate": 899.2705,
-      "createdAt": "2026-11-09T19:43:51.344Z",
-      "updatedAt": "2026-11-10T15:53:59.860Z",
-      "payments": [
-        {
-          "amount": 40,
-          "currency": "USD",
-          "date": "2026-11-09T19:32:00.000Z",
-          "note": "Alquiler Local",
-          "appliedRate": 899.2705,
-          "receivedInAccountId": "acc-7",
-          "receivedInSubFund": "ves",
-          "id": "debt-pay-1794326039860"
-        }
-      ]
-    },
-    {
       "id": "debt-1793806996496-kzstz",
       "debtType": "receivable",
       "debtorName": "Chuy Vultur",
@@ -2769,6 +2741,11 @@
   ],
   "auditLogs": [],
   "deletedItems": [
+    {
+      "id": "debt-1794253431344-e4qjb",
+      "type": "debt",
+      "deletedAt": "2026-11-26T14:28:29.016Z"
+    },
     {
       "id": "debt-1794253474226-mzyek",
       "type": "debt",
