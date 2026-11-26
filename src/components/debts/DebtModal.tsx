@@ -74,7 +74,7 @@ export const DebtModal: React.FC = () => {
         }
       }
     }
-  }, [isDebtModalOpen, editingDebt, accounts]);
+  }, [isDebtModalOpen, editingDebt]);
 
   if (!isDebtModalOpen) return null;
 
@@ -104,15 +104,33 @@ export const DebtModal: React.FC = () => {
       : (appliedRate > 0 ? Number((currentAmount / appliedRate).toFixed(4)) : currentAmount);
 
     if (editingDebt) {
-      const totalPaid = editingDebt.payments 
-        ? editingDebt.payments.reduce((sum, p) => sum + p.amount, 0)
-        : 0;
-      const newRemaining = Math.max(0, currentAmount - totalPaid);
+      const bcv = rates.bcv > 0 ? rates.bcv : 1;
+      const isAmountOrCurrencyChanged =
+        currencyType !== editingDebt.currencyType ||
+        Math.abs(currentAmount - editingDebt.originalAmount) > 0.0001;
+
+      const updatedPeggedUsd = isAmountOrCurrencyChanged
+        ? peggedUsd
+        : (editingDebt.peggedUsdAmount || peggedUsd);
+
+      const totalPaidUsd = (editingDebt.payments || []).reduce((sum, p) => {
+        if (p.currency === 'USD') return sum + p.amount;
+        const pRate = p.appliedRate || bcv;
+        return sum + (pRate > 0 ? p.amount / pRate : 0);
+      }, 0);
+
+      const newRemainingUsd = Math.max(0, Number((updatedPeggedUsd - totalPaidUsd).toFixed(2)));
+      const newRemaining = currencyType === 'USD_USDT'
+        ? newRemainingUsd
+        : Number((newRemainingUsd * (appliedRate > 0 ? appliedRate : bcv)).toFixed(2));
+
       let newStatus = editingDebt.status;
-      if (newRemaining <= 0) {
+      if (newRemainingUsd <= 0.005) {
         newStatus = 'paid';
-      } else if (totalPaid > 0) {
+      } else if (totalPaidUsd > 0) {
         newStatus = 'partially_paid';
+      } else if (editingDebt.status === 'uncollectible' && !isAmountOrCurrencyChanged) {
+        newStatus = 'uncollectible';
       } else {
         newStatus = 'pending';
       }
@@ -125,12 +143,14 @@ export const DebtModal: React.FC = () => {
         concept: concept.trim() || (isPayable ? 'Deuda Pendiente por Pagar' : 'Préstamo / Cuenta por Cobrar'),
         originalAmount: currentAmount,
         currencyType,
-        appliedRateAtCreation: editingDebt.appliedRateAtCreation || appliedRate,
+        appliedRateAtCreation: isAmountOrCurrencyChanged
+          ? appliedRate
+          : (editingDebt.appliedRateAtCreation || appliedRate),
         remainingAmount: newRemaining,
         status: newStatus,
         dueDate: dueDate || undefined,
         notes: notes.trim() || undefined,
-        peggedUsdAmount: editingDebt.peggedUsdAmount || peggedUsd,
+        peggedUsdAmount: updatedPeggedUsd,
         lastCalculatedRate: appliedRate,
         updatedAt: new Date().toISOString()
       };

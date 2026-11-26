@@ -96,12 +96,9 @@ export const DebtsView: React.FC = () => {
     const isPayable = debt.debtType === 'payable';
     const bcv = rates.bcv > 0 ? rates.bcv : 1;
 
-    let usdOriginal = debt.peggedUsdAmount || 0;
-    if (!usdOriginal) {
-      usdOriginal = isUSD 
-        ? debt.originalAmount 
-        : (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv);
-    }
+    const usdOriginal = isUSD
+      ? debt.originalAmount
+      : (debt.peggedUsdAmount || (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv));
 
     const paidUsd = (debt.payments || []).reduce((sum, p) => {
       if (p.currency === 'USD') return sum + p.amount;
@@ -187,12 +184,9 @@ export const DebtsView: React.FC = () => {
 
     const bcv = rates.bcv > 0 ? rates.bcv : 1;
 
-    let usdOriginal = debt.peggedUsdAmount || 0;
-    if (!usdOriginal) {
-      usdOriginal = isUSD
-        ? debt.originalAmount
-        : (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv);
-    }
+    const usdOriginal = isUSD
+      ? debt.originalAmount
+      : (debt.peggedUsdAmount || (debt.appliedRateAtCreation > 0 ? debt.originalAmount / debt.appliedRateAtCreation : debt.originalAmount / bcv));
 
     const paidUsd = (debt.payments || []).reduce((sum, p) => {
       if (p.currency === 'USD') return sum + p.amount;

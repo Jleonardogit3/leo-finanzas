@@ -1133,13 +1133,19 @@ export class StorageService {
   static saveDebt(debt: Debt, userId?: string | null): Debt[] {
     const key = this.getKey(DEBTS_STORAGE_KEY, userId);
     const debts = this.getDebts(userId);
-    const idx = debts.findIndex(d => d.id === debt.id);
+    const nowIso = new Date().toISOString();
+    const normalizedDebt: Debt = {
+      ...debt,
+      peggedUsdAmount: debt.currencyType === 'USD_USDT' ? debt.originalAmount : debt.peggedUsdAmount,
+      updatedAt: nowIso
+    };
+    const idx = debts.findIndex(d => d.id === normalizedDebt.id);
     let updated: Debt[];
     if (idx >= 0) {
       updated = [...debts];
-      updated[idx] = { ...debt, updatedAt: new Date().toISOString() };
+      updated[idx] = normalizedDebt;
     } else {
-      updated = [{ ...debt, updatedAt: new Date().toISOString() }, ...debts];
+      updated = [normalizedDebt, ...debts];
     }
     updated.sort((a, b) => {
       const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();

@@ -50,16 +50,11 @@ export const DebtPaymentModal: React.FC = () => {
 
     const isVES = activeDebtForPayment.currencyType === 'VES_BCV';
 
-    let usdOriginal = activeDebtForPayment.peggedUsdAmount || 0;
-    if (!usdOriginal) {
-      if (activeDebtForPayment.currencyType === 'USD_USDT') {
-        usdOriginal = activeDebtForPayment.originalAmount;
-      } else {
-        usdOriginal = activeDebtForPayment.appliedRateAtCreation > 0
+    const usdOriginal = !isVES
+      ? activeDebtForPayment.originalAmount
+      : (activeDebtForPayment.peggedUsdAmount || (activeDebtForPayment.appliedRateAtCreation > 0
           ? activeDebtForPayment.originalAmount / activeDebtForPayment.appliedRateAtCreation
-          : activeDebtForPayment.originalAmount / bcvRate;
-      }
-    }
+          : activeDebtForPayment.originalAmount / bcvRate));
 
     const totalPaidUsd = (activeDebtForPayment.payments || []).reduce((sum, p) => {
       if (p.currency === 'USD') return sum + p.amount;
