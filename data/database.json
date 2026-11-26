@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T14:29:22.877Z",
+  "lastUpdated": "2026-11-26T16:20:10.024Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2201,16 +2201,16 @@
       "debtType": "payable",
       "debtorName": "Abuela Marcela",
       "concept": "Compra $ por banco",
-      "originalAmount": 30,
+      "originalAmount": 80,
       "currencyType": "USD_USDT",
       "appliedRateAtCreation": 1004.3248,
-      "remainingAmount": 30,
+      "remainingAmount": 80,
       "status": "pending",
       "createdAt": "2026-11-03T22:07:19.616Z",
-      "updatedAt": "2026-11-18T04:32:46.134Z",
+      "updatedAt": "2026-11-26T16:20:09.621Z",
       "payments": [],
       "peggedUsdAmount": 30,
-      "lastCalculatedRate": 1067.0525
+      "lastCalculatedRate": 1095.4442
     },
     {
       "id": "debt-1793743499244-x6hg5",
@@ -2734,10 +2734,10 @@
   ],
   "rates": {
     "bcv": 924.3534,
-    "usdt": 1101.406,
-    "lastUpdated": "2026-11-26T14:01:26.902Z",
+    "usdt": 1095.4442,
+    "lastUpdated": "2026-11-26T16:00:59.449Z",
     "isManualOverride": false,
-    "spreadPercent": 19.15
+    "spreadPercent": 18.51
   },
   "historicalRates": {
     "2026-11-03": {
