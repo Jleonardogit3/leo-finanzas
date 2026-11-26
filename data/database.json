@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T16:20:10.024Z",
+  "lastUpdated": "2026-11-26T16:20:17.585Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2207,7 +2207,7 @@
       "remainingAmount": 80,
       "status": "pending",
       "createdAt": "2026-11-03T22:07:19.616Z",
-      "updatedAt": "2026-11-26T16:20:09.621Z",
+      "updatedAt": "2026-11-26T16:20:17.165Z",
       "payments": [],
       "peggedUsdAmount": 30,
       "lastCalculatedRate": 1095.4442
