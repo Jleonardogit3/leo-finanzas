@@ -1,7 +1,7 @@
 {
   "version": 1,
   "serverCreatedAt": "2026-11-02T14:54:19.941Z",
-  "lastUpdated": "2026-11-26T16:21:29.467Z",
+  "lastUpdated": "2026-11-27T13:32:21.908Z",
   "accounts": [
     {
       "id": "acc-1",
@@ -2733,11 +2733,11 @@
     }
   ],
   "rates": {
-    "bcv": 924.3534,
-    "usdt": 1095.4442,
-    "lastUpdated": "2026-11-26T16:00:59.449Z",
+    "bcv": 926.3592,
+    "usdt": 1084.2532,
+    "lastUpdated": "2026-11-27T13:01:00.545Z",
     "isManualOverride": false,
-    "spreadPercent": 18.51
+    "spreadPercent": 17.04
   },
   "historicalRates": {
     "2026-11-03": {
@@ -2819,6 +2819,10 @@
     "2026-11-26": {
       "bcv": 924.3534,
       "usdt": 1098.8671
+    },
+    "2026-11-27": {
+      "bcv": 926.3592,
+      "usdt": 1084.2532
     }
   }
 }
